@@ -975,14 +975,21 @@ function loadPaymentData() {
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
 
-    // Jumlah deposit dari Payment
+   // Kira deposit & dapatkan baki dari rekod terakhir
     let deposit = 0;
-    STATE.payment.forEach(p => {
-        if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) {
-            deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
-        }
+    let baki = total; // default = jumlah penuh
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    payments.forEach(p => {
+        deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
     });
-    const baki = Math.max(0, total - deposit);
+    // Jika ada rekod, ambil baki dari rekod terakhir
+    if (payments.length > 0) {
+        const lastPayment = payments[payments.length - 1];
+        const lastBaki = getNumber(getField(lastPayment, ['BAKI']));
+        if (!isNaN(lastBaki)) baki = lastBaki;
+    } else {
+        baki = Math.max(0, total - deposit);
+    }
 
     document.getElementById('payTotal').value = formatMoney(total);
     document.getElementById('payDeposit').value = formatMoney(deposit);
