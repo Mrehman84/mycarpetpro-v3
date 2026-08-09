@@ -4,13 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MYCARPET PRO v3.0</title>
-
-    <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -42,7 +39,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* Login */
         .login-screen {
             position: fixed; inset: 0; background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
             display: flex; align-items: center; justify-content: center; z-index: 10000;
@@ -70,12 +66,8 @@
             background: #ffe0e0; color: #c00; padding: 10px;
             border-radius: 6px; font-size: 13px; margin-top: 12px;
         }
-
-        /* App */
         .app-container { display: flex; min-height: 100vh; }
         .app-container.hidden { display: none; }
-
-        /* Sidebar */
         aside {
             width: var(--sidebar-width); background: var(--primary-dark); color: #fff;
             position: fixed; top: 0; bottom: 0; left: 0;
@@ -102,18 +94,11 @@
         .menu-item i { width: 22px; font-size: 16px; text-align: center; }
         .menu-item:hover { background: rgba(255,255,255,.08); color: #fff; }
         .menu-item.active { background: var(--primary-red); color: #fff; }
-        .sidebar-footer {
-            padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.1);
-        }
-
-        /* Main */
+        .sidebar-footer { padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.1); }
         main {
             margin-left: var(--sidebar-width); flex: 1; padding: 30px;
             width: calc(100% - var(--sidebar-width)); transition: .3s;
         }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
         .card {
             background: #fff; border-radius: var(--radius); padding: 24px;
             box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border-color);
@@ -143,20 +128,15 @@
         .btn-success { background: var(--success); color: #fff; }
         .btn-danger { background: #e53e3e; color: #fff; }
         .btn-whatsapp { background: #25D366; color: #fff; }
+        .btn-secondary { background: #e2e8f0; color: var(--text-dark); }
         .btn-sm { padding: 6px 14px; font-size: 12px; }
         .w-full { width: 100%; }
         .hidden { display: none !important; }
-        .wa-preview {
-    background: #dcf8c6; padding: 16px; border-radius: var(--radius);
-    white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;
-    font-size: 14px; line-height: 1.6; margin-top: 12px;
-    border: 1px solid #b7d7a8;
-}
         .muted { color: var(--text-muted); }
         .text-center { text-align: center; }
         .mt-16 { margin-top: 16px; }
         .flex { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .metrics-grid {
             display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
             gap: 18px; margin-bottom: 30px;
@@ -167,7 +147,6 @@
         }
         .metric-card h3 { font-size: 13px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
         .metric-card p { font-size: 28px; font-weight: 700; }
-
         .badge {
             padding: 4px 12px; border-radius: 20px; font-size: 11px;
             font-weight: 600; text-transform: uppercase; display: inline-block;
@@ -176,7 +155,6 @@
         .badge-cuci { background: #ebf8ff; color: #2b6cb0; }
         .badge-ready { background: #e6fffa; color: #234e52; }
         .badge-selesai { background: #c6f6d5; color: #22543d; }
-
         .table-wrap { overflow-x: auto; }
         .data-table {
             width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px;
@@ -187,8 +165,12 @@
         }
         .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
         .data-table tr:hover { background: #f7fafc; }
-
-        /* Toast */
+        .wa-preview {
+            background: #dcf8c6; padding: 16px; border-radius: var(--radius);
+            white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;
+            font-size: 14px; line-height: 1.6; margin-top: 12px;
+            border: 1px solid #b7d7a8;
+        }
         .toast-container {
             position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
             display: flex; flex-direction: column; gap: 8px; z-index: 99999;
@@ -203,8 +185,7 @@
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-
-        /* Mobile */
+        .mobile-menu { display: none; }
         @media (max-width: 992px) {
             aside { transform: translateX(-100%); }
             body.sidebar-open aside { transform: translateX(0); }
@@ -217,89 +198,48 @@
         @media (max-width: 600px) {
             .metrics-grid { grid-template-columns: 1fr; }
         }
-        .mobile-menu { display: none; }
-        @media (max-width: 992px) { .mobile-menu { display: inline-flex; } }
     </style>
 </head>
 <body>
+<div id="loadingOverlay"><div class="spinner"></div><p style="margin-top:15px;font-weight:500;color:var(--text-muted)">Memuat data...</p></div>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay">
-    <div class="spinner"></div>
-    <p style="margin-top:15px;font-weight:500;color:var(--text-muted)">Memuat data...</p>
-</div>
-
-<!-- ========== LOGIN ========== -->
+<!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
     <div class="login-card">
         <img src="assets/logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
         <h2>MYCARPET PRO v3.0</h2>
         <p class="muted">Sistem Pengurusan Cucian Karpet</p>
-
         <div class="login-tabs">
             <button class="login-tab active" data-role="admin">Admin</button>
             <button class="login-tab" data-role="customer">Pelanggan</button>
         </div>
-
         <form id="loginFormAdmin" class="login-form active">
-            <div class="form-group">
-                <label>Username</label>
-                <input type="text" id="adminUser" class="form-control" placeholder="admin" autocomplete="username">
-            </div>
-            <div class="form-group">
-                <label>Password</label>
-                <input type="password" id="adminPass" class="form-control" placeholder="••••••" autocomplete="current-password">
-            </div>
-            <div class="form-group flex">
-                <label style="display:flex;align-items:center;gap:6px;">
-                    <input type="checkbox" id="rememberMeAdmin"> Ingat Saya
-                </label>
-            </div>
-            <button type="button" class="btn btn-primary w-full" onclick="loginAdmin()">
-                <i class="fa-solid fa-lock-open"></i> Log Masuk
-            </button>
+            <div class="form-group"><label>Username</label><input type="text" id="adminUser" class="form-control" placeholder="admin" autocomplete="username"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="adminPass" class="form-control" placeholder="••••••" autocomplete="current-password"></div>
+            <div class="form-group flex"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rememberMeAdmin"> Ingat Saya</label></div>
+            <button type="button" class="btn btn-primary w-full" onclick="loginAdmin()"><i class="fa-solid fa-lock-open"></i> Log Masuk</button>
         </form>
-
         <form id="loginFormCustomer" class="login-form">
-            <div class="form-group">
-                <label>Nombor Telefon</label>
-                <input type="tel" id="custPhone" class="form-control" placeholder="60123456789">
-            </div>
-            <div class="form-group flex">
-                <label style="display:flex;align-items:center;gap:6px;">
-                    <input type="checkbox" id="rememberMeCust"> Ingat Saya
-                </label>
-            </div>
-            <button type="button" class="btn btn-success w-full" onclick="loginCustomer()">
-                <i class="fa-solid fa-user-check"></i> Semak Status
-            </button>
+            <div class="form-group"><label>Nombor Telefon</label><input type="tel" id="custPhone" class="form-control" placeholder="60123456789"></div>
+            <div class="form-group flex"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rememberMeCust"> Ingat Saya</label></div>
+            <button type="button" class="btn btn-success w-full" onclick="loginCustomer()"><i class="fa-solid fa-user-check"></i> Semak Status</button>
         </form>
         <div id="loginError" class="login-error hidden"></div>
     </div>
 </div>
 
-<!-- ========== APP ========== -->
+<!-- APP -->
 <div id="appContainer" class="app-container hidden">
     <aside id="sidebar">
-        <div class="sidebar-brand">
-            <i class="fa-solid fa-rug"></i>
-            <span>MYCARPET<span class="brand-red">PRO</span></span>
-        </div>
+        <div class="sidebar-brand"><i class="fa-solid fa-rug"></i><span>MYCARPET<span class="brand-red">PRO</span></span></div>
         <ul id="sidebarMenu" class="sidebar-menu"></ul>
-        <div class="sidebar-footer">
-            <div class="menu-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Keluar</div>
-        </div>
+        <div class="sidebar-footer"><div class="menu-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Keluar</div></div>
     </aside>
-
     <main>
-        <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;">
-            <i class="fa-solid fa-bars"></i> Menu
-        </button>
+        <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;"><i class="fa-solid fa-bars"></i> Menu</button>
         <div id="tabContainer"></div>
     </main>
 </div>
-
-<!-- Toast Container -->
 <div id="toastContainer" class="toast-container"></div>
 
 <script>
@@ -308,15 +248,9 @@ const CONFIG = {
     GAS_API_URL: "https://script.google.com/macros/s/AKfycbyDZGqIqcloW_acpOe7MOYRHvG4neZK0oRiUP5-Cqq8K1oR2-RYOw-Icp6bBRL5yzX3/exec",
     ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
 };
-
 let STATE = {
-    senaraiHarga: [],
-    pelanggan: [],
-    tempahan: [],
-    karpet: [],
-    payment: [],
-    currentUser: null,
-    isLoading: false
+    senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
+    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: ''
 };
 
 // ==================== HELPERS ====================
@@ -340,11 +274,9 @@ function getNumber(v) {
 function formatMoney(v) { return "RM " + getNumber(v).toFixed(2); }
 function escapeHtml(t) { if (!t) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function normalize(s) { return String(s || "").trim().toUpperCase(); }
-function showLoading(show) {
-    const el = $('#loadingOverlay');
-    if (el) el.classList.toggle('active', show);
-}
+function showLoading(show) { const el = $('#loadingOverlay'); if (el) el.classList.toggle('active', show); }
 function getToday() { return new Date().toISOString().split('T')[0]; }
+function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; }
 function formatDateMY(dateStr) {
     if (!dateStr) return '-';
     const parts = dateStr.split('-');
@@ -354,9 +286,7 @@ function formatDateMY(dateStr) {
 function toast(msg) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
-    const div = document.createElement('div');
-    div.className = 'toast';
-    div.textContent = msg;
+    const div = document.createElement('div'); div.className = 'toast'; div.textContent = msg;
     container.appendChild(div);
     setTimeout(() => div.remove(), 3000);
 }
@@ -366,16 +296,12 @@ function fetchData(callback) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
     showLoading(true);
-    // Buang skrip JSONP lama
     $$('script[data-jsonp]').forEach(el => el.remove());
     const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
     const timeout = setTimeout(() => {
-        cleanupJsonp(cbName);
-        showLoading(false);
-        STATE.isLoading = false;
-        toast('Masa muat turun tamat. Sila cuba lagi.');
+        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
+        toast('Masa muat turun tamat.');
     }, 25000);
-
     window[cbName] = function(resp) {
         clearTimeout(timeout);
         STATE.isLoading = false;
@@ -389,105 +315,56 @@ function fetchData(callback) {
                 STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
                 if (callback) callback();
                 refreshAllUI();
-            } else {
-                toast('Data tidak sah diterima.');
-            }
-        } catch(e) {
-            console.error(e);
-            toast('Ralat memproses data.');
-        } finally {
-            cleanupJsonp(cbName);
-        }
+            } else { toast('Data tidak sah.'); }
+        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
+        finally { cleanupJsonp(cbName); }
     };
-
     const script = document.createElement('script');
     script.id = cbName; script.dataset.jsonp = 'true';
     script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
     script.onerror = function() {
-        clearTimeout(timeout);
-        showLoading(false);
-        STATE.isLoading = false;
-        cleanupJsonp(cbName);
-        toast('Gagal hubungi Google Apps Script.');
+        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
+        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
     };
     document.body.appendChild(script);
 }
-
-function cleanupJsonp(name) {
-    const el = document.getElementById(name); if (el) el.remove();
-    try { delete window[name]; } catch(e) {}
-}
+async function postData(data) { /* akan disambung nanti */ console.log('postData', data); return { success: true }; }
+function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
 // ==================== AUTH ====================
-// Admin login sementara – nanti boleh ditukar ke data dari sheet ADMIN
 const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
-
 function loginAdmin() {
     const username = document.getElementById('adminUser').value.trim();
     const password = document.getElementById('adminPass').value.trim();
-    if (!username || !password) {
-        showLoginError('Sila isi username dan password.');
-        return;
-    }
-    // Semak sama ada dengan data dummy atau dari sheet ADMIN (kalau sudah ada)
-    const admin = STATE.admin ? STATE.admin.find(a => normalize(a.username) === normalize(username) && a.password === password) : null;
-    if ((username === ADMIN_DUMMY.username && password === ADMIN_DUMMY.password) || admin) {
-        STATE.currentUser = { role: 'admin', username: username, nama: admin ? admin.nama : ADMIN_DUMMY.nama };
-        saveSession();
-        afterLogin();
-    } else {
-        showLoginError('Username atau password salah.');
-    }
+    if (!username || !password) { showLoginError('Sila isi username dan password.'); return; }
+    if (username === ADMIN_DUMMY.username && password === ADMIN_DUMMY.password) {
+        STATE.currentUser = { role: 'admin', username: username, nama: ADMIN_DUMMY.nama };
+        saveSession(); afterLogin();
+    } else { showLoginError('Username atau password salah.'); }
 }
-
 function loginCustomer() {
-    // Bersihkan input: buang sengkang dan ruang
     const phone = document.getElementById('custPhone').value.trim().replace(/[- ]/g, '');
-    if (!phone) {
-        showLoginError('Sila masukkan nombor telefon.');
-        return;
-    }
-    // Cari pelanggan – bandingkan selepas bersihkan kedua-dua nombor
+    if (!phone) { showLoginError('Sila masukkan nombor telefon.'); return; }
     const cust = STATE.pelanggan.find(c => {
         const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
         return normalize(dbPhone) === normalize(phone);
     });
     if (cust) {
-        STATE.currentUser = {
-            role: 'customer',
-            customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']),
-            telefon: phone
-        };
-        saveSession();
-        afterLogin();
-    } else {
-        showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.');
-    }
+        STATE.currentUser = { role: 'customer', customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']), telefon: phone };
+        saveSession(); afterLogin();
+    } else { showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.'); }
 }
 function saveSession() {
     const remember = STATE.currentUser.role === 'admin' ?
-        document.getElementById('rememberMeAdmin').checked :
-        document.getElementById('rememberMeCust').checked;
+        document.getElementById('rememberMeAdmin').checked : document.getElementById('rememberMeCust').checked;
     const storage = remember ? localStorage : sessionStorage;
     storage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
 }
-
-function showLoginError(msg) {
-    const el = document.getElementById('loginError');
-    el.textContent = msg;
-    el.classList.remove('hidden');
-}
-
-function afterLogin() {
-    document.getElementById('loginScreen').classList.add('hidden');
-    document.getElementById('appContainer').classList.remove('hidden');
-    initApp();
-}
-
+function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.classList.remove('hidden'); }
+function afterLogin() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); initApp(); }
 function logout() {
     STATE.currentUser = null;
-    localStorage.removeItem('mycarpet_user');
-    sessionStorage.removeItem('mycarpet_user');
+    localStorage.removeItem('mycarpet_user'); sessionStorage.removeItem('mycarpet_user');
     document.getElementById('appContainer').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('adminUser').value = '';
@@ -496,20 +373,16 @@ function logout() {
     document.getElementById('loginError').classList.add('hidden');
 }
 
-// ==================== APP INIT & ROUTING ====================
+// ==================== APP INIT ====================
 function initApp() {
     renderSidebar();
-    // Tarik data dari GAS, kemudian papar dashboard/default tab
     fetchData(() => {
-        // callback dijalankan setelah data diterima
         const defaultTab = STATE.currentUser.role === 'admin' ? 'dashboard' : 'customer-portal';
         switchTab(defaultTab);
     });
 }
-
 function renderSidebar() {
-    const menuContainer = document.getElementById('sidebarMenu');
-    menuContainer.innerHTML = '';
+    const menuContainer = document.getElementById('sidebarMenu'); menuContainer.innerHTML = '';
     const role = STATE.currentUser.role;
     const menuItems = role === 'admin' ? [
         { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
@@ -525,40 +398,26 @@ function renderSidebar() {
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
-
     menuItems.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'menu-item';
-        li.dataset.tab = item.id;
+        const li = document.createElement('li'); li.className = 'menu-item'; li.dataset.tab = item.id;
         li.innerHTML = `<i class="fa-solid ${item.icon}"></i> ${item.label}`;
         li.addEventListener('click', () => switchTab(item.id));
         menuContainer.appendChild(li);
     });
 }
-
 function switchTab(tabId) {
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
     if (activeMenu) activeMenu.classList.add('active');
-
-    const container = document.getElementById('tabContainer');
-    container.innerHTML = '';
-
-        if (tabId === 'dashboard') renderDashboard(container);
+    const container = document.getElementById('tabContainer'); container.innerHTML = '';
+    if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
     else if (tabId === 'tempahan') renderTempahan(container);
-    else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina tidak lama lagi.</p></div>`;
-
+    else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-
-function refreshAllUI() {
-    if (STATE.currentUser) {
-        const currentTab = document.querySelector('.menu-item.active');
-        if (currentTab) switchTab(currentTab.dataset.tab);
-    }
-}
+function refreshAllUI() { if (STATE.currentUser) { const ct = document.querySelector('.menu-item.active'); if (ct) switchTab(ct.dataset.tab); } }
 
 // ==================== DASHBOARD ====================
 function renderDashboard(container) {
@@ -566,428 +425,213 @@ function renderDashboard(container) {
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
     const ready = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'READY TO DELIVER').length;
     const selesai = STATE.karpet.filter(k => ['SELESAI','SELESAI DIHANTAR'].includes(normalize(getField(k,['STATUS'])))).length;
-
-    const html = `
-        <header>
-            <div><h1>Dashboard Operasi</h1><p class="muted">Data sebenar dari spreadsheet</p></div>
-            <button class="btn btn-secondary" onclick="fetchData()"><i class="fa-solid fa-sync"></i> Refresh</button>
-        </header>
+    container.innerHTML = `
+        <header><div><h1>Dashboard Operasi</h1><p class="muted">Data sebenar dari spreadsheet</p></div><button class="btn btn-secondary" onclick="fetchData()"><i class="fa-solid fa-sync"></i> Refresh</button></header>
         <div class="metrics-grid">
             <div class="metric-card" style="border-left-color:#f1c40f"><h3>Dalam Proses</h3><p>${proses}</p></div>
             <div class="metric-card" style="border-left-color:#3498db"><h3>Pengeringan</h3><p>${kering}</p></div>
             <div class="metric-card" style="border-left-color:#38b2ac"><h3>Ready Deliver</h3><p>${ready}</p></div>
             <div class="metric-card" style="border-left-color:#2ecc71"><h3>Selesai</h3><p>${selesai}</p></div>
         </div>
-        <div class="card">
-            <h3 class="card-title">Aktiviti Terkini</h3>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead>
-                    <tbody>
-                        ${STATE.karpet.slice(-10).reverse().map(k => {
-                            const st = normalize(getField(k,['STATUS']));
-                            const badge = st==='READY TO DELIVER'?'badge-ready':
-                                          (st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':
-                                          st==='PENGERINGAN'?'badge-cuci':'badge-proses';
-                            return `<tr>
-                                <td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td>
-                                <td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td>
-                                <td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td>
-                                <td>${formatMoney(getField(k,['HARGA']))}</td>
-                                <td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td>
-                                <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
-                            </tr>`;
-                        }).join('') || '<tr><td colspan="6" class="text-center muted">Tiada rekod</td></tr>'}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    container.innerHTML = html;
+        <div class="card"><h3 class="card-title">Aktiviti Terkini</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
+            ${STATE.karpet.slice(-10).reverse().map(k => {
+                const st = normalize(getField(k,['STATUS']));
+                const badge = st==='READY TO DELIVER'?'badge-ready':(st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+                return `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
+            }).join('') || '<tr><td colspan="6" class="text-center muted">Tiada rekod</td></tr>'}
+        </tbody></table></div></div>`;
 }
 
 // ==================== CUSTOMER PORTAL ====================
 function renderCustomerPortal(container) {
     const custId = STATE.currentUser.customerId;
-    const invNos = STATE.tempahan
-        .filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId))
-        .map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
+    const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
     const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
-    const html = `
-        <header>
-            <div><h1>Status Karpet Saya</h1><p class="muted">Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p></div>
-        </header>
+    container.innerHTML = `
+        <header><div><h1>Status Karpet Saya</h1><p class="muted">Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p></div></header>
         <div class="card">
-            ${carpets.length ? `
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead>
-                        <tbody>
-                            ${carpets.map(k => {
-                                const st = normalize(getField(k,['STATUS']));
-                                const badge = st==='READY TO DELIVER'?'badge-ready':
-                                              (st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':
-                                              st==='PENGERINGAN'?'badge-cuci':'badge-proses';
-                                return `<tr>
-                                    <td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td>
-                                    <td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td>
-                                    <td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td>
-                                    <td>${formatMoney(getField(k,['HARGA']))}</td>
-                                    <td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td>
-                                    <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
-                                </tr>`;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            ` : '<p class="muted">Anda tiada karpet dalam sistem.</p>'}
-        </div>
-    `;
-    container.innerHTML = html;
+            ${carpets.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
+                ${carpets.map(k => {
+                    const st = normalize(getField(k,['STATUS']));
+                    const badge = st==='READY TO DELIVER'?'badge-ready':(st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+                    return `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
+                }).join('')}
+            </tbody></table></div>` : '<p class="muted">Anda tiada karpet dalam sistem.</p>'}
+        </div>`;
 }
 
 // ==================== TEMUJANJI ====================
 function renderTemujanji(container) {
-    const html = `
-        <header>
-            <div><h1>Temujanji Ambil Karpet</h1><p class="muted">Jana mesej WhatsApp untuk pengambilan</p></div>
-        </header>
+    container.innerHTML = `
+        <header><div><h1>Temujanji Ambil Karpet</h1><p class="muted">Jana mesej WhatsApp untuk pengambilan</p></div></header>
         <div class="card">
-            <div class="row">
-                <div class="col form-group">
-                    <label>Nama Pelanggan</label>
-                    <input type="text" id="tjNama" class="form-control" placeholder="Nama pelanggan">
-                </div>
-                <div class="col form-group">
-                    <label>No. Telefon (WhatsApp)</label>
-                    <input type="text" id="tjTelefon" class="form-control" placeholder="60123456789">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Alamat Pengambilan</label>
-                <textarea id="tjAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Tarikh Ambil</label>
-                    <input type="date" id="tjTarikh" class="form-control">
-                </div>
-                <div class="col form-group">
-                    <label>Masa Ambil</label>
-                    <input type="time" id="tjMasa" class="form-control">
-                </div>
-            </div>
-            <div class="flex">
-                <button class="btn btn-primary" onclick="janaMesejJanji()"><i class="fa-regular fa-copy"></i> Salin Mesej</button>
-                <button class="btn btn-whatsapp" onclick="hantarWhatsAppJanji()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
-            </div>
+            <div class="row"><div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="tjNama" class="form-control" placeholder="Nama pelanggan"></div><div class="col form-group"><label>No. Telefon</label><input type="text" id="tjTelefon" class="form-control" placeholder="60123456789"></div></div>
+            <div class="form-group"><label>Alamat Pengambilan</label><textarea id="tjAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea></div>
+            <div class="row"><div class="col form-group"><label>Tarikh Ambil</label><input type="date" id="tjTarikh" class="form-control"></div><div class="col form-group"><label>Masa Ambil</label><input type="time" id="tjMasa" class="form-control"></div></div>
+            <div class="flex"><button class="btn btn-primary" onclick="janaMesejJanji()"><i class="fa-regular fa-copy"></i> Salin Mesej</button><button class="btn btn-whatsapp" onclick="hantarWhatsAppJanji()"><i class="fa-brands fa-whatsapp"></i> Hantar</button></div>
             <div id="mesejPreviewJanji" class="wa-preview hidden"></div>
-        </div>
-    `;
-    container.innerHTML = html;
+        </div>`;
     document.getElementById('tjTarikh').value = getToday();
 }
-
 function janaMesejJanji() {
-    const nama = document.getElementById('tjNama').value.trim();
-    const telefon = document.getElementById('tjTelefon').value.trim();
-    const alamat = document.getElementById('tjAlamat').value.trim();
-    const tarikh = document.getElementById('tjTarikh').value;
-    const masa = document.getElementById('tjMasa').value;
-    if (!nama || !alamat || !tarikh || !masa) {
-        toast('Sila lengkapkan semua maklumat.');
-        return;
-    }
-    // Format mesej seperti diminta
+    const nama = document.getElementById('tjNama').value.trim(), alamat = document.getElementById('tjAlamat').value.trim(), tarikh = document.getElementById('tjTarikh').value, masa = document.getElementById('tjMasa').value;
+    if (!nama || !alamat || !tarikh || !masa) { toast('Sila lengkapkan semua maklumat.'); return; }
     const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nSlot janji temu untuk pengambilan karpet anda telah dimasukkan ke dalam sistem kami:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila maklumkan kepada kami jika anda perlu menukar slot ini. Terima kasih kerana mempercayai perkhidmatan kami! 🙏`;
-    const preview = document.getElementById('mesejPreviewJanji');
-    preview.textContent = msg;
-    preview.classList.remove('hidden');
-    if (navigator.clipboard) navigator.clipboard.writeText(msg).then(() => toast('Mesej disalin')).catch(() => {});
+    document.getElementById('mesejPreviewJanji').textContent = msg;
+    document.getElementById('mesejPreviewJanji').classList.remove('hidden');
+    navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
 }
-
 function hantarWhatsAppJanji() {
-    const telefon = document.getElementById('tjTelefon').value.trim();
+    const telefon = document.getElementById('tjTelefon').value.trim().replace(/[- ]/g, '');
     if (!telefon) { toast('Sila masukkan nombor telefon.'); return; }
     const preview = document.getElementById('mesejPreviewJanji');
     let msg = preview.textContent;
     if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
-    window.open(`https://wa.me/60${telefon.replace(/^0+/, '').replace(/[- ]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://wa.me/60${telefon.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-    // ==================== TEMPAHAN BARU ====================
+// ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
-    // Bina pilihan pelanggan dari STATE.pelanggan
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
-        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']);
-        const nama = getField(c, ['NAMA'], '');
-        const alamat = getField(c, ['ALAMAT'], '');
+        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']), nama = getField(c, ['NAMA'], ''), alamat = getField(c, ['ALAMAT'], '');
         pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
     });
-
-    const html = `
+    container.innerHTML = `
         <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
-        <div class="card">// ==================== TEMPAHAN BARU ====================
-function renderTempahan(container) {
-    // Pilihan pelanggan sedia ada
-    let pelangganOptions = '<option value="">-- Pilih --</option>';
-    STATE.pelanggan.forEach(c => {
-        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']);
-        const nama = getField(c, ['NAMA'], '');
-        const alamat = getField(c, ['ALAMAT'], '');
-        pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
-    });
-
-    const html = `
-        <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
-        <div class="card">
-            <h3 class="card-title">1. Maklumat Pelanggan</h3>
-            <div class="form-group">
-                <label>Jenis Pelanggan</label>
-                <div style="display:flex;gap:20px;flex-wrap:wrap">
-                    <label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label>
-                    <label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label>
-                </div>
-            </div>
-            <div id="secCustLama">
-                <div class="form-group">
-                    <label>Pilih Pelanggan</label>
-                    <select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select>
-                </div>
-                <div class="row">
-                    <div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div>
-                    <div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div>
-                </div>
-                <div class="row">
-                    <div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div>
-                    <div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div>
-                </div>
-            </div>
-            <div id="secCustBaru" style="display:none;">
-                <div class="row">
-                    <div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div>
-                    <div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div>
-                </div>
-                <div class="row">
-                    <div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div>
-                    <div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div>
-                </div>
-            </div>
+        <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
+            <div class="form-group"><label>Jenis Pelanggan</label><div style="display:flex;gap:20px;"><label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label><label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label></div></div>
+            <div id="secCustLama"><div class="form-group"><label>Pilih Pelanggan</label><select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select></div><div class="row"><div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div><div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div><div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div></div></div>
+            <div id="secCustBaru" style="display:none;"><div class="row"><div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div><div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div></div>
         </div>
-        <div class="card">
-            <h3 class="card-title">2. Perincian Item Karpet</h3>
-            <div class="info-box" style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">
-                Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.
-            </div>
+        <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
+            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
             <div id="carpetItemsContainer"></div>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
-            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;">
-                <span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span>
-                <button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button>
-            </div>
+            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
             <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
-            <div id="tempahanWhatsAppBtn" class="hidden mt-16">
-                <button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
-            </div>
-        </div>
-    `;
-    container.innerHTML = html;
-    // Mulakan dengan satu baris karpet
+            <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
+        </div>`;
     addCarpetRow();
 }
-
-// --- Fungsi Pelanggan Baru / Lama ---
 function toggleCustType() {
-    const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
-    document.getElementById('secCustLama').style.display = isBaru ? 'none' : 'block';
-    document.getElementById('secCustBaru').style.display = isBaru ? 'block' : 'none';
+    const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
+    document.getElementById('secCustLama').style.display = baru ? 'none' : 'block';
+    document.getElementById('secCustBaru').style.display = baru ? 'block' : 'none';
 }
-
 function loadCustomerDetails() {
     const id = document.getElementById('optPelanggan').value;
     const c = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === id);
-    if (!c) {
-        document.getElementById('custNama').value = '';
-        document.getElementById('custTel').value = '';
-        document.getElementById('custAlamat').value = '';
-        document.getElementById('custDaerah').value = '';
-        return;
-    }
+    if (!c) { document.getElementById('custNama').value = ''; document.getElementById('custTel').value = ''; document.getElementById('custAlamat').value = ''; document.getElementById('custDaerah').value = ''; return; }
     document.getElementById('custNama').value = getField(c, ['NAMA'], '');
     document.getElementById('custTel').value = getField(c, ['TELEFON','NO TELEFON'], '');
     document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
     document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
 }
-
-// --- Fungsi Karpet & Harga (Dibaiki) ---
 let carpetRowCounter = 0;
 function addCarpetRow() {
     carpetRowCounter++;
     const container = document.getElementById('carpetItemsContainer');
-    const rowId = 'carpetRow_' + carpetRowCounter;
-    const div = document.createElement('div');
-    div.className = 'row card-item-row';
-    div.id = rowId;
+    const rowId = 'carpetRow_'+carpetRowCounter;
+    const div = document.createElement('div'); div.className = 'row card-item-row'; div.id = rowId;
     div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
-
-    // Kolum Kod
     const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
-    const lbl1 = document.createElement('label'); lbl1.textContent = 'Kod';
+    col1.innerHTML = '<label>Kod</label>';
     const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
-    buildPriceOptions(sel);
+    sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
+    STATE.senaraiHarga.forEach(p => {
+        const kod = String(getField(p, ['KOD'])).trim(); if (!kod) return;
+        const jenis = getField(p, ['JENIS CARPET'], ''); const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        const opt = document.createElement('option'); opt.value = kod;
+        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
+        opt.dataset.harga = harga; opt._mycarpet = { kod, jenis, harga };
+        sel.appendChild(opt);
+    });
     sel.onchange = function() { handleCodeSelection(rowId); };
-    col1.appendChild(lbl1); col1.appendChild(sel);
+    col1.appendChild(sel);
     const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
     info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
-    info.textContent = 'Jenis & harga auto.';
-    col1.appendChild(info);
-
-    // Kolum Qty
+    info.textContent = 'Jenis & harga auto.'; col1.appendChild(info);
     const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
-    const lbl2 = document.createElement('label'); lbl2.textContent = 'Qty';
+    col2.innerHTML = '<label>Qty</label>';
     const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
-    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal;
-    col2.appendChild(lbl2); col2.appendChild(qty);
-
-    // Kolum Harga (auto-isi)
+    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal; col2.appendChild(qty);
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
-    const lbl4 = document.createElement('label'); lbl4.textContent = 'Harga (RM)';
+    col4.innerHTML = '<label>Harga (RM)</label>';
     const price = document.createElement('input'); price.type = 'number'; price.step = '0.01'; price.min = 0; price.value = '0.00';
-    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true;
-    col4.appendChild(lbl4); col4.appendChild(price);
-
-    // Butang Padam
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
     const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
-    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = function() { removeCarpetRow(rowId); };
-    col5.appendChild(del);
-
+    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
     div.appendChild(col1); div.appendChild(col2); div.appendChild(col4); div.appendChild(col5);
     container.appendChild(div);
     calculateGrandTotal();
 }
-
-function buildPriceOptions(select) {
-    select.innerHTML = '<option value="">-- Pilih Kod --</option>';
-    STATE.senaraiHarga.forEach(p => {
-        const kod = String(getField(p, ['KOD'])).trim();
-        if (!kod) return;
-        const jenis = getField(p, ['JENIS CARPET'], '');
-        // Gunakan HARGA OPEN (tanpa ruang, jadi 'HARGA OPEN' tepat)
-        const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
-        const opt = document.createElement('option');
-        opt.value = kod;
-        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
-        opt.dataset.harga = harga;
-        opt._mycarpet = { kod, jenis, harga };
-        select.appendChild(opt);
-    });
-}
-
 function handleCodeSelection(rowId) {
     const row = document.getElementById(rowId); if (!row) return;
-    const sel = row.querySelector('.select-kod-karpet');
-    const price = row.querySelector('.inp-harga-final');
-    const info = row.querySelector('.jenis-vlookup-info');
-    const opt = sel.options[sel.selectedIndex];
-    const data = opt?._mycarpet;
-    if (data) {
-        price.value = data.harga.toFixed(2);
-        info.innerHTML = `<strong>${escapeHtml(data.jenis)}</strong><br>Harga: ${formatMoney(data.harga)}`;
-    } else {
-        price.value = '0.00';
-        info.textContent = 'Jenis & harga auto.';
-    }
+    const sel = row.querySelector('.select-kod-karpet'), price = row.querySelector('.inp-harga-final'), info = row.querySelector('.jenis-vlookup-info');
+    const opt = sel.options[sel.selectedIndex]; const data = opt?._mycarpet;
+    if (data) { price.value = data.harga.toFixed(2); info.innerHTML = `<strong>${escapeHtml(data.jenis)}</strong><br>Harga: ${formatMoney(data.harga)}`; }
+    else { price.value = '0.00'; info.textContent = 'Jenis & harga auto.'; }
     calculateGrandTotal();
 }
-
 function calculateGrandTotal() {
     let total = 0;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const qty = parseInt(row.querySelector('.inp-qty').value) || 1;
-        const price = getNumber(row.querySelector('.inp-harga-final').value);
-        total += qty * price;
+        total += (parseInt(row.querySelector('.inp-qty').value) || 1) * getNumber(row.querySelector('.inp-harga-final').value);
     });
     document.getElementById('grandTotalLabel').textContent = formatMoney(total);
 }
-
 function removeCarpetRow(rowId) {
-    const container = document.getElementById('carpetItemsContainer');
-    if (container.querySelectorAll('.card-item-row').length <= 1) {
-        toast('Perlu sekurang-kurangnya satu item.');
-        return;
-    }
-    document.getElementById(rowId)?.remove();
-    calculateGrandTotal();
+    if (document.getElementById('carpetItemsContainer').querySelectorAll('.card-item-row').length <= 1) { toast('Perlu sekurang-kurangnya satu item.'); return; }
+    document.getElementById(rowId)?.remove(); calculateGrandTotal();
 }
-
-// --- Simpan Tempahan (dengan pelanggan baru) ---
 async function simpanTempahan() {
     const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
     let custId, custNama, custTel, custAlamat, custDaerah;
     if (isBaru) {
         custNama = document.getElementById('custNamaBaru').value.trim();
-        custTel = document.getElementById('custTelBaru').value.trim();
+        custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
         custAlamat = document.getElementById('custAlamatBaru').value.trim();
         custDaerah = document.getElementById('custDaerahBaru').value.trim();
-        if (!custNama || !custTel || !custAlamat) {
-            toast('Sila lengkapkan maklumat pelanggan baru.');
-            return;
-        }
-        // Buat ID sementara (nanti GAS akan jana ID sebenar)
+        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
         custId = 'TEMP' + Date.now().toString().slice(-5);
-        // Simpan dalam STATE sementara untuk WhatsApp
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
         custId = document.getElementById('optPelanggan').value;
         if (!custId) { toast('Sila pilih pelanggan.'); return; }
-        const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
-        STATE.lastCustomer = cust;
-        custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
+        STATE.lastCustomer = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
     }
-    // Kumpul item karpet
-    const items = [];
-    let valid = true;
+    const items = []; let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const sel = row.querySelector('.select-kod-karpet');
-        if (!sel.value) { valid = false; return; }
-        const opt = sel.options[sel.selectedIndex];
-        const data = opt._mycarpet;
+        const sel = row.querySelector('.select-kod-karpet'); if (!sel.value) { valid = false; return; }
+        const data = sel.options[sel.selectedIndex]._mycarpet;
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
         const harga = getNumber(row.querySelector('.inp-harga-final').value);
         items.push({ kod: sel.value, jenis: data.jenis, harga: harga, qty: qty, subtotal: qty * harga });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
-    const today = getToday();
-    const tarikhSiap = addDays(today, 7);
-    // Hantar ke GAS (sementara hanya toast)
+    const today = getToday(), tarikhSiap = addDays(today, 7);
     await postData({ action: 'createOrder', isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
-    // Jana mesej WhatsApp
     const itemsText = items.map((item, i) => ` ${i+1}. ${item.jenis} (${item.kod}) x${item.qty} = ${formatMoney(item.subtotal)}`).join('\n');
-    const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan yang dihormati, karpet anda telah selamat diambil dan akan diproses.\n\n🧾 No Invoice: (akan dijana)\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap (Anggaran): ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 Butiran Jenis Karpet:\n${itemsText}\n\n💰 Jumlah Harga: ${formatMoney(total)}\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih kerana mempercayai perkhidmatan kami! 🙏`;
+    const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 No Invoice: (akan dijana)\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 Butiran Jenis Karpet:\n${itemsText}\n\n💰 Jumlah Harga: ${formatMoney(total)}\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
     document.getElementById('tempahanPreview').textContent = msg;
     document.getElementById('tempahanPreview').classList.remove('hidden');
     document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
 }
-
 function hantarWhatsAppTempahan() {
-    const cust = STATE.lastCustomer;
-    if (!cust) { toast('Tiada maklumat pelanggan.'); return; }
-    const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
+    const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
     if (!tel) { toast('Nombor telefon tiada.'); return; }
-    const msg = STATE.lastOrderMsg;
-    if (!msg) { toast('Tiada mesej.'); return; }
-    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    if (!STATE.lastOrderMsg) { toast('Tiada mesej.'); return; }
+    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(STATE.lastOrderMsg)}`, '_blank');
 }
-    
+
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
-
 document.addEventListener('DOMContentLoaded', function() {
-    // Tab login
     document.querySelectorAll('.login-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
@@ -998,8 +642,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('loginError').classList.add('hidden');
         });
     });
-
-    // Check session
     const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
     if (stored) {
         try {
@@ -1007,10 +649,9 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContainer').classList.remove('hidden');
             initApp();
-        } catch(e) { console.error(e); }
+        } catch(e) {}
     }
 });
-
 document.addEventListener('click', function(e) {
     if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
         document.body.classList.remove('sidebar-open');
