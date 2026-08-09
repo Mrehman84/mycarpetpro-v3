@@ -291,7 +291,7 @@ function toast(msg) {
 }
 
 // ==================== API ====================
-function fetchData(callback) {
+function fetchData(callback, skipRefresh = false) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
     showLoading(true);
@@ -301,6 +301,7 @@ function fetchData(callback) {
         cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
         toast('Masa muat turun tamat.');
     }, 25000);
+
     window[cbName] = function(resp) {
         clearTimeout(timeout);
         STATE.isLoading = false;
@@ -313,11 +314,12 @@ function fetchData(callback) {
                 STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
                 STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
                 if (callback) callback();
-                refreshAllUI();
+                if (!skipRefresh) refreshAllUI();  // ← hanya segar jika tidak dilangkau
             } else { toast('Data tidak sah.'); }
         } catch(e) { console.error(e); toast('Ralat memproses data.'); }
         finally { cleanupJsonp(cbName); }
     };
+
     const script = document.createElement('script');
     script.id = cbName; script.dataset.jsonp = 'true';
     script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
@@ -327,6 +329,8 @@ function fetchData(callback) {
     };
     document.body.appendChild(script);
 }
+
+    
 async function postData(data) {
     try {
         await fetch(CONFIG.GAS_API_URL, {
@@ -720,7 +724,7 @@ async function simpanTempahan() {
     STATE.lastOrderMsg = msg;
 
     // Refresh data
-    fetchData();
+        fetchData(null, true);  // skip refresh UI supaya preview tidak hilang
 }
 
 function hantarWhatsAppTempahan() {
