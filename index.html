@@ -244,7 +244,7 @@
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
-    GAS_API_URL: "https://script.google.com/macros/s/AKfycbzciQZx1lQhPpNRHNSegUW-x6iyiZOQCNKJWXNq-exdCyPyuUsHEI7jLJDVBYC-ya3I/exec",
+    GAS_API_URL: "https://script.google.com/macros/s/AKfycby0OtTe_7P3Q4CsIujfPgWho-Zi-tlP-NreVnBf3bYTuilcMTSzc1dw55xSm6KscOKg/exec",
     ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
 };
 let STATE = {
@@ -908,10 +908,33 @@ async function rekodBayaran() {
         }
 
         // Jana WhatsApp receipt
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
-        document.getElementById('paymentWhatsAppPreview').textContent = msg;
-        document.getElementById('paymentWhatsAppPreview').classList.remove('hidden');
-        document.getElementById('paymentWhatsAppBtn').classList.remove('hidden');
+                // Dapatkan baki dari data STATE.payment yang baru di-fetch
+        const updatedPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        let bakiTerkini = 0;
+        if (updatedPayments.length > 0) {
+            const lastP = updatedPayments[updatedPayments.length - 1];
+            bakiTerkini = getNumber(getField(lastP, ['BAKI']));
+        }
+        // Fallback kepada kiraan manual jika perlu
+        if (bakiTerkini === 0 && updatedPayments.length === 1) {
+            // Kira manual
+            const totalOrder = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+            bakiTerkini = Math.max(0, totalOrder - amount);
+        }
+
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+            `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
+            `🧾 No Invoice: ${inv}\n` +
+            `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
+            `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
+            `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
+            `💳 Kaedah: ${method}\n\n` +
+            `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
+
+        const previewEl = document.getElementById('paymentWhatsAppPreview');
+        const waBtnEl = document.getElementById('paymentWhatsAppBtn');
+        if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
+        if (waBtnEl) waBtnEl.classList.remove('hidden');
         STATE.paymentWhatsAppMsg = msg;
         STATE.paymentWhatsAppTel = tel;
     }, true);
