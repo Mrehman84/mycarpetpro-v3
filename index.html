@@ -670,7 +670,7 @@ async function simpanTempahan() {
 
     // Jana invois baharu (YYMM####)
     const invNo = generateInvoiceNumber();
-
+    console.log('INVOIS DIJANA:', invNo);
     // Hantar ke GAS (no-cors, anggap berjaya)
     showLoading(true);
     await postData({
