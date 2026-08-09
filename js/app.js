@@ -1,20 +1,36 @@
 // App initialization & navigation
 function initApp() {
-    // -- DATA DUMMY UNTUK UJIAN (BUANG BILA GAS SUDAH SIAP) --
-if (!STATE.admin.length) {
-    STATE.admin = [{ username: 'admin', password: 'admin', nama: 'Admin Utama' }];
-    STATE.pelanggan = [{ 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No 12 Jalan Mawar' }];
-}
-    // Bina menu sidebar mengikut peranan
+    // -----------------------------------------------
+    // DATA DUMMY UNTUK UJIAN (BUANG BILA GAS SIAP)
+    // -----------------------------------------------
+    if (!STATE.admin.length) {
+        STATE.admin = [
+            { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' }
+        ];
+    }
+    if (!STATE.pelanggan.length) {
+        STATE.pelanggan = [
+            { 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No. 12, Jalan Mawar, Taman Melati' }
+        ];
+    }
+    // Kosongkan data lain dengan array kosong supaya tidak undefined
+    STATE.karpet = STATE.karpet || [];
+    STATE.tempahan = STATE.tempahan || [];
+    STATE.payment = STATE.payment || [];
+    STATE.expenses = STATE.expenses || [];
+    STATE.inventori = STATE.inventori || [];
+    STATE.pekerja = STATE.pekerja || [];
+    // -----------------------------------------------
+
+    // Bina menu sidebar
     renderSidebar();
-    // Muatkan data dari GAS (hanya jika belum ada)
-    if (!STATE.senaraiHarga.length && !STATE.pelanggan.length) {
+    // Muat data dari GAS (nanti akan timpa data dummy)
+    if (!STATE.karpet.length && !STATE.tempahan.length) {
         fetchData();
     } else {
-        // Data mungkin sudah ada, cuma refresh UI
         refreshAllUI();
     }
-    // Default tab untuk admin: dashboard, untuk customer: customer portal
+    // Tab default ikut peranan
     const defaultTab = STATE.currentUser.role === 'admin' ? 'dashboard' : 'customer-portal';
     switchTab(defaultTab);
 }
@@ -62,31 +78,34 @@ function renderSidebar() {
 }
 
 function switchTab(tabId) {
-    // Buang semua active class dari menu
+    // Tukar active menu
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
     if (activeMenu) activeMenu.classList.add('active');
 
-    // Sembunyi semua tab content
+    // Sembunyi semua tab
     const tabContainer = document.getElementById('tabContainer');
-    // Kita akan guna dynamic rendering: setiap kali switch, kita panggil fungsi render yang sepadan
-    // Buat masa ini, kita hanya alert atau render dashboard/customer portal dulu
-    tabContainer.innerHTML = ''; // clear
+    tabContainer.innerHTML = '';
 
     // Panggil fungsi render berdasarkan tab
+    // Buat masa ini cuma dashboard & customer portal akan dipaparkan, yang lain kita akan bina kemudian
     switch(tabId) {
         case 'dashboard': renderDashboard(); break;
-        case 'temujanji': renderTemujanji(); break;
-        case 'tempahan': renderTempahan(); break;
-        case 'tracking': renderTracking(); break;
-        case 'payment': renderPayment(); break;
-        case 'invoice': renderInvoice(); break;
-        case 'pelanggan': renderPelanggan(); break;
-        case 'laporan': renderLaporan(); break;
-        case 'inventori': renderInventori(); break;
-        case 'pekerja': renderPekerjaDanKomisen(); break;
         case 'customer-portal': renderCustomerPortal(); break;
-        default: tabContainer.innerHTML = '<div class="card">Kandungan akan datang.</div>';
+        // Untuk tab yang belum ada, kita paparkan placeholder
+        case 'temujanji':
+        case 'tempahan':
+        case 'tracking':
+        case 'payment':
+        case 'invoice':
+        case 'pelanggan':
+        case 'laporan':
+        case 'inventori':
+        case 'pekerja':
+            tabContainer.innerHTML = '<div class="card"><h2>🛠️ Modul Akan Datang</h2><p>Fungsi ini sedang dibina. Tunggu update seterusnya!</p></div>';
+            break;
+        default:
+            tabContainer.innerHTML = '<div class="card muted text-center">Kandungan tidak tersedia.</div>';
     }
 
     // Tutup sidebar di mobile
@@ -94,28 +113,25 @@ function switchTab(tabId) {
 }
 
 function refreshAllUI() {
-    // Akan dipanggil selepas fetchData. Buat masa ini, hanya switch tab semula.
     if (STATE.currentUser) {
         const currentTab = document.querySelector('.menu-item.active');
         if (currentTab) switchTab(currentTab.dataset.tab);
     }
 }
 
-// Mobile sidebar toggle
+// Toggle sidebar untuk mobile
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 
-// Event: klik pada mana-mana bahagian untuk tutup sidebar di mobile (optional)
+// Event tutup sidebar bila klik luar
 document.addEventListener('click', function(e) {
     if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
         document.body.classList.remove('sidebar-open');
     }
 });
 
-// Check session on load
+// Semak session semasa page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Check session
     if (!checkSession()) {
-        // Tunjuk login screen
         document.getElementById('loginScreen').classList.remove('hidden');
         document.getElementById('appContainer').classList.add('hidden');
     }
