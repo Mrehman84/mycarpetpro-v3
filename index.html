@@ -738,20 +738,22 @@ function hantarWhatsAppTempahan() {
 }
 
     // ==================== TRACKING ====================
+// ==================== TRACKING ====================
 function renderTracking(container) {
     // Bina dropdown invois (hanya yang mempunyai karpet aktif)
     const invSet = new Set();
     STATE.karpet.forEach(k => {
+        if (!k) return;
         const st = normalize(getField(k, ['STATUS']));
-        if (st === 'SELESAI DIHANTAR') return; // jangan papar
-        const inv = getField(k, ['INV NO','INV_NO'], '').trim();
+        if (st === 'SELESAI DIHANTAR') return;
+        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();  // ← paksa string
         if (inv) invSet.add(inv);
     });
     const invoiceOptions = ['<option value="">-- Semua --</option>'];
     invSet.forEach(inv => {
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
-        const alamat = getField(cust, ['ALAMAT'], '');
+        const alamat = String(getField(cust, ['ALAMAT'], ''));
         invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
     });
 
@@ -765,7 +767,7 @@ function renderTracking(container) {
             <div class="row">
                 <div class="col form-group">
                     <label>Cari QR ID</label>
-                    <input type="text" id="trackingSearchBox" class="form-control" placeholder="INV26080500-1">
+                    <input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1">
                 </div>
                 <div class="col form-group">
                     <label>Status Baharu (Pukal)</label>
@@ -815,10 +817,11 @@ function executeTrackingSearch() {
     const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
 
     let filtered = STATE.karpet.filter(k => {
+        if (!k) return false;
         const st = normalize(getField(k, ['STATUS']));
-        if (st === 'SELESAI DIHANTAR') return false; // jangan papar langsung
-        const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
-        const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
+        if (st === 'SELESAI DIHANTAR') return false;
+        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
+        const qr = String(getField(k, ['QR ID','QR_ID'], '')).trim();
         if (selInv && normalize(inv) !== normalize(selInv)) return false;
         if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
         return true;
@@ -830,8 +833,7 @@ function executeTrackingSearch() {
         return;
     }
 
-    // Susun paling baharu dahulu (andaian QR ID mengandungi invois + nombor urut)
-    filtered.sort((a,b) => (getField(b, ['QR ID','QR_ID']) || '').localeCompare(getField(a, ['QR ID','QR_ID'])));
+    filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
 
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
@@ -840,15 +842,14 @@ function executeTrackingSearch() {
         const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' :
-                      st === 'PENGERINGAN' ? 'badge-cuci' :
-                      'badge-proses'; // DALAM PROSES
+                      st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
             <td><strong>${escapeHtml(qr)}</strong><br><small>${escapeHtml(inv)}</small></td>
-            <td><strong>${escapeHtml(getField(cust, ['NAMA'], 'TIADA'))}</strong><br><small>${escapeHtml(getField(cust, ['ALAMAT'], ''))}</small></td>
-            <td>${escapeHtml(getField(k, ['JENIS','JENIS CARPET']))}</td>
+            <td><strong>${escapeHtml(String(getField(cust, ['NAMA'], 'TIADA')))}</strong><br><small>${escapeHtml(String(getField(cust, ['ALAMAT'], '')))}</small></td>
+            <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
             <td>${formatMoney(getField(k, ['HARGA']))}</td>
             <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
             <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>
@@ -857,7 +858,6 @@ function executeTrackingSearch() {
     });
     updateTrackingCheckedCount();
 }
-
 function toggleSelectAll(masterCheckbox) {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox');
     checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
