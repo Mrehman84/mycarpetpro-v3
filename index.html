@@ -435,7 +435,6 @@ function loginAdmin() {
 }
 
 function loginCustomer() {
-    function loginCustomer() {
     // Bersihkan input: buang sengkang dan ruang
     const phone = document.getElementById('custPhone').value.trim().replace(/[- ]/g, '');
     if (!phone) {
@@ -448,14 +447,17 @@ function loginCustomer() {
         return normalize(dbPhone) === normalize(phone);
     });
     if (cust) {
-        // ... biarkan yang lain tidak berubah ...
+        STATE.currentUser = {
+            role: 'customer',
+            customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']),
+            telefon: phone
+        };
         saveSession();
         afterLogin();
     } else {
         showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.');
     }
 }
-
 function saveSession() {
     const remember = STATE.currentUser.role === 'admin' ?
         document.getElementById('rememberMeAdmin').checked :
