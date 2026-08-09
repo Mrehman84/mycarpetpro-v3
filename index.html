@@ -432,6 +432,7 @@ function switchTab(tabId) {
     else if (tabId === 'temujanji') renderTemujanji(container);
     else if (tabId === 'tempahan') renderTempahan(container);
     else if (tabId === 'tracking') renderTracking(container);
+    else if (tabId === 'payment') renderPayment(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -902,6 +903,144 @@ async function updateStatuses(qrIds, status) {
     }, true);
 }
 
+
+    // ==================== PEMBAYARAN ====================
+function renderPayment(container) {
+    // Bina dropdown invois: Pending dahulu, kemudian PAID
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = getField(cust, ['NAMA'], '');
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, status, nama, alamat });
+    });
+    // Isih: Pending dulu
+    invList.sort((a, b) => {
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
+        return b.inv.localeCompare(a.inv); // dalam kumpulan sama, invois terbaru di atas
+    });
+    const invoiceOptions = invList.map(item => {
+        const label = item.status === 'PENDING' ? '⏳ PENDING' : '✅ PAID';
+        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)} [${label}]</option>`;
+    }).join('');
+
+    container.innerHTML = `
+        <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
+        <div class="card">
+            <div class="form-group">
+                <label>Pilih Invois</label>
+                <select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()">
+                    <option value="">-- Pilih --</option>
+                    ${invoiceOptions}
+                </select>
+            </div>
+            <div id="paymentInfo" class="hidden">
+                <div class="row">
+                    <div class="col form-group"><label>Jumlah Keseluruhan (RM)</label><input id="payTotal" class="form-control" disabled></div>
+                    <div class="col form-group"><label>Deposit Telah Dibayar (RM)</label><input id="payDeposit" class="form-control" disabled></div>
+                    <div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div>
+                </div>
+                <div class="row">
+                    <div class="col form-group">
+                        <label>Jumlah Bayaran Baru (RM)</label>
+                        <input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    <div class="col form-group">
+                        <label>Kaedah Pembayaran</label>
+                        <select id="payMethod" class="form-control">
+                            <option value="TUNAI">TUNAI (CASH)</option>
+                            <option value="TRANSFER BANK">TRANSFER BANK</option>
+                            <option value="DuitNow">DuitNow</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
+                <div id="paymentHistory" class="mt-16"></div>
+            </div>
+        </div>
+    `;
+}
+
+function loadPaymentData() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    const infoDiv = document.getElementById('paymentInfo');
+    if (!inv) { infoDiv.classList.add('hidden'); return; }
+    infoDiv.classList.remove('hidden');
+
+    // Jumlah dari Tempahan
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+
+    // Jumlah deposit dari Payment
+    let deposit = 0;
+    STATE.payment.forEach(p => {
+        if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) {
+            deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
+        }
+    });
+    const baki = Math.max(0, total - deposit);
+
+    document.getElementById('payTotal').value = formatMoney(total);
+    document.getElementById('payDeposit').value = formatMoney(deposit);
+    document.getElementById('payBalance').value = formatMoney(baki);
+
+    // Sejarah bayaran
+    const historyDiv = document.getElementById('paymentHistory');
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    if (payments.length) {
+        let html = '<strong>Sejarah Bayaran</strong><ul style="list-style:none;padding:0;margin-top:8px;">';
+        payments.forEach(p => {
+            html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">
+                ${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — 
+                ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} 
+                (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})
+            </li>`;
+        });
+        html += '</ul>';
+        historyDiv.innerHTML = html;
+    } else {
+        historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>';
+    }
+}
+
+async function rekodBayaran() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    if (!inv) return toast('Sila pilih invois.');
+    const amount = getNumber(document.getElementById('payAmount').value);
+    if (amount <= 0) return toast('Masukkan jumlah bayaran yang sah.');
+    const method = document.getElementById('payMethod').value;
+    const date = getToday();
+
+    showLoading(true);
+    await postData({ action: 'addPayment', invNo: inv, amount, method, date });
+    showLoading(false);
+
+    toast('Bayaran direkodkan.');
+    document.getElementById('payAmount').value = '';
+
+    // Refresh data & UI
+    fetchData(() => {
+        // Selepas data baru (termasuk payment) diterima, kemas kini paparan
+        loadPaymentData();
+        // Jika baki <= 0, update status Tempahan ke PAID secara automatik
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        if (order) {
+            let totalDeposit = 0;
+            STATE.payment.forEach(p => {
+                if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) {
+                    totalDeposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
+                }
+            });
+            if (totalDeposit >= getNumber(getField(order, ['JUMLAH HARGA'], 0))) {
+                postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' });
+            }
+        }
+    }, true);
+}
     
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
