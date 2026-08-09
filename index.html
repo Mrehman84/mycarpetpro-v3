@@ -249,7 +249,8 @@ const CONFIG = {
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
-    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: ''
+    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
+    paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
 };
 
 // ==================== HELPERS ====================
@@ -691,8 +692,8 @@ function renderTracking(container) {
     });
     const invoiceOptions = ['<option value="">-- Semua --</option>'];
     invSet.forEach(inv => {
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const alamat = String(getField(cust, ['ALAMAT'], ''));
         invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
     });
@@ -727,8 +728,8 @@ function executeTrackingSearch() {
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
@@ -835,8 +836,8 @@ function loadPaymentData() {
     const infoDiv = document.getElementById('paymentInfo');
     if (!inv) { infoDiv.classList.add('hidden'); return; }
     infoDiv.classList.remove('hidden');
-    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+    const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const total = getNumber(getField(tempOrder, ['JUMLAH HARGA'], 0));
     let deposit = 0;
     let baki = total;
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
@@ -879,16 +880,14 @@ async function rekodBayaran() {
     toast('Bayaran direkodkan.');
     document.getElementById('payAmount').value = '';
 
-    // Dapatkan nama & telefon pelanggan untuk WhatsApp receipt
-    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    // Dapatkan maklumat pelanggan untuk WhatsApp receipt
+    const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    const nama = getField(cust, ['NAMA'], 'Pelanggan');
 
-    // Ambil baki terkini (selepas fetch data baru)
     fetchData(() => {
         loadPaymentData();
-        // Jika baki <= 0, update status ke PAID
+        // Kemas kini status jika baki <= 0
         const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
         if (updatedOrder) {
             let totalDeposit = 0;
@@ -898,25 +897,25 @@ async function rekodBayaran() {
             }
         }
 
-        // Jana WhatsApp receipt
-                // Kira baki terkini dari STATE.payment yang baru di-fetch
-               // Dapatkan baki terkini dari data STATE.payment yang baru di-fetch
+        // Dapatkan baki terkini dari rekod Payment terbaru
         const latestPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        let bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
+        let bakiTerkini = 0;
         if (latestPayments.length > 0) {
             const last = latestPayments[latestPayments.length - 1];
-            const bakiFromSheet = getNumber(getField(last, ['BAKI']));
-            if (!isNaN(bakiFromSheet)) bakiTerkini = bakiFromSheet;
+            bakiTerkini = getNumber(getField(last, ['BAKI']));
+        } else {
+            bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
         }
 
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
-            `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
-            `🧾 No Invoice: ${inv}\n` +
-            `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
-            `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
-            `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
-            `💳 Kaedah: ${method}\n\n` +
-            `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
+        // Jana WhatsApp receipt
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
+        document.getElementById('paymentWhatsAppPreview').textContent = msg;
+        document.getElementById('paymentWhatsAppPreview').classList.remove('hidden');
+        document.getElementById('paymentWhatsAppBtn').classList.remove('hidden');
+        STATE.paymentWhatsAppMsg = msg;
+        STATE.paymentWhatsAppTel = tel;
+    }, true);
+}
 
 function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel;
