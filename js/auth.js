@@ -6,7 +6,7 @@ function loginAdmin() {
         showLoginError('Sila isi username dan password.');
         return;
     }
-    // Semak dengan data admin dari STATE (nanti GAS hantar)
+    // Semak dengan data admin dari STATE
     const admin = STATE.admin.find(a => normalize(a.username) === normalize(username) && a.password === password);
     if (admin) {
         STATE.currentUser = { role: 'admin', username: admin.username, nama: admin.nama };
@@ -15,11 +15,6 @@ function loginAdmin() {
         } else {
             sessionStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
         }
-        // -- DATA DUMMY UNTUK UJIAN (BUANG BILA GAS SUDAH SIAP) --
-if (!STATE.admin.length) {
-    STATE.admin = [{ username: 'admin', password: 'admin', nama: 'Admin Utama' }];
-    STATE.pelanggan = [{ 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No 12 Jalan Mawar' }];
-}
         hideLoginScreen();
         initApp();
     } else {
@@ -33,7 +28,6 @@ function loginCustomer() {
         showLoginError('Sila masukkan nombor telefon.');
         return;
     }
-    // Cari pelanggan dalam STATE.pelanggan
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['TELEFON','NO TELEFON'])) === normalize(phone));
     if (cust) {
         STATE.currentUser = { role: 'customer', customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']), telefon: phone };
@@ -66,14 +60,12 @@ function logout() {
     sessionStorage.removeItem('mycarpet_user');
     document.getElementById('appContainer').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
-    // Reset form login
     document.getElementById('adminUser').value = '';
     document.getElementById('adminPass').value = '';
     document.getElementById('custPhone').value = '';
     document.getElementById('loginError').classList.add('hidden');
 }
 
-// Semak sesi semasa load
 function checkSession() {
     const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
     if (stored) {
@@ -82,12 +74,11 @@ function checkSession() {
             hideLoginScreen();
             initApp();
             return true;
-        } catch(e) { /* abaikan */ }
+        } catch(e) {}
     }
     return false;
 }
 
-// Tukar tab login
 document.addEventListener('DOMContentLoaded', function() {
     const tabs = $$('.login-tab');
     tabs.forEach(tab => {
