@@ -328,7 +328,23 @@ function fetchData(callback) {
     };
     document.body.appendChild(script);
 }
-async function postData(data) { /* akan disambung nanti */ console.log('postData', data); return { success: true }; }
+async function postData(data) {
+    try {
+        const response = await fetch(CONFIG.GAS_API_URL, {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+        const result = await response.json();
+        return result;
+    } catch (e) {
+        console.error('postData error:', e);
+        toast('Gagal berhubung dengan pelayan. Periksa sambungan internet.');
+        return { success: false };
+    }
+}
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
 // ==================== AUTH ====================
@@ -766,8 +782,11 @@ async function simpanTempahan() {
         custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
         custAlamat = document.getElementById('custAlamatBaru').value.trim();
         custDaerah = document.getElementById('custDaerahBaru').value.trim();
-        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
-        custId = 'TEMP' + Date.now().toString().slice(-5);
+        if (!custNama || !custTel || !custAlamat) {
+            toast('Sila lengkapkan maklumat pelanggan baru.');
+            return;
+        }
+        custId = '';
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
         custId = document.getElementById('optPelanggan').value;
@@ -777,6 +796,71 @@ async function simpanTempahan() {
         STATE.lastCustomer = cust;
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
     }
+
+    // Kumpul item karpet
+    const items = [];
+    let valid = true;
+    document.querySelectorAll('.card-item-row').forEach(row => {
+        const sel = row.querySelector('.select-kod-karpet');
+        if (!sel || !sel.value) { valid = false; return; }
+        const selectedOption = sel.options[sel.selectedIndex];
+        const kod = sel.value;
+        const jenis = selectedOption.dataset.jenis || '';
+        const harga = parseFloat(selectedOption.dataset.harga) || 0;
+        const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
+        items.push({ kod, jenis, harga, qty, subtotal: qty * harga });
+    });
+    if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
+
+    const total = items.reduce((sum, i) => sum + i.subtotal, 0);
+    const today = getToday();
+    const tarikhSiap = addDays(today, 7);
+
+    // Jana nombor invois
+    const invNo = generateInvoiceNumber();
+
+    // Hantar ke GAS
+    showLoading(true);
+    const response = await postData({
+        action: 'createOrder',
+        invNo: invNo,
+        isNewCustomer: isBaru,
+        customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
+        items,
+        total,
+        tarikhAmbil: today,
+        tarikhSiap
+    });
+    showLoading(false);
+
+    if (!response || !response.success) {
+        toast('Gagal menyimpan tempahan. Sila cuba lagi.');
+        return;
+    }
+
+    // Notifikasi berjaya
+    toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
+
+    // Bina mesej WhatsApp dengan bold (*...*)
+    const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
+    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+                `Pelanggan yang dihormati, karpet anda telah selamat diambil.\n\n` +
+                `🧾 *No Invoice:* ${invNo}\n` +
+                `📅 Tarikh Ambil: ${formatDateMY(today)}\n` +
+                `📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n` +
+                `📦 Jumlah Karpet: ${items.length} keping\n\n` +
+                `📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n` +
+                `💰 *Jumlah Harga:* *${formatMoney(total)}*\n` +
+                `📌 Status: Pickup & Proses Cucian\n\n` +
+                `Terima kasih! 🙏`;
+    document.getElementById('tempahanPreview').textContent = msg;
+    document.getElementById('tempahanPreview').classList.remove('hidden');
+    document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
+    STATE.lastOrderMsg = msg;
+
+    // Muat semula data untuk dapatkan invois terbaru dalam dropdown tracking nanti
+    fetchData();
+}
     // Kumpul item karpet
     const items = [];
     let valid = true;
