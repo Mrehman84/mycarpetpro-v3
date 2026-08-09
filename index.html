@@ -631,7 +631,10 @@ async function simpanTempahan() {
         custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
         custAlamat = document.getElementById('custAlamatBaru').value.trim();
         custDaerah = document.getElementById('custDaerahBaru').value.trim();
-        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
+        if (!custNama || !custTel || !custAlamat) {
+            toast('Sila lengkapkan maklumat pelanggan baru.');
+            return;
+        }
         custId = '';
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
@@ -642,23 +645,48 @@ async function simpanTempahan() {
         STATE.lastCustomer = cust;
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
     }
-    const items = []; let valid = true;
+
+    // Kumpul item karpet
+    const items = [];
+    let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const sel = row.querySelector('.select-kod-karpet'); if (!sel || !sel.value) { valid = false; return; }
+        const sel = row.querySelector('.select-kod-karpet');
+        if (!sel || !sel.value) { valid = false; return; }
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
         const harga = parseFloat(opt.dataset.harga) || 0;
-        items.push({ kod: sel.value, jenis: opt.dataset.jenis || '', harga, qty, subtotal: qty * harga });
+        items.push({
+            kod: sel.value,
+            jenis: opt.dataset.jenis || '',
+            harga: harga,
+            qty: qty,
+            subtotal: qty * harga
+        });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
+
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
     const invNo = generateInvoiceNumber();
+
+    // Hantar ke GAS
     showLoading(true);
-    await postData({ action: 'createOrder', invNo, isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
+    await postData({
+        action: 'createOrder',
+        invNo: invNo,
+        isNewCustomer: isBaru,
+        customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
+        items,
+        total,
+        tarikhAmbil: today,
+        tarikhSiap
+    });
     showLoading(false);
+
     toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
+
+    // Bina mesej WhatsApp
     const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
     const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
                 `Pelanggan yang dihormati, karpet anda telah selamat diambil.\n\n` +
@@ -670,13 +698,31 @@ async function simpanTempahan() {
                 `💰 *Jumlah Harga:* *${formatMoney(total)}*\n` +
                 `📌 Status: Pickup & Proses Cucian\n\n` +
                 `Terima kasih! 🙏`;
+
+    // PAPAR PREVIEW
     const previewEl = document.getElementById('tempahanPreview');
     const waBtnEl = document.getElementById('tempahanWhatsAppBtn');
-    if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
-    if (waBtnEl) waBtnEl.classList.remove('hidden');
+
+    if (previewEl) {
+        previewEl.textContent = msg;
+        previewEl.classList.remove('hidden');
+    } else {
+        console.error('Elemen tempahanPreview tidak dijumpai!');
+    }
+
+    // PAPAR BUTANG WHATSAPP
+    if (waBtnEl) {
+        waBtnEl.classList.remove('hidden');
+    } else {
+        console.error('Elemen tempahanWhatsAppBtn tidak dijumpai!');
+    }
+
     STATE.lastOrderMsg = msg;
+
+    // Refresh data
     fetchData();
 }
+
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
