@@ -645,19 +645,28 @@ function buildPriceOptions(select) {
     let added = 0;
     STATE.senaraiHarga.forEach((p, index) => {
         const kod = String(getField(p, ['KOD'])).trim();
-        console.log('  Data ke-' + index, 'KOD:', kod, 'Objek:', p);
-        if (!kod) {
-            console.warn('  -> KOD kosong, langkau');
-            return;
-        }
+        if (!kod) return;
         const jenis = getField(p, ['JENIS CARPET'], '');
-        const hargaMentah = getField(p, ['HARGA OPEN'], 0);
-        let harga = getNumber(hargaMentah);
-        console.log('    HARGA OPEN mentah:', hargaMentah, ' -> diparse:', harga);
+        
+        // 🔥 DAFTAR NAMA LAJUR HARGA YANG MUNGKIN (ikut keutamaan)
+        const possiblePriceFields = ['HARGA OPEN', 'HARGA', 'LEBAR', 'HARGA_SQFT', 'PANJANG'];
+        let harga = 0;
+        
+        // Cuba setiap nama lajur sehingga jumpa nilai > 0
+        for (let field of possiblePriceFields) {
+            const val = getNumber(getField(p, [field], 0));
+            if (val > 0) {
+                harga = val;
+                console.log(`  ✅ Data ke-${index}: Harga ditemui dalam lajur '${field}': ${harga}`);
+                break;
+            }
+        }
+        
         if (harga <= 0) {
-            console.warn('    -> harga <= 0, langkau');
+            console.warn(`  ❌ Data ke-${index}: Tiada harga > 0 dalam mana-mana lajur:`, p);
             return;
         }
+        
         const opt = document.createElement('option');
         opt.value = kod;
         opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
@@ -665,7 +674,6 @@ function buildPriceOptions(select) {
         opt.dataset.jenis = jenis;
         select.appendChild(opt);
         added++;
-        console.log('    -> berjaya ditambah, jumlah sekarang:', added);
     });
     
     if (added === 0) {
@@ -676,7 +684,7 @@ function buildPriceOptions(select) {
         opt.disabled = true;
         select.appendChild(opt);
     } else {
-        console.log('>> Jumlah pilihan berjaya:', added);
+        console.log(`>> Berjaya: ${added} pilihan ditambah.`);
     }
 }
 function handleCodeSelection(rowId) {
