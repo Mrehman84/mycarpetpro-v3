@@ -249,8 +249,7 @@ const CONFIG = {
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
-    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
-    lastPaymentMsg: ''
+    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: ''
 };
 
 // ==================== HELPERS ====================
@@ -302,7 +301,6 @@ function fetchData(callback, skipRefresh = false) {
         cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
         toast('Masa muat turun tamat.');
     }, 25000);
-
     window[cbName] = function(resp) {
         clearTimeout(timeout);
         STATE.isLoading = false;
@@ -320,7 +318,6 @@ function fetchData(callback, skipRefresh = false) {
         } catch(e) { console.error(e); toast('Ralat memproses data.'); }
         finally { cleanupJsonp(cbName); }
     };
-
     const script = document.createElement('script');
     script.id = cbName; script.dataset.jsonp = 'true';
     script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
@@ -637,10 +634,7 @@ async function simpanTempahan() {
         custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
         custAlamat = document.getElementById('custAlamatBaru').value.trim();
         custDaerah = document.getElementById('custDaerahBaru').value.trim();
-        if (!custNama || !custTel || !custAlamat) {
-            toast('Sila lengkapkan maklumat pelanggan baru.');
-            return;
-        }
+        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
         custId = '';
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
@@ -651,84 +645,31 @@ async function simpanTempahan() {
         STATE.lastCustomer = cust;
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
     }
-
-    // Kumpul item karpet
-    const items = [];
-    let valid = true;
+    const items = []; let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const sel = row.querySelector('.select-kod-karpet');
-        if (!sel || !sel.value) { valid = false; return; }
+        const sel = row.querySelector('.select-kod-karpet'); if (!sel || !sel.value) { valid = false; return; }
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
         const harga = parseFloat(opt.dataset.harga) || 0;
-        items.push({
-            kod: sel.value,
-            jenis: opt.dataset.jenis || '',
-            harga: harga,
-            qty: qty,
-            subtotal: qty * harga
-        });
+        items.push({ kod: sel.value, jenis: opt.dataset.jenis || '', harga, qty, subtotal: qty * harga });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
-
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
     const invNo = generateInvoiceNumber();
-
-    // Hantar ke GAS
     showLoading(true);
-    await postData({
-        action: 'createOrder',
-        invNo: invNo,
-        isNewCustomer: isBaru,
-        customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
-        items,
-        total,
-        tarikhAmbil: today,
-        tarikhSiap
-    });
+    await postData({ action: 'createOrder', invNo, isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
     showLoading(false);
-
     toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
-
-    // Bina mesej WhatsApp
     const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
-    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
-                `Pelanggan yang dihormati, karpet anda telah selamat diambil.\n\n` +
-                `🧾 *No Invoice:* ${invNo}\n` +
-                `📅 Tarikh Ambil: ${formatDateMY(today)}\n` +
-                `📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n` +
-                `📦 Jumlah Karpet: ${items.length} keping\n\n` +
-                `📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n` +
-                `💰 *Jumlah Harga:* *${formatMoney(total)}*\n` +
-                `📌 Status: Pickup & Proses Cucian\n\n` +
-                `Terima kasih! 🙏`;
-
-    // PAPAR PREVIEW
-    const previewEl = document.getElementById('tempahanPreview');
-    const waBtnEl = document.getElementById('tempahanWhatsAppBtn');
-
-    if (previewEl) {
-        previewEl.textContent = msg;
-        previewEl.classList.remove('hidden');
-    } else {
-        console.error('Elemen tempahanPreview tidak dijumpai!');
-    }
-
-    // PAPAR BUTANG WHATSAPP
-    if (waBtnEl) {
-        waBtnEl.classList.remove('hidden');
-    } else {
-        console.error('Elemen tempahanWhatsAppBtn tidak dijumpai!');
-    }
-
+    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 *No Invoice:* ${invNo}\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n💰 *Jumlah Harga:* *${formatMoney(total)}*\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
+    document.getElementById('tempahanPreview').textContent = msg;
+    document.getElementById('tempahanPreview').classList.remove('hidden');
+    document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
-
-    // Refresh data
     fetchData(null, true);
 }
-
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
@@ -755,65 +696,23 @@ function renderTracking(container) {
         const alamat = String(getField(cust, ['ALAMAT'], ''));
         invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
     });
-
     container.innerHTML = `
         <header><div><h1>Tracking QR</h1><p class="muted">Karpet aktif (kecuali Selesai Dihantar)</p></div></header>
         <div class="card">
-            <div class="form-group">
-                <label>Cari No. Invois / Alamat</label>
-                <select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Cari QR ID</label>
-                    <input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1">
-                </div>
-                <div class="col form-group">
-                    <label>Status Baharu (Pukal)</label>
-                    <select id="batchStatusOpt" class="form-control">
-                        <option value="DALAM PROSES">DALAM PROSES</option>
-                        <option value="PENGERINGAN">PENGERINGAN</option>
-                        <option value="READY TO DELIVER">READY TO DELIVER</option>
-                        <option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option>
-                    </select>
-                </div>
-            </div>
-            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;">
-                <div><strong id="trackingCheckedCount">0 item dipilih</strong></div>
-                <button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button>
-            </div>
-            <div class="table-wrap">
-                <table class="data-table" id="trackingTable">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th>
-                            <th>QR / Invois</th>
-                            <th>Pelanggan / Alamat</th>
-                            <th>Jenis</th>
-                            <th>Harga</th>
-                            <th>Status</th>
-                            <th>Tindakan</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trackingTableBody">
-                        <tr><td colspan="7" class="text-center muted">Tiada data</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-
+            <div class="form-group"><label>Cari No. Invois / Alamat</label><select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select></div>
+            <div class="row"><div class="col form-group"><label>Cari QR ID</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1"></div><div class="col form-group"><label>Status Baharu (Pukal)</label><select id="batchStatusOpt" class="form-control"><option value="DALAM PROSES">DALAM PROSES</option><option value="PENGERINGAN">PENGERINGAN</option><option value="READY TO DELIVER">READY TO DELIVER</option><option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option></select></div></div>
+            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;"><div><strong id="trackingCheckedCount">0 item dipilih</strong></div><button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button></div>
+            <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="7" class="text-center muted">Tiada data</td></tr></tbody></table></div>
+        </div>`;
     document.getElementById('trackingInvoiceSelect').addEventListener('change', executeTrackingSearch);
     document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
     executeTrackingSearch();
 }
-
 function executeTrackingSearch() {
     const tbody = document.getElementById('trackingTableBody');
     tbody.innerHTML = '';
     const selInv = document.getElementById('trackingInvoiceSelect').value;
     const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
-
     let filtered = STATE.karpet.filter(k => {
         if (!k) return false;
         const st = normalize(getField(k, ['STATUS']));
@@ -824,24 +723,15 @@ function executeTrackingSearch() {
         if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
         return true;
     });
-
-    if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada hasil</td></tr>';
-        updateTrackingCheckedCount();
-        return;
-    }
-
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
-
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
         const st = normalize(getField(k, ['STATUS']));
-        const badge = st === 'READY TO DELIVER' ? 'badge-ready' :
-                      st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
-
+        const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
@@ -850,24 +740,18 @@ function executeTrackingSearch() {
             <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
             <td>${formatMoney(getField(k, ['HARGA']))}</td>
             <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
-            <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>
-        `;
+            <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>`;
         tbody.appendChild(tr);
     });
     updateTrackingCheckedCount();
 }
-
 function toggleSelectAll(masterCheckbox) {
-    const checkboxes = document.querySelectorAll('.tracking-row-checkbox');
-    checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
     updateTrackingCheckedCount();
 }
-
 function updateTrackingCheckedCount() {
-    const checked = document.querySelectorAll('.tracking-row-checkbox:checked').length;
-    document.getElementById('trackingCheckedCount').textContent = `${checked} item dipilih`;
+    document.getElementById('trackingCheckedCount').textContent = `${document.querySelectorAll('.tracking-row-checkbox:checked').length} item dipilih`;
 }
-
 function updateSingleStatus(qrId) {
     const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
     if (!k) return toast('Karpet tidak dijumpai.');
@@ -878,7 +762,6 @@ function updateSingleStatus(qrId) {
     if (!CONFIG.ACTIVE_STATUSES.includes(norm)) return toast('Status tidak sah.');
     updateStatuses([qrId], norm);
 }
-
 async function submitBatchUpdate() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
@@ -886,7 +769,6 @@ async function submitBatchUpdate() {
     const status = document.getElementById('batchStatusOpt').value;
     await updateStatuses(ids, status);
 }
-
 async function updateStatuses(qrIds, status) {
     showLoading(true);
     await postData({ action: 'updateBatchStatus', qrIds, status });
@@ -894,9 +776,7 @@ async function updateStatuses(qrIds, status) {
     toast('Status dikemas kini.');
     const master = document.getElementById('trackingMasterCheck');
     if (master) master.checked = false;
-    fetchData(() => {
-        executeTrackingSearch();
-    }, true);
+    fetchData(() => executeTrackingSearch(), true);
 }
 
 // ==================== PEMBAYARAN ====================
@@ -938,25 +818,13 @@ function renderPayment(container) {
                     <div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div>
                 </div>
                 <div class="row">
-                    <div class="col form-group">
-                        <label>Jumlah Bayaran Baru (RM)</label>
-                        <input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00">
-                    </div>
-                    <div class="col form-group">
-                        <label>Kaedah Pembayaran</label>
-                        <select id="payMethod" class="form-control">
-                            <option value="TUNAI">TUNAI (CASH)</option>
-                            <option value="TRANSFER BANK">TRANSFER BANK</option>
-                            <option value="DuitNow">DuitNow</option>
-                        </select>
-                    </div>
+                    <div class="col form-group"><label>Jumlah Bayaran Baru (RM)</label><input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00"></div>
+                    <div class="col form-group"><label>Kaedah Pembayaran</label><select id="payMethod" class="form-control"><option value="TUNAI">TUNAI (CASH)</option><option value="TRANSFER BANK">TRANSFER BANK</option><option value="DuitNow">DuitNow</option></select></div>
                 </div>
                 <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
                 <div id="paymentHistory" class="mt-16"></div>
                 <div id="paymentWhatsAppPreview" class="wa-preview hidden mt-16"></div>
-                <div id="paymentWhatsAppBtn" class="hidden mt-16">
-                    <button class="btn btn-whatsapp" onclick="hantarWhatsAppPembayaran()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
-                </div>
+                <div id="paymentWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppPembayaran()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
             </div>
         </div>
     `;
@@ -967,16 +835,12 @@ function loadPaymentData() {
     const infoDiv = document.getElementById('paymentInfo');
     if (!inv) { infoDiv.classList.add('hidden'); return; }
     infoDiv.classList.remove('hidden');
-
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
-
     let deposit = 0;
     let baki = total;
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    payments.forEach(p => {
-        deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
-    });
+    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
     if (payments.length > 0) {
         const lastPayment = payments[payments.length - 1];
         const lastBaki = getNumber(getField(lastPayment, ['BAKI']));
@@ -984,20 +848,14 @@ function loadPaymentData() {
     } else {
         baki = Math.max(0, total - deposit);
     }
-
     document.getElementById('payTotal').value = formatMoney(total);
     document.getElementById('payDeposit').value = formatMoney(deposit);
     document.getElementById('payBalance').value = formatMoney(baki);
-
     const historyDiv = document.getElementById('paymentHistory');
     if (payments.length) {
         let html = '<strong>Sejarah Bayaran</strong><ul style="list-style:none;padding:0;margin-top:8px;">';
         payments.forEach(p => {
-            html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">
-                ${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — 
-                ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} 
-                (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})
-            </li>`;
+            html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})</li>`;
         });
         html += '</ul>';
         historyDiv.innerHTML = html;
@@ -1021,53 +879,41 @@ async function rekodBayaran() {
     toast('Bayaran direkodkan.');
     document.getElementById('payAmount').value = '';
 
+    // Dapatkan nama & telefon pelanggan untuk WhatsApp receipt
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    const nama = getField(cust, ['NAMA'], 'Pelanggan');
+
+    // Ambil baki terkini (selepas fetch data baru)
     fetchData(() => {
         loadPaymentData();
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        if (order) {
+        // Jika baki <= 0, update status ke PAID
+        const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        if (updatedOrder) {
             let totalDeposit = 0;
-            STATE.payment.forEach(p => {
-                if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) {
-                    totalDeposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT']));
-                }
-            });
-            if (totalDeposit >= getNumber(getField(order, ['JUMLAH HARGA'], 0))) {
+            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) totalDeposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+            if (totalDeposit >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) {
                 postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' });
             }
         }
 
-        // Jana mesej WhatsApp Pembayaran
-        const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        const lastPayment = payments[payments.length - 1];
-        const bakiTerkini = lastPayment ? getNumber(getField(lastPayment, ['BAKI'])) : 0;
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
-                    `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
-                    `🧾 No Invoice: ${inv}\n` +
-                    `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
-                    `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
-                    `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
-                    `💳 Kaedah: ${method}\n\n` +
-                    `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
-
-        document.getElementById('paymentWhatsAppPreview').textContent = msg;
-        document.getElementById('paymentWhatsAppPreview').classList.remove('hidden');
-        document.getElementById('paymentWhatsAppBtn').classList.remove('hidden');
-        STATE.lastPaymentMsg = msg;
-
-        // Cari pelanggan untuk hantar WhatsApp
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        if (order) {
-            const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID'])));
-            STATE.lastCustomer = cust;
-        }
+        // Jana WhatsApp receipt
+        const bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
+        const previewEl = document.getElementById('paymentWhatsAppPreview');
+        const waBtnEl = document.getElementById('paymentWhatsAppBtn');
+        if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
+        if (waBtnEl) waBtnEl.classList.remove('hidden');
+        STATE.paymentWhatsAppMsg = msg;
+        STATE.paymentWhatsAppTel = tel;
     }, true);
 }
 
 function hantarWhatsAppPembayaran() {
-    if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
-    const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    if (!tel) { toast('Nombor telefon tiada.'); return; }
-    const msg = STATE.lastPaymentMsg;
+    const tel = STATE.paymentWhatsAppTel;
+    const msg = STATE.paymentWhatsAppMsg;
+    if (!tel) { toast('Nombor telefon pelanggan tidak dijumpai.'); return; }
     if (!msg) { toast('Tiada mesej.'); return; }
     window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
