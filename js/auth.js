@@ -15,6 +15,11 @@ function loginAdmin() {
         } else {
             sessionStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
         }
+        // -- DATA DUMMY UNTUK UJIAN (BUANG BILA GAS SUDAH SIAP) --
+if (!STATE.admin.length) {
+    STATE.admin = [{ username: 'admin', password: 'admin', nama: 'Admin Utama' }];
+    STATE.pelanggan = [{ 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No 12 Jalan Mawar' }];
+}
         hideLoginScreen();
         initApp();
     } else {
