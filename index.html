@@ -639,32 +639,46 @@ function addCarpetRow() {
 }
 
 function buildPriceOptions(select) {
+    console.log('>>> buildPriceOptions dipanggil, bil. data:', STATE.senaraiHarga.length);
     select.innerHTML = '<option value="">-- Pilih Kod --</option>';
-    STATE.senaraiHarga.forEach(p => {
+    
+    let added = 0;
+    STATE.senaraiHarga.forEach((p, index) => {
         const kod = String(getField(p, ['KOD'])).trim();
-        if (!kod) return;
+        console.log('  Data ke-' + index, 'KOD:', kod, 'Objek:', p);
+        if (!kod) {
+            console.warn('  -> KOD kosong, langkau');
+            return;
+        }
         const jenis = getField(p, ['JENIS CARPET'], '');
-        // Harga dari HARGA OPEN (tanpa sebarang pengiraan)
-        let harga = getNumber(getField(p, ['HARGA OPEN'], 0));
-        if (harga <= 0) return; // abaikan jika tiada harga
+        const hargaMentah = getField(p, ['HARGA OPEN'], 0);
+        let harga = getNumber(hargaMentah);
+        console.log('    HARGA OPEN mentah:', hargaMentah, ' -> diparse:', harga);
+        if (harga <= 0) {
+            console.warn('    -> harga <= 0, langkau');
+            return;
+        }
         const opt = document.createElement('option');
         opt.value = kod;
         opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
-        // Simpan data
         opt.dataset.harga = harga;
         opt.dataset.jenis = jenis;
         select.appendChild(opt);
+        added++;
+        console.log('    -> berjaya ditambah, jumlah sekarang:', added);
     });
-    // Jika masih kosong (tiada data sah), tambah satu opsyen makluman
-    if (select.options.length === 1) {
+    
+    if (added === 0) {
+        console.error('>> TIADA SATU PUN data harga sah dijumpai!');
         const opt = document.createElement('option');
         opt.value = '';
-        opt.textContent = '⚠️ Tiada data harga.';
+        opt.textContent = '⚠️ Tiada data harga sah. Sila semak konsol.';
         opt.disabled = true;
         select.appendChild(opt);
+    } else {
+        console.log('>> Jumlah pilihan berjaya:', added);
     }
 }
-
 function handleCodeSelection(rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
