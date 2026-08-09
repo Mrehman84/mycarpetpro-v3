@@ -11,11 +11,173 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
-    <!-- CSS Utama -->
-    <link rel="stylesheet" href="css/style.css">
+    <style>
+        :root {
+            --primary-red: #ff4b4b;
+            --primary-dark: #1e1e2f;
+            --sidebar-width: 270px;
+            --bg-light: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --info: #3498db;
+            --radius: 10px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,.10), 0 2px 4px -1px rgba(0,0,0,.06);
+            --orange: #ff6d00;
+            --green: #28a745;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-light); color: var(--text-dark); min-height: 100vh; }
+        #loadingOverlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,.92); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #loadingOverlay.active { display: flex; }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid var(--border-color);
+            border-top-color: var(--primary-red); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+        /* Login */
+        .login-screen {
+            position: fixed; inset: 0; background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+            display: flex; align-items: center; justify-content: center; z-index: 10000;
+        }
+        .login-card {
+            background: #fff; border-radius: 16px; padding: 40px 30px;
+            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-logo { height: 60px; margin-bottom: 10px; }
+        .login-card h2 { font-size: 24px; font-weight: 700; color: var(--primary-dark); }
+        .login-tabs {
+            display: flex; margin: 20px 0; border-radius: 30px; overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .login-tab {
+            flex: 1; padding: 10px; background: #f7fafc; border: none;
+            cursor: pointer; font-weight: 600; font-size: 14px; transition: .2s;
+        }
+        .login-tab.active { background: var(--primary-red); color: #fff; }
+        .login-form { display: none; }
+        .login-form.active { display: block; }
+        .login-form .form-group { margin-bottom: 16px; text-align: left; }
+        .login-error {
+            background: #ffe0e0; color: #c00; padding: 10px;
+            border-radius: 6px; font-size: 13px; margin-top: 12px;
+        }
+
+        /* App */
+        .app-container { display: flex; min-height: 100vh; }
+        .app-container.hidden { display: none; }
+
+        /* Sidebar */
+        aside {
+            width: var(--sidebar-width); background: var(--primary-dark); color: #fff;
+            position: fixed; top: 0; bottom: 0; left: 0;
+            display: flex; flex-direction: column; z-index: 100;
+            transition: transform .3s; overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 24px 20px; font-size: 20px; font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,.1);
+            display: flex; align-items: center; gap: 10px; color: var(--primary-red);
+        }
+        .sidebar-brand span { color: #fff; }
+        .sidebar-brand .brand-red { color: var(--primary-red); }
+        .sidebar-menu {
+            list-style: none; padding: 16px 12px; display: flex;
+            flex-direction: column; gap: 4px; flex: 1;
+        }
+        .menu-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; color: #a0aec0; text-decoration: none;
+            border-radius: var(--radius); font-weight: 500; cursor: pointer;
+            transition: .2s; font-size: 14px;
+        }
+        .menu-item i { width: 22px; font-size: 16px; text-align: center; }
+        .menu-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+        .menu-item.active { background: var(--primary-red); color: #fff; }
+        .sidebar-footer {
+            padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.1);
+        }
+
+        /* Main */
+        main {
+            margin-left: var(--sidebar-width); flex: 1; padding: 30px;
+            width: calc(100% - var(--sidebar-width)); transition: .3s;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .card {
+            background: #fff; border-radius: var(--radius); padding: 24px;
+            box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border-color);
+        }
+        .card-title {
+            font-size: 18px; font-weight: 600; margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+        .form-control {
+            width: 100%; padding: 10px 14px; border: 1px solid var(--border-color);
+            border-radius: var(--radius); font-size: 14px; outline: none;
+            background: #fff; transition: border-color .2s;
+        }
+        .form-control:focus { border-color: var(--primary-red); }
+        .row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: var(--radius);
+            font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px;
+            font-size: 14px; transition: .2s; text-decoration: none;
+        }
+        .btn:hover { opacity: .85; transform: translateY(-1px); }
+        .btn-primary { background: var(--primary-red); color: #fff; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: #e53e3e; color: #fff; }
+        .btn-whatsapp { background: #25D366; color: #fff; }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .w-full { width: 100%; }
+        .hidden { display: none !important; }
+        .muted { color: var(--text-muted); }
+        .text-center { text-align: center; }
+        .mt-16 { margin-top: 16px; }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; gap: 8px; z-index: 99999;
+        }
+        .toast {
+            background: #333; color: #fff; padding: 12px 24px;
+            border-radius: 30px; font-size: 14px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.3s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Mobile */
+        @media (max-width: 992px) {
+            aside { transform: translateX(-100%); }
+            body.sidebar-open aside { transform: translateX(0); }
+            main { margin-left: 0; width: 100%; padding: 16px; }
+            .mobile-menu { display: inline-flex; }
+            .row { flex-direction: column; }
+            .col { min-width: 0; }
+        }
+        .mobile-menu { display: none; }
+        @media (max-width: 992px) { .mobile-menu { display: inline-flex; } }
+    </style>
 </head>
 <body>
 
@@ -25,14 +187,14 @@
     <p style="margin-top:15px;font-weight:500;color:var(--text-muted)">Memuat data...</p>
 </div>
 
-<!-- ==================== LOGIN ==================== -->
+<!-- ========== LOGIN SCREEN ========== -->
 <div id="loginScreen" class="login-screen">
     <div class="login-card">
         <img src="assets/logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
-        <h2>MYCARPET PRO</h2>
+        <h2>MYCARPET PRO v3.0</h2>
         <p class="muted">Sistem Pengurusan Cucian Karpet</p>
 
-        <!-- Tab pilihan login -->
+        <!-- Tab Admin / Pelanggan -->
         <div class="login-tabs">
             <button class="login-tab active" data-role="admin">Admin</button>
             <button class="login-tab" data-role="customer">Pelanggan</button>
@@ -49,11 +211,13 @@
                 <input type="password" id="adminPass" class="form-control" placeholder="••••••" autocomplete="current-password">
             </div>
             <div class="form-group flex">
-                <label style="margin:0;display:flex;align-items:center;gap:6px;">
+                <label style="display:flex;align-items:center;gap:6px;">
                     <input type="checkbox" id="rememberMeAdmin"> Ingat Saya
                 </label>
             </div>
-            <button type="button" class="btn btn-primary w-full" onclick="loginAdmin()"><i class="fa-solid fa-lock-open"></i> Log Masuk</button>
+            <button type="button" class="btn btn-primary w-full" onclick="loginAdmin()">
+                <i class="fa-solid fa-lock-open"></i> Log Masuk
+            </button>
         </form>
 
         <!-- Form Pelanggan -->
@@ -63,17 +227,19 @@
                 <input type="tel" id="custPhone" class="form-control" placeholder="60123456789">
             </div>
             <div class="form-group flex">
-                <label style="margin:0;display:flex;align-items:center;gap:6px;">
+                <label style="display:flex;align-items:center;gap:6px;">
                     <input type="checkbox" id="rememberMeCust"> Ingat Saya
                 </label>
             </div>
-            <button type="button" class="btn btn-success w-full" onclick="loginCustomer()"><i class="fa-solid fa-user-check"></i> Semak Status</button>
+            <button type="button" class="btn btn-success w-full" onclick="loginCustomer()">
+                <i class="fa-solid fa-user-check"></i> Semak Status
+            </button>
         </form>
         <div id="loginError" class="login-error hidden"></div>
     </div>
 </div>
 
-<!-- ==================== MAIN APP (disembunyikan sebelum login) ==================== -->
+<!-- ========== APP (SELEPAS LOGIN) ========== -->
 <div id="appContainer" class="app-container hidden">
     <!-- Sidebar -->
     <aside id="sidebar">
@@ -81,34 +247,271 @@
             <i class="fa-solid fa-rug"></i>
             <span>MYCARPET<span class="brand-red">PRO</span></span>
         </div>
-        <ul id="sidebarMenu" class="sidebar-menu">
-            <!-- Menu akan dijana oleh auth.js -->
-        </ul>
+        <ul id="sidebarMenu" class="sidebar-menu"></ul>
         <div class="sidebar-footer">
             <div class="menu-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Keluar</div>
         </div>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <main>
-        <!-- Semua tab akan diletak di sini, dimuatkan secara dinamik atau melalui fungsi render -->
-        <div id="tabContainer"></div>
+        <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;">
+            <i class="fa-solid fa-bars"></i> Menu
+        </button>
+        <div id="tabContainer">
+            <!-- Kandungan akan dijana oleh switchTab() -->
+        </div>
     </main>
 </div>
 
 <!-- Toast Container -->
 <div id="toastContainer" class="toast-container"></div>
 
-<!-- Library JS -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<!-- ================== JAVASCRIPT (SEMUA DALAM SATU FAIL) ================== -->
+<script>
+// ---------- GLOBAL STATE & HELPER ----------
+const CONFIG = {
+    GAS_API_URL: "https://script.google.com/macros/s/AKfycbyDZGqIqcloW_acpOe7MOYRHvG4neZK0oRiUP5-Cqq8K1oR2-RYOw-Icp6bBRL5yzX3/exec",
+    ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
+};
 
-<!-- Aplikasi JS -->
-<script src="js/config.js"></script>
-<script src="js/api.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/app.js"></script>
-<!-- Modul-modul akan ditambah kemudian -->
+let STATE = {
+    admin: [], pelanggan: [], tempahan: [], karpet: [],
+    payment: [], expenses: [], inventori: [], pekerja: [],
+    currentUser: null, isLoading: false
+};
+
+// --- Fungsi bantuan ---
+function $(s, c=document) { return c.querySelector(s); }
+function $$(s, c=document) { return [...c.querySelectorAll(s)]; }
+function getField(row, names, fallback="") {
+    if (!row || typeof row !== 'object') return fallback;
+    const norm = names.map(n => String(n).toUpperCase().trim());
+    for (let key of Object.keys(row)) {
+        if (norm.includes(String(key).toUpperCase().trim())) {
+            const v = row[key];
+            return (v !== undefined && v !== null) ? v : fallback;
+        }
+    }
+    return fallback;
+}
+function getNumber(v) {
+    const n = parseFloat(String(v || "0").replace(/[RM,]/g, '').trim());
+    return isNaN(n) ? 0 : n;
+}
+function formatMoney(v) { return "RM " + getNumber(v).toFixed(2); }
+function escapeHtml(t) { if (!t) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function normalize(s) { return String(s || "").trim().toUpperCase(); }
+function showLoading(show) {
+    const el = $('#loadingOverlay');
+    if (el) el.classList.toggle('active', show);
+}
+function getToday() { return new Date().toISOString().split('T')[0]; }
+function formatDateMY(dateStr) {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+function toast(msg) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'toast';
+    div.textContent = msg;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+// ---------- DATA DUMMY (UNTUK UJIAN) ----------
+// Diletakkan di sini supaya tersedia SEBELUM sebarang percubaan login
+STATE.admin = [
+    { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' }
+];
+STATE.pelanggan = [
+    { 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No. 12, Jalan Mawar, Taman Melati' }
+];
+
+// ---------- FUNGSI LOGIN ----------
+function loginAdmin() {
+    const username = document.getElementById('adminUser').value.trim();
+    const password = document.getElementById('adminPass').value.trim();
+    if (!username || !password) {
+        showLoginError('Sila isi username dan password.');
+        return;
+    }
+    const admin = STATE.admin.find(a => normalize(a.username) === normalize(username) && a.password === password);
+    if (admin) {
+        STATE.currentUser = { role: 'admin', username: admin.username, nama: admin.nama };
+        saveSession();
+        afterLogin();
+    } else {
+        showLoginError('Username atau password salah.');
+    }
+}
+
+function loginCustomer() {
+    const phone = document.getElementById('custPhone').value.trim();
+    if (!phone) {
+        showLoginError('Sila masukkan nombor telefon.');
+        return;
+    }
+    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['TELEFON','NO TELEFON'])) === normalize(phone));
+    if (cust) {
+        STATE.currentUser = { role: 'customer', customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']), telefon: phone };
+        saveSession();
+        afterLogin();
+    } else {
+        showLoginError('Nombor telefon tidak dijumpai. Sila hubungi kedai untuk daftar.');
+    }
+}
+
+function saveSession() {
+    const remember = STATE.currentUser.role === 'admin' ?
+        document.getElementById('rememberMeAdmin').checked :
+        document.getElementById('rememberMeCust').checked;
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
+}
+
+function showLoginError(msg) {
+    const el = document.getElementById('loginError');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+
+function afterLogin() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+    initApp();
+}
+
+function logout() {
+    STATE.currentUser = null;
+    localStorage.removeItem('mycarpet_user');
+    sessionStorage.removeItem('mycarpet_user');
+    document.getElementById('appContainer').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('adminUser').value = '';
+    document.getElementById('adminPass').value = '';
+    document.getElementById('custPhone').value = '';
+    document.getElementById('loginError').classList.add('hidden');
+}
+
+// ---------- APP INIT & SIDEBAR ----------
+function initApp() {
+    renderSidebar();
+    const defaultTab = STATE.currentUser.role === 'admin' ? 'dashboard' : 'customer-portal';
+    switchTab(defaultTab);
+    // Nanti boleh panggil fetchData() untuk tarik data GAS
+}
+
+function renderSidebar() {
+    const menuContainer = document.getElementById('sidebarMenu');
+    menuContainer.innerHTML = '';
+    const role = STATE.currentUser.role;
+    const menuItems = role === 'admin' ? [
+        { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+        { id: 'temujanji', icon: 'fa-calendar-check', label: 'Temujanji' },
+        { id: 'tempahan', icon: 'fa-file-invoice-dollar', label: 'Tempahan Baru' },
+        { id: 'tracking', icon: 'fa-qrcode', label: 'Tracking' },
+        { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
+        { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
+        { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
+        { id: 'laporan', icon: 'fa-chart-line', label: 'Laporan' },
+        { id: 'inventori', icon: 'fa-boxes', label: 'Inventori' },
+        { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja & Komisen' }
+    ] : [
+        { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
+    ];
+
+    menuItems.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'menu-item';
+        li.dataset.tab = item.id;
+        li.innerHTML = `<i class="fa-solid ${item.icon}"></i> ${item.label}`;
+        li.addEventListener('click', () => switchTab(item.id));
+        menuContainer.appendChild(li);
+    });
+}
+
+function switchTab(tabId) {
+    $$('.menu-item').forEach(el => el.classList.remove('active'));
+    const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
+    if (activeMenu) activeMenu.classList.add('active');
+
+    const container = document.getElementById('tabContainer');
+    container.innerHTML = '';
+
+    // Sementara: semua tab tunjuk placeholder kecuali dashboard & customer portal
+    if (tabId === 'dashboard') {
+        container.innerHTML = `
+            <div class="card">
+                <h2>🏠 Selamat Datang, ${escapeHtml(STATE.currentUser.nama || 'Admin')}!</h2>
+                <p>Dashboard akan dibina di sini.</p>
+            </div>`;
+    } else if (tabId === 'customer-portal') {
+        container.innerHTML = `
+            <div class="card">
+                <h2>📋 Status Karpet Anda</h2>
+                <p>Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p>
+                <p class="muted">Fungsi penuh akan datang.</p>
+            </div>`;
+    } else {
+        container.innerHTML = `
+            <div class="card text-center">
+                <h2>🛠️ Modul Akan Datang</h2>
+                <p>Fungsi <strong>${tabId}</strong> sedang dibina. Tunggu update seterusnya!</p>
+            </div>`;
+    }
+
+    if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
+}
+
+function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+
+// ---------- CHECK SESSION ON LOAD ----------
+function checkSession() {
+    const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
+    if (stored) {
+        try {
+            STATE.currentUser = JSON.parse(stored);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            initApp();
+            return true;
+        } catch (e) {}
+    }
+    return false;
+}
+
+// ---------- EVENT LISTENERS ----------
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab login
+    document.querySelectorAll('.login-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const role = this.dataset.role;
+            document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
+            document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
+            document.getElementById('loginError').classList.add('hidden');
+        });
+    });
+
+    // Check session
+    if (!checkSession()) {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('appContainer').classList.add('hidden');
+    }
+});
+
+// Tutup sidebar bila klik luar (mobile)
+document.addEventListener('click', function(e) {
+    if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
+        document.body.classList.remove('sidebar-open');
+    }
+});
+</script>
 </body>
 </html>
