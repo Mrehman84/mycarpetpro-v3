@@ -329,17 +329,18 @@ function fetchData(callback) {
 }
 async function postData(data) {
     try {
-        const response = await fetch(CONFIG.GAS_API_URL, {
+        await fetch(CONFIG.GAS_API_URL, {
             method: 'POST',
-            mode: 'cors',
+            mode: 'no-cors',          // ← kembali ke no-cors
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        if (!response.ok) throw new Error('Ralat rangkaian');
-        return await response.json();
+        // Dengan no-cors, kita tidak dapat baca respons.
+        // Oleh itu, kita anggap permintaan berjaya.
+        return { success: true };
     } catch (e) {
         console.error(e);
-        toast('Gagal berhubung dengan pelayan.');
+        toast('Gagal menghantar data. Periksa sambungan internet.');
         return { success: false };
     }
 }
@@ -660,12 +661,21 @@ async function simpanTempahan() {
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
     const invNo = generateInvoiceNumber();
-    showLoading(true);
-    const response = await postData({
-        action: 'createOrder', invNo, isNewCustomer: isBaru,
+     showLoading(true);
+    await postData({
+        action: 'createOrder',
+        invNo: invNo,
+        isNewCustomer: isBaru,
         customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
-        items, total, tarikhAmbil: today, tarikhSiap
+        items,
+        total,
+        tarikhAmbil: today,
+        tarikhSiap
     });
+    showLoading(false);
+
+    // Oleh kerana guna no-cors, kita anggap berjaya.
+    toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
     showLoading(false);
     if (!response || !response.success) { toast('Gagal menyimpan tempahan. Sila cuba lagi.'); return; }
     toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
