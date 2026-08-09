@@ -516,12 +516,13 @@ function generateInvoiceNumber() {
     let maxSeq = 499;
     STATE.tempahan.forEach(t => {
         const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-        if (inv.length === 8 && inv.startsWith(prefix)) {
+                if (inv.length === 11 && inv.startsWith('INV' + prefix)) {
             const suffix = parseInt(inv.substring(4), 10);
             if (!isNaN(suffix) && suffix > maxSeq) maxSeq = suffix;
         }
     });
-    return prefix + ('0000' + (maxSeq + 1)).slice(-4);
+        const nextSeq = ('0000' + (maxSeq + 1)).slice(-4);
+    return 'INV' + prefix + nextSeq;
 }
 
 // ==================== TEMPAHAN BARU ====================
