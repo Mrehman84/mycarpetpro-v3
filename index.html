@@ -507,6 +507,7 @@ function renderTempahan(container) {
         <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
             <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
             <div id="carpetItemsContainer"></div>
+            <button class="btn btn-secondary btn-sm mt-16" onclick="fetchData(() => { toast('Data dikemas kini.'); renderTempahan(document.getElementById('tabContainer')); })"><i class="fa-solid fa-sync"></i> Muat Semula Data Harga</button>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
             <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
             <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
@@ -528,43 +529,48 @@ function loadCustomerDetails() {
     document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
     document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
 }
-let carpetRowCounter = 0;
 function addCarpetRow() {
     carpetRowCounter++;
     const container = document.getElementById('carpetItemsContainer');
+    if (!container) return;
     const rowId = 'carpetRow_' + carpetRowCounter;
     const div = document.createElement('div');
     div.className = 'row card-item-row';
     div.id = rowId;
     div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
 
-    // Kolum Kod (select dropdown)
+    // Kolum Kod
     const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
     const lbl1 = document.createElement('label'); lbl1.textContent = 'Kod';
     const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
-    // Isi option dari STATE.senaraiHarga
-    sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
+    
+    // Bina pilihan dari STATE.senaraiHarga
+    let optionsHTML = '<option value="">-- Pilih Kod --</option>';
+    let adaData = false;
     STATE.senaraiHarga.forEach(p => {
         const kod = String(getField(p, ['KOD'])).trim();
         if (!kod) return;
         const jenis = getField(p, ['JENIS CARPET'], '');
-        // HARGA OPEN – baca terus, bukan dari pengiraan
-        const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
-        // Pastikan harga bukan 0 dan sah
-        if (harga <= 0) return; // abaikan jika tiada harga
-        const opt = document.createElement('option');
-        opt.value = kod;
-        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
-        // Simpan harga dalam dataset
-        opt.dataset.harga = harga;
-        sel.appendChild(opt);
+        // Guna HARGA OPEN, abaikan jika bukan nombor atau <= 0
+        let harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        if (harga <= 0) {
+            // cuba alternatif: kadang-kadang ejaan lain
+            harga = getNumber(getField(p, ['HARGA'], 0));
+        }
+        if (harga <= 0) return; // tiada harga sah, langkau
+        adaData = true;
+        optionsHTML += `<option value="${escapeHtml(kod)}" data-harga="${harga}">${escapeHtml(kod)} - ${escapeHtml(jenis)} (${formatMoney(harga)})</option>`;
     });
+    sel.innerHTML = optionsHTML;
+    if (!adaData) {
+        sel.innerHTML = '<option value="">⚠️ Tiada data harga. Sila refresh data.</option>';
+    }
     sel.onchange = function() { handleCodeSelection(rowId); };
     col1.appendChild(lbl1);
     col1.appendChild(sel);
     const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
     info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
-    info.textContent = 'Jenis & harga auto.';
+    info.textContent = adaData ? 'Jenis & harga auto.' : 'Tiada data harga.';
     col1.appendChild(info);
 
     // Kolum Qty
@@ -574,7 +580,7 @@ function addCarpetRow() {
     qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal;
     col2.appendChild(lbl2); col2.appendChild(qty);
 
-    // Kolum Harga (readonly, akan diisi automatik)
+    // Kolum Harga
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
     const lbl4 = document.createElement('label'); lbl4.textContent = 'Harga (RM)';
     const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
@@ -591,23 +597,35 @@ function addCarpetRow() {
     container.appendChild(div);
     calculateGrandTotal();
 }
+
 function handleCodeSelection(rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
     const sel = row.querySelector('.select-kod-karpet');
     const price = row.querySelector('.inp-harga-final');
     const info = row.querySelector('.jenis-vlookup-info');
-    // Ambil option yang dipilih
+    if (!sel || !price || !info) return;
+    
     const selectedOption = sel.options[sel.selectedIndex];
-    if (selectedOption && selectedOption.dataset.harga) {
-        const harga = parseFloat(selectedOption.dataset.harga);
-        price.value = harga.toFixed(2);
-        // Tunjukkan jenis karpet (dari teks option)
-        const jenisText = selectedOption.textContent.split(' - ')[1]?.split(' (')[0] || '';
-        info.innerHTML = `<strong>${escapeHtml(jenisText)}</strong><br>Harga: ${formatMoney(harga)}`;
-    } else {
+    if (!selectedOption || selectedOption.value === '') {
         price.value = '0.00';
         info.textContent = 'Jenis & harga auto.';
+        calculateGrandTotal();
+        return;
+    }
+    
+    // Ambil harga dari atribut data-harga
+    const hargaAttr = selectedOption.getAttribute('data-harga');
+    const harga = parseFloat(hargaAttr);
+    if (!isNaN(harga) && harga > 0) {
+        price.value = harga.toFixed(2);
+        // Papar jenis dari teks option (selepas kod)
+        const text = selectedOption.textContent;
+        const jenisPart = text.split(' - ')[1]?.split(' (')[0] || '';
+        info.innerHTML = `<strong>${escapeHtml(jenisPart)}</strong><br>Harga: ${formatMoney(harga)}`;
+    } else {
+        price.value = '0.00';
+        info.textContent = 'Harga tidak sah.';
     }
     calculateGrandTotal();
 }
