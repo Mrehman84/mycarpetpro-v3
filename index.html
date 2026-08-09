@@ -431,6 +431,7 @@ function switchTab(tabId) {
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
     else if (tabId === 'tempahan') renderTempahan(container);
+    else if (tabId === 'tracking') renderTracking(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -736,6 +737,172 @@ function hantarWhatsAppTempahan() {
     window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
+    // ==================== TRACKING ====================
+function renderTracking(container) {
+    // Bina dropdown invois (hanya yang mempunyai karpet aktif)
+    const invSet = new Set();
+    STATE.karpet.forEach(k => {
+        const st = normalize(getField(k, ['STATUS']));
+        if (st === 'SELESAI DIHANTAR') return; // jangan papar
+        const inv = getField(k, ['INV NO','INV_NO'], '').trim();
+        if (inv) invSet.add(inv);
+    });
+    const invoiceOptions = ['<option value="">-- Semua --</option>'];
+    invSet.forEach(inv => {
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
+    });
+
+    container.innerHTML = `
+        <header><div><h1>Tracking QR</h1><p class="muted">Karpet aktif (kecuali Selesai Dihantar)</p></div></header>
+        <div class="card">
+            <div class="form-group">
+                <label>Cari No. Invois / Alamat</label>
+                <select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Cari QR ID</label>
+                    <input type="text" id="trackingSearchBox" class="form-control" placeholder="INV26080500-1">
+                </div>
+                <div class="col form-group">
+                    <label>Status Baharu (Pukal)</label>
+                    <select id="batchStatusOpt" class="form-control">
+                        <option value="DALAM PROSES">DALAM PROSES</option>
+                        <option value="PENGERINGAN">PENGERINGAN</option>
+                        <option value="READY TO DELIVER">READY TO DELIVER</option>
+                        <option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;">
+                <div><strong id="trackingCheckedCount">0 item dipilih</strong></div>
+                <button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button>
+            </div>
+            <div class="table-wrap">
+                <table class="data-table" id="trackingTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th>
+                            <th>QR / Invois</th>
+                            <th>Pelanggan / Alamat</th>
+                            <th>Jenis</th>
+                            <th>Harga</th>
+                            <th>Status</th>
+                            <th>Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trackingTableBody">
+                        <tr><td colspan="7" class="text-center muted">Tiada data</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Event listeners untuk dropdown dan input carian
+    document.getElementById('trackingInvoiceSelect').addEventListener('change', executeTrackingSearch);
+    document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
+    executeTrackingSearch(); // papar awal
+}
+
+function executeTrackingSearch() {
+    const tbody = document.getElementById('trackingTableBody');
+    tbody.innerHTML = '';
+    const selInv = document.getElementById('trackingInvoiceSelect').value;
+    const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
+
+    let filtered = STATE.karpet.filter(k => {
+        const st = normalize(getField(k, ['STATUS']));
+        if (st === 'SELESAI DIHANTAR') return false; // jangan papar langsung
+        const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
+        const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
+        if (selInv && normalize(inv) !== normalize(selInv)) return false;
+        if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
+        return true;
+    });
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada hasil</td></tr>';
+        updateTrackingCheckedCount();
+        return;
+    }
+
+    // Susun paling baharu dahulu (andaian QR ID mengandungi invois + nombor urut)
+    filtered.sort((a,b) => (getField(b, ['QR ID','QR_ID']) || '').localeCompare(getField(a, ['QR ID','QR_ID'])));
+
+    filtered.forEach(k => {
+        const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
+        const st = normalize(getField(k, ['STATUS']));
+        const badge = st === 'READY TO DELIVER' ? 'badge-ready' :
+                      st === 'PENGERINGAN' ? 'badge-cuci' :
+                      'badge-proses'; // DALAM PROSES
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
+            <td><strong>${escapeHtml(qr)}</strong><br><small>${escapeHtml(inv)}</small></td>
+            <td><strong>${escapeHtml(getField(cust, ['NAMA'], 'TIADA'))}</strong><br><small>${escapeHtml(getField(cust, ['ALAMAT'], ''))}</small></td>
+            <td>${escapeHtml(getField(k, ['JENIS','JENIS CARPET']))}</td>
+            <td>${formatMoney(getField(k, ['HARGA']))}</td>
+            <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
+            <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    updateTrackingCheckedCount();
+}
+
+function toggleSelectAll(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.tracking-row-checkbox');
+    checkboxes.forEach(cb => cb.checked = masterCheckbox.checked);
+    updateTrackingCheckedCount();
+}
+
+function updateTrackingCheckedCount() {
+    const checked = document.querySelectorAll('.tracking-row-checkbox:checked').length;
+    document.getElementById('trackingCheckedCount').textContent = `${checked} item dipilih`;
+}
+
+function updateSingleStatus(qrId) {
+    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+    if (!k) return toast('Karpet tidak dijumpai.');
+    const cur = normalize(getField(k, ['STATUS']));
+    const baru = prompt(`Status semasa: ${cur}\nMasukkan status baru:\nDALAM PROSES\nPENGERINGAN\nREADY TO DELIVER\nSELESAI DIHANTAR`, cur);
+    if (!baru) return;
+    const norm = normalize(baru);
+    if (!CONFIG.ACTIVE_STATUSES.includes(norm)) return toast('Status tidak sah.');
+    updateStatuses([qrId], norm);
+}
+
+async function submitBatchUpdate() {
+    const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
+    if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    const status = document.getElementById('batchStatusOpt').value;
+    await updateStatuses(ids, status);
+}
+
+async function updateStatuses(qrIds, status) {
+    showLoading(true);
+    await postData({ action: 'updateBatchStatus', qrIds, status });
+    showLoading(false);
+    toast('Status dikemas kini.');
+    // Kosongkan pilihan master checkbox
+    const master = document.getElementById('trackingMasterCheck');
+    if (master) master.checked = false;
+    // Muat semula data tanpa segarkan UI (skip refresh)
+    fetchData(() => {
+        executeTrackingSearch(); // selepas data baru masuk, segarkan jadual
+    }, true);
+}
+
+    
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
