@@ -244,7 +244,7 @@
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
-    GAS_API_URL: "https://script.google.com/macros/s/AKfycby0OtTe_7P3Q4CsIujfPgWho-Zi-tlP-NreVnBf3bYTuilcMTSzc1dw55xSm6KscOKg/exec",
+    GAS_API_URL: "https://script.google.com/macros/s/AKfycbx7TLxhRDR0zUO5envJ9fIX35V9Dmjof1SwmudrJlPZEtE5apxMw9dVHRkp8ddmTspa/exec",
     ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
 };
 let STATE = {
@@ -692,8 +692,8 @@ function renderTracking(container) {
     });
     const invoiceOptions = ['<option value="">-- Semua --</option>'];
     invSet.forEach(inv => {
-        const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const alamat = String(getField(cust, ['ALAMAT'], ''));
         invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
     });
@@ -728,8 +728,8 @@ function executeTrackingSearch() {
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
-        const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
@@ -836,8 +836,8 @@ function loadPaymentData() {
     const infoDiv = document.getElementById('paymentInfo');
     if (!inv) { infoDiv.classList.add('hidden'); return; }
     infoDiv.classList.remove('hidden');
-    const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    const total = getNumber(getField(tempOrder, ['JUMLAH HARGA'], 0));
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
     let deposit = 0;
     let baki = total;
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
@@ -880,14 +880,15 @@ async function rekodBayaran() {
     toast('Bayaran direkodkan.');
     document.getElementById('payAmount').value = '';
 
-    // Dapatkan maklumat pelanggan untuk WhatsApp receipt
-    const tempOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(tempOrder, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    // Dapatkan nama & telefon pelanggan untuk WhatsApp receipt
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
 
+    // Refresh data & jana WhatsApp receipt
     fetchData(() => {
         loadPaymentData();
-        // Kemas kini status jika baki <= 0
+        // Jika baki <= 0, update status ke PAID
         const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
         if (updatedOrder) {
             let totalDeposit = 0;
@@ -897,29 +898,12 @@ async function rekodBayaran() {
             }
         }
 
-        // Dapatkan baki terkini dari rekod Payment terbaru
+        // Dapatkan baki terkini dari STATE.payment
         const latestPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
         let bakiTerkini = 0;
         if (latestPayments.length > 0) {
-            const last = latestPayments[latestPayments.length - 1];
-            bakiTerkini = getNumber(getField(last, ['BAKI']));
-        } else {
-            bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
-        }
-
-        // Jana WhatsApp receipt
-                // Dapatkan baki dari data STATE.payment yang baru di-fetch
-        const updatedPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        let bakiTerkini = 0;
-        if (updatedPayments.length > 0) {
-            const lastP = updatedPayments[updatedPayments.length - 1];
+            const lastP = latestPayments[latestPayments.length - 1];
             bakiTerkini = getNumber(getField(lastP, ['BAKI']));
-        }
-        // Fallback kepada kiraan manual jika perlu
-        if (bakiTerkini === 0 && updatedPayments.length === 1) {
-            // Kira manual
-            const totalOrder = getNumber(getField(order, ['JUMLAH HARGA'], 0));
-            bakiTerkini = Math.max(0, totalOrder - amount);
         }
 
         const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
