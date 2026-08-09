@@ -899,16 +899,24 @@ async function rekodBayaran() {
         }
 
         // Jana WhatsApp receipt
-        const bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
-        const previewEl = document.getElementById('paymentWhatsAppPreview');
-        const waBtnEl = document.getElementById('paymentWhatsAppBtn');
-        if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
-        if (waBtnEl) waBtnEl.classList.remove('hidden');
-        STATE.paymentWhatsAppMsg = msg;
-        STATE.paymentWhatsAppTel = tel;
-    }, true);
-}
+                // Kira baki terkini dari STATE.payment yang baru di-fetch
+               // Dapatkan baki terkini dari data STATE.payment yang baru di-fetch
+        const latestPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        let bakiTerkini = getNumber(document.getElementById('payBalance').value.replace(/[RM,\s]/g, ''));
+        if (latestPayments.length > 0) {
+            const last = latestPayments[latestPayments.length - 1];
+            const bakiFromSheet = getNumber(getField(last, ['BAKI']));
+            if (!isNaN(bakiFromSheet)) bakiTerkini = bakiFromSheet;
+        }
+
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+            `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
+            `🧾 No Invoice: ${inv}\n` +
+            `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
+            `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
+            `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
+            `💳 Kaedah: ${method}\n\n` +
+            `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
 
 function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel;
