@@ -529,6 +529,7 @@ function loadCustomerDetails() {
     document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
     document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
 }
+    let carpetRowCounter = 0;
 function addCarpetRow() {
     carpetRowCounter++;
     const container = document.getElementById('carpetItemsContainer');
