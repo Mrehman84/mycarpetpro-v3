@@ -146,6 +146,12 @@
         .btn-sm { padding: 6px 14px; font-size: 12px; }
         .w-full { width: 100%; }
         .hidden { display: none !important; }
+        .wa-preview {
+    background: #dcf8c6; padding: 16px; border-radius: var(--radius);
+    white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;
+    font-size: 14px; line-height: 1.6; margin-top: 12px;
+    border: 1px solid #b7d7a8;
+}
         .muted { color: var(--text-muted); }
         .text-center { text-align: center; }
         .mt-16 { margin-top: 16px; }
@@ -538,8 +544,10 @@ function switchTab(tabId) {
     const container = document.getElementById('tabContainer');
     container.innerHTML = '';
 
-    if (tabId === 'dashboard') renderDashboard(container);
+        if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
+    else if (tabId === 'temujanji') renderTemujanji(container);
+    else if (tabId === 'tempahan') renderTempahan(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina tidak lama lagi.</p></div>`;
 
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
@@ -637,7 +645,276 @@ function renderCustomerPortal(container) {
     `;
     container.innerHTML = html;
 }
+// ==================== TEMUJANJI ====================
+function renderTemujanji(container) {
+    const html = `
+        <header>
+            <div><h1>Temujanji Ambil Karpet</h1><p class="muted">Jana mesej WhatsApp untuk pengambilan</p></div>
+        </header>
+        <div class="card">
+            <div class="row">
+                <div class="col form-group">
+                    <label>Nama Pelanggan</label>
+                    <input type="text" id="tjNama" class="form-control" placeholder="Nama pelanggan">
+                </div>
+                <div class="col form-group">
+                    <label>No. Telefon (WhatsApp)</label>
+                    <input type="text" id="tjTelefon" class="form-control" placeholder="60123456789">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Alamat Pengambilan</label>
+                <textarea id="tjAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Tarikh Ambil</label>
+                    <input type="date" id="tjTarikh" class="form-control">
+                </div>
+                <div class="col form-group">
+                    <label>Masa Ambil</label>
+                    <input type="time" id="tjMasa" class="form-control">
+                </div>
+            </div>
+            <div class="flex">
+                <button class="btn btn-primary" onclick="janaMesejJanji()"><i class="fa-regular fa-copy"></i> Salin Mesej</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppJanji()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
+            </div>
+            <div id="mesejPreviewJanji" class="wa-preview hidden"></div>
+        </div>
+    `;
+    container.innerHTML = html;
+    document.getElementById('tjTarikh').value = getToday();
+}
 
+function janaMesejJanji() {
+    const nama = document.getElementById('tjNama').value.trim();
+    const telefon = document.getElementById('tjTelefon').value.trim();
+    const alamat = document.getElementById('tjAlamat').value.trim();
+    const tarikh = document.getElementById('tjTarikh').value;
+    const masa = document.getElementById('tjMasa').value;
+    if (!nama || !alamat || !tarikh || !masa) {
+        toast('Sila lengkapkan semua maklumat.');
+        return;
+    }
+    const msg = `🧺 MYCARPET PRO v2.0\nAssalamualaikum / Salam Sejahtera,\n\nPelanggan yang dihormati, slot janji temu untuk pengambilan karpet anda telah dimasukkan ke dalam sistem kami:\n\n🗓️ *Tarikh:* ${formatDateMY(tarikh)}\n⏰ *Masa:* ${masa}\n📍 *Alamat:* ${alamat}\n\nSila maklumkan kepada kami jika anda perlu menukar slot ini. Terima kasih! 🙏`;
+    const preview = document.getElementById('mesejPreviewJanji');
+    preview.textContent = msg;
+    preview.classList.remove('hidden');
+    if (navigator.clipboard) navigator.clipboard.writeText(msg).then(() => toast('Mesej disalin')).catch(() => {});
+}
+
+function hantarWhatsAppJanji() {
+    const telefon = document.getElementById('tjTelefon').value.trim();
+    if (!telefon) { toast('Sila masukkan nombor telefon.'); return; }
+    const preview = document.getElementById('mesejPreviewJanji');
+    let msg = preview.textContent;
+    if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
+    window.open(`https://wa.me/60${telefon.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+    // ==================== TEMPAHAN BARU ====================
+function renderTempahan(container) {
+    // Bina pilihan pelanggan dari STATE.pelanggan
+    let pelangganOptions = '<option value="">-- Pilih --</option>';
+    STATE.pelanggan.forEach(c => {
+        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']);
+        const nama = getField(c, ['NAMA'], '');
+        const alamat = getField(c, ['ALAMAT'], '');
+        pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
+    });
+
+    const html = `
+        <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
+        <div class="card">
+            <h3 class="card-title">1. Maklumat Pelanggan</h3>
+            <div class="form-group">
+                <label>Pilih Pelanggan</label>
+                <select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select>
+            </div>
+            <div class="row">
+                <div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div>
+                <div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div>
+            </div>
+            <div class="row">
+                <div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div>
+                <div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div>
+            </div>
+        </div>
+        <div class="card">
+            <h3 class="card-title">2. Perincian Item Karpet</h3>
+            <div class="info-box" style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">
+                Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.
+            </div>
+            <div id="carpetItemsContainer"></div>
+            <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
+            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;">
+                <span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span>
+                <button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button>
+            </div>
+            <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
+            <div id="tempahanWhatsAppBtn" class="hidden mt-16">
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+    // Mulakan dengan satu baris karpet
+    addCarpetRow();
+}
+
+// --- Fungsi sokongan Tempahan ---
+let carpetRowCounter = 0;
+function addCarpetRow() {
+    carpetRowCounter++;
+    const container = document.getElementById('carpetItemsContainer');
+    const rowId = 'carpetRow_' + carpetRowCounter;
+    const div = document.createElement('div');
+    div.className = 'row card-item-row';
+    div.id = rowId;
+    div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
+
+    // Kod
+    const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
+    const lbl1 = document.createElement('label'); lbl1.textContent = 'Kod';
+    const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
+    buildPriceOptions(sel);
+    sel.onchange = function() { handleCodeSelection(rowId); };
+    col1.appendChild(lbl1); col1.appendChild(sel);
+    const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
+    info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
+    info.textContent = 'Jenis & harga auto.';
+    col1.appendChild(info);
+
+    // Qty
+    const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
+    const lbl2 = document.createElement('label'); lbl2.textContent = 'Qty';
+    const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
+    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal;
+    col2.appendChild(lbl2); col2.appendChild(qty);
+
+    // Harga (auto-isi)
+    const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
+    const lbl4 = document.createElement('label'); lbl4.textContent = 'Harga (RM)';
+    const price = document.createElement('input'); price.type = 'number'; price.step = '0.01'; price.min = 0; price.value = '0.00';
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true;
+    col4.appendChild(lbl4); col4.appendChild(price);
+
+    // Butang Padam
+    const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
+    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = function() { removeCarpetRow(rowId); };
+    col5.appendChild(del);
+
+    div.appendChild(col1); div.appendChild(col2); div.appendChild(col4); div.appendChild(col5);
+    container.appendChild(div);
+    calculateGrandTotal();
+}
+
+function buildPriceOptions(select) {
+    select.innerHTML = '<option value="">-- Pilih Kod --</option>';
+    STATE.senaraiHarga.forEach(p => {
+        const kod = String(getField(p, ['KOD'])).trim().toUpperCase();
+        if (!kod) return;
+        const jenis = getField(p, ['JENIS CARPET'], '');
+        const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        const opt = document.createElement('option');
+        opt.value = kod;
+        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
+        opt.dataset.harga = harga;
+        opt._mycarpet = { kod, jenis, harga };
+        select.appendChild(opt);
+    });
+}
+
+function handleCodeSelection(rowId) {
+    const row = document.getElementById(rowId); if (!row) return;
+    const sel = row.querySelector('.select-kod-karpet');
+    const price = row.querySelector('.inp-harga-final');
+    const info = row.querySelector('.jenis-vlookup-info');
+    const opt = sel.options[sel.selectedIndex];
+    const data = opt?._mycarpet;
+    if (data) {
+        price.value = data.harga.toFixed(2);
+        info.innerHTML = `<strong>${escapeHtml(data.jenis)}</strong><br>Harga: ${formatMoney(data.harga)}`;
+    } else {
+        price.value = '0.00';
+        info.textContent = 'Jenis & harga auto.';
+    }
+    calculateGrandTotal();
+}
+
+function calculateGrandTotal() {
+    let total = 0;
+    document.querySelectorAll('.card-item-row').forEach(row => {
+        const qty = parseInt(row.querySelector('.inp-qty').value) || 1;
+        const price = getNumber(row.querySelector('.inp-harga-final').value);
+        total += qty * price;
+    });
+    document.getElementById('grandTotalLabel').textContent = formatMoney(total);
+}
+
+function removeCarpetRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const container = document.getElementById('carpetItemsContainer');
+    if (container.querySelectorAll('.card-item-row').length <= 1) {
+        toast('Perlu sekurang-kurangnya satu item.');
+        return;
+    }
+    row.remove();
+    calculateGrandTotal();
+}
+
+function loadCustomerDetails() {
+    const id = document.getElementById('optPelanggan').value;
+    const c = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === id);
+    if (!c) return;
+    document.getElementById('custNama').value = getField(c, ['NAMA'], '');
+    document.getElementById('custTel').value = getField(c, ['TELEFON','NO TELEFON'], '');
+    document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
+    document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
+}
+
+async function simpanTempahan() {
+    const custId = document.getElementById('optPelanggan').value;
+    if (!custId) { toast('Sila pilih pelanggan.'); return; }
+    const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
+    const items = [];
+    let valid = true;
+    document.querySelectorAll('.card-item-row').forEach(row => {
+        const sel = row.querySelector('.select-kod-karpet');
+        if (!sel.value) { valid = false; return; }
+        const opt = sel.options[sel.selectedIndex];
+        const data = opt._mycarpet;
+        const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
+        const harga = getNumber(row.querySelector('.inp-harga-final').value);
+        items.push({ kod: sel.value, jenis: data.jenis, harga: harga, qty: qty, subtotal: qty * harga });
+    });
+    if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
+    const total = items.reduce((sum, i) => sum + i.subtotal, 0);
+    const today = getToday();
+    const tarikhSiap = addDays(today, 7);
+    // Hantar ke GAS (akan datang)
+    await postData({ action: 'createOrder', customerId: custId, items, total, tarikhAmbil: today, tarikhSiap });
+    // Mesej WhatsApp
+    const itemsText = items.map((item, i) => ` ${i+1}. ${item.jenis} (${item.kod}) x${item.qty} = ${formatMoney(item.subtotal)}`).join('\n');
+    const msg = `🧺 MYCARPET PRO v2.0\nAssalamualaikum / Salam Sejahtera,\n\nPelanggan yang dihormati, kami ingin memaklumkan bahawa karpet anda telah selamat diambil dan akan diproses untuk cucian. Berikut adalah maklumat pesanan anda:\n\n🧾 No Invoice: (akan dijana)\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap (Anggaran): ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 Butiran Jenis Karpet:\n${itemsText}\n\n💰 Jumlah Harga: ${formatMoney(total)}\n📌 Status: Pickup & Proses Cucian\n\nSila hubungi kami jika anda mempunyai sebarang arahan khas. Terima kasih! 🙏`;
+    document.getElementById('tempahanPreview').textContent = msg;
+    document.getElementById('tempahanPreview').classList.remove('hidden');
+    document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
+    STATE.lastOrderMsg = msg;
+    STATE.lastCustomer = cust;
+}
+
+function hantarWhatsAppTempahan() {
+    const cust = STATE.lastCustomer;
+    if (!cust || !cust.TELEFON) { toast('Tiada maklumat pelanggan.'); return; }
+    const msg = STATE.lastOrderMsg;
+    if (!msg) { toast('Tiada mesej.'); return; }
+    window.open(`https://wa.me/60${String(cust.TELEFON).replace(/[- ]/g, '').replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+    
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 
