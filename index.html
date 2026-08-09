@@ -532,47 +532,83 @@ let carpetRowCounter = 0;
 function addCarpetRow() {
     carpetRowCounter++;
     const container = document.getElementById('carpetItemsContainer');
-    const rowId = 'carpetRow_'+carpetRowCounter;
-    const div = document.createElement('div'); div.className = 'row card-item-row'; div.id = rowId;
+    const rowId = 'carpetRow_' + carpetRowCounter;
+    const div = document.createElement('div');
+    div.className = 'row card-item-row';
+    div.id = rowId;
     div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
+
+    // Kolum Kod (select dropdown)
     const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
-    col1.innerHTML = '<label>Kod</label>';
+    const lbl1 = document.createElement('label'); lbl1.textContent = 'Kod';
     const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
+    // Isi option dari STATE.senaraiHarga
     sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
     STATE.senaraiHarga.forEach(p => {
-        const kod = String(getField(p, ['KOD'])).trim(); if (!kod) return;
-        const jenis = getField(p, ['JENIS CARPET'], ''); const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
-        const opt = document.createElement('option'); opt.value = kod;
+        const kod = String(getField(p, ['KOD'])).trim();
+        if (!kod) return;
+        const jenis = getField(p, ['JENIS CARPET'], '');
+        // HARGA OPEN – baca terus, bukan dari pengiraan
+        const harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        // Pastikan harga bukan 0 dan sah
+        if (harga <= 0) return; // abaikan jika tiada harga
+        const opt = document.createElement('option');
+        opt.value = kod;
         opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
-        opt.dataset.harga = harga; opt._mycarpet = { kod, jenis, harga };
+        // Simpan harga dalam dataset
+        opt.dataset.harga = harga;
         sel.appendChild(opt);
     });
     sel.onchange = function() { handleCodeSelection(rowId); };
+    col1.appendChild(lbl1);
     col1.appendChild(sel);
     const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
     info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
-    info.textContent = 'Jenis & harga auto.'; col1.appendChild(info);
+    info.textContent = 'Jenis & harga auto.';
+    col1.appendChild(info);
+
+    // Kolum Qty
     const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
-    col2.innerHTML = '<label>Qty</label>';
+    const lbl2 = document.createElement('label'); lbl2.textContent = 'Qty';
     const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
-    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal; col2.appendChild(qty);
+    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal;
+    col2.appendChild(lbl2); col2.appendChild(qty);
+
+    // Kolum Harga (readonly, akan diisi automatik)
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
-    col4.innerHTML = '<label>Harga (RM)</label>';
-    const price = document.createElement('input'); price.type = 'number'; price.step = '0.01'; price.min = 0; price.value = '0.00';
-    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
+    const lbl4 = document.createElement('label'); lbl4.textContent = 'Harga (RM)';
+    const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true;
+    col4.appendChild(lbl4); col4.appendChild(price);
+
+    // Butang Padam
     const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
-    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
+    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = function() { removeCarpetRow(rowId); };
+    col5.appendChild(del);
+
     div.appendChild(col1); div.appendChild(col2); div.appendChild(col4); div.appendChild(col5);
     container.appendChild(div);
     calculateGrandTotal();
 }
 function handleCodeSelection(rowId) {
-    const row = document.getElementById(rowId); if (!row) return;
-    const sel = row.querySelector('.select-kod-karpet'), price = row.querySelector('.inp-harga-final'), info = row.querySelector('.jenis-vlookup-info');
-    const opt = sel.options[sel.selectedIndex]; const data = opt?._mycarpet;
-    if (data) { price.value = data.harga.toFixed(2); info.innerHTML = `<strong>${escapeHtml(data.jenis)}</strong><br>Harga: ${formatMoney(data.harga)}`; }
-    else { price.value = '0.00'; info.textContent = 'Jenis & harga auto.'; }
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const sel = row.querySelector('.select-kod-karpet');
+    const price = row.querySelector('.inp-harga-final');
+    const info = row.querySelector('.jenis-vlookup-info');
+    // Ambil option yang dipilih
+    const selectedOption = sel.options[sel.selectedIndex];
+    if (selectedOption && selectedOption.dataset.harga) {
+        const harga = parseFloat(selectedOption.dataset.harga);
+        price.value = harga.toFixed(2);
+        // Tunjukkan jenis karpet (dari teks option)
+        const jenisText = selectedOption.textContent.split(' - ')[1]?.split(' (')[0] || '';
+        info.innerHTML = `<strong>${escapeHtml(jenisText)}</strong><br>Harga: ${formatMoney(harga)}`;
+    } else {
+        price.value = '0.00';
+        info.textContent = 'Jenis & harga auto.';
+    }
     calculateGrandTotal();
 }
 function calculateGrandTotal() {
