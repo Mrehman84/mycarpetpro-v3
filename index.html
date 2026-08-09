@@ -492,96 +492,135 @@ function hantarWhatsAppJanji() {
 
 // ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
+    // Bina pilihan pelanggan dari STATE.pelanggan
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
-        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']), nama = getField(c, ['NAMA'], ''), alamat = getField(c, ['ALAMAT'], '');
+        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']);
+        const nama = getField(c, ['NAMA'], '');
+        const alamat = getField(c, ['ALAMAT'], '');
         pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
     });
-    container.innerHTML = `
+
+    const html = `
         <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
-        <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
-            <div class="form-group"><label>Jenis Pelanggan</label><div style="display:flex;gap:20px;"><label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label><label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label></div></div>
-            <div id="secCustLama"><div class="form-group"><label>Pilih Pelanggan</label><select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select></div><div class="row"><div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div><div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div><div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div></div></div>
-            <div id="secCustBaru" style="display:none;"><div class="row"><div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div><div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div></div>
+        <div class="card">
+            <h3 class="card-title">1. Maklumat Pelanggan</h3>
+            <div class="form-group">
+                <label>Jenis Pelanggan</label>
+                <div style="display:flex;gap:20px;flex-wrap:wrap">
+                    <label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label>
+                    <label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label>
+                </div>
+            </div>
+            <div id="secCustLama">
+                <div class="form-group">
+                    <label>Pilih Pelanggan</label>
+                    <select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div>
+                    <div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div>
+                    <div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div>
+                </div>
+            </div>
+            <div id="secCustBaru" style="display:none;">
+                <div class="row">
+                    <div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div>
+                    <div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div>
+                    <div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div>
+                </div>
+            </div>
         </div>
-        <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
-            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
+        <div class="card">
+            <h3 class="card-title">2. Perincian Item Karpet</h3>
+            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">
+                Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.
+            </div>
             <div id="carpetItemsContainer"></div>
-            <button class="btn btn-secondary btn-sm mt-16" onclick="fetchData(() => { toast('Data dikemas kini.'); renderTempahan(document.getElementById('tabContainer')); })"><i class="fa-solid fa-sync"></i> Muat Semula Data Harga</button>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
-            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
+            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;">
+                <span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span>
+                <button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button>
+            </div>
             <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
-            <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
-        </div>`;
-    addCarpetRow();
+            <div id="tempahanWhatsAppBtn" class="hidden mt-16">
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+    // Mulakan dengan satu baris karpet
+    resetCarpetRows();
 }
+
 function toggleCustType() {
-    const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
-    document.getElementById('secCustLama').style.display = baru ? 'none' : 'block';
-    document.getElementById('secCustBaru').style.display = baru ? 'block' : 'none';
+    const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
+    document.getElementById('secCustLama').style.display = isBaru ? 'none' : 'block';
+    document.getElementById('secCustBaru').style.display = isBaru ? 'block' : 'none';
 }
+
 function loadCustomerDetails() {
     const id = document.getElementById('optPelanggan').value;
+    if (!id) {
+        document.getElementById('custNama').value = '';
+        document.getElementById('custTel').value = '';
+        document.getElementById('custAlamat').value = '';
+        document.getElementById('custDaerah').value = '';
+        return;
+    }
     const c = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === id);
-    if (!c) { document.getElementById('custNama').value = ''; document.getElementById('custTel').value = ''; document.getElementById('custAlamat').value = ''; document.getElementById('custDaerah').value = ''; return; }
+    if (!c) return;
     document.getElementById('custNama').value = getField(c, ['NAMA'], '');
     document.getElementById('custTel').value = getField(c, ['TELEFON','NO TELEFON'], '');
     document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
     document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
 }
-    let carpetRowCounter = 0;
+
+// ========== FUNGSI KARPET (V2.0 STABIL, DIBAIKI HARGA) ==========
+let carpetRowCount = 0;  // pengganti carpetRowCounter
+
+function resetCarpetRows() {
+    document.getElementById('carpetItemsContainer').innerHTML = '';
+    carpetRowCount = 0;
+    addCarpetRow();
+}
+
 function addCarpetRow() {
-    carpetRowCounter++;
+    carpetRowCount++;
     const container = document.getElementById('carpetItemsContainer');
-    if (!container) return;
-    const rowId = 'carpetRow_' + carpetRowCounter;
+    const rowId = 'carpetRow_' + carpetRowCount;
     const div = document.createElement('div');
     div.className = 'row card-item-row';
     div.id = rowId;
     div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
 
     // Kolum Kod
-    const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
+    const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.7';
     const lbl1 = document.createElement('label'); lbl1.textContent = 'Kod';
     const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
-    
-    // Bina pilihan dari STATE.senaraiHarga
-    let optionsHTML = '<option value="">-- Pilih Kod --</option>';
-    let adaData = false;
-    STATE.senaraiHarga.forEach(p => {
-        const kod = String(getField(p, ['KOD'])).trim();
-        if (!kod) return;
-        const jenis = getField(p, ['JENIS CARPET'], '');
-        // Guna HARGA OPEN, abaikan jika bukan nombor atau <= 0
-        let harga = getNumber(getField(p, ['HARGA OPEN'], 0));
-        if (harga <= 0) {
-            // cuba alternatif: kadang-kadang ejaan lain
-            harga = getNumber(getField(p, ['HARGA'], 0));
-        }
-        if (harga <= 0) return; // tiada harga sah, langkau
-        adaData = true;
-        optionsHTML += `<option value="${escapeHtml(kod)}" data-harga="${harga}">${escapeHtml(kod)} - ${escapeHtml(jenis)} (${formatMoney(harga)})</option>`;
-    });
-    sel.innerHTML = optionsHTML;
-    if (!adaData) {
-        sel.innerHTML = '<option value="">⚠️ Tiada data harga. Sila refresh data.</option>';
-    }
+    buildPriceOptions(sel);
     sel.onchange = function() { handleCodeSelection(rowId); };
     col1.appendChild(lbl1);
     col1.appendChild(sel);
     const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
     info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
-    info.textContent = adaData ? 'Jenis & harga auto.' : 'Tiada data harga.';
+    info.textContent = 'Jenis & harga auto.';
     col1.appendChild(info);
 
     // Kolum Qty
-    const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
+    const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '100px';
     const lbl2 = document.createElement('label'); lbl2.textContent = 'Qty';
     const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
     qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal;
     col2.appendChild(lbl2); col2.appendChild(qty);
 
-    // Kolum Harga
+    // Kolum Harga (auto-isi, readonly)
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
     const lbl4 = document.createElement('label'); lbl4.textContent = 'Harga (RM)';
     const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
@@ -599,6 +638,33 @@ function addCarpetRow() {
     calculateGrandTotal();
 }
 
+function buildPriceOptions(select) {
+    select.innerHTML = '<option value="">-- Pilih Kod --</option>';
+    STATE.senaraiHarga.forEach(p => {
+        const kod = String(getField(p, ['KOD'])).trim();
+        if (!kod) return;
+        const jenis = getField(p, ['JENIS CARPET'], '');
+        // Harga dari HARGA OPEN (tanpa sebarang pengiraan)
+        let harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        if (harga <= 0) return; // abaikan jika tiada harga
+        const opt = document.createElement('option');
+        opt.value = kod;
+        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
+        // Simpan data
+        opt.dataset.harga = harga;
+        opt.dataset.jenis = jenis;
+        select.appendChild(opt);
+    });
+    // Jika masih kosong (tiada data sah), tambah satu opsyen makluman
+    if (select.options.length === 1) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '⚠️ Tiada data harga.';
+        opt.disabled = true;
+        select.appendChild(opt);
+    }
+}
+
 function handleCodeSelection(rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
@@ -606,7 +672,6 @@ function handleCodeSelection(rowId) {
     const price = row.querySelector('.inp-harga-final');
     const info = row.querySelector('.jenis-vlookup-info');
     if (!sel || !price || !info) return;
-    
     const selectedOption = sel.options[sel.selectedIndex];
     if (!selectedOption || selectedOption.value === '') {
         price.value = '0.00';
@@ -614,33 +679,40 @@ function handleCodeSelection(rowId) {
         calculateGrandTotal();
         return;
     }
-    
-    // Ambil harga dari atribut data-harga
-    const hargaAttr = selectedOption.getAttribute('data-harga');
-    const harga = parseFloat(hargaAttr);
+    const harga = parseFloat(selectedOption.dataset.harga);
+    const jenis = selectedOption.dataset.jenis || '';
     if (!isNaN(harga) && harga > 0) {
         price.value = harga.toFixed(2);
-        // Papar jenis dari teks option (selepas kod)
-        const text = selectedOption.textContent;
-        const jenisPart = text.split(' - ')[1]?.split(' (')[0] || '';
-        info.innerHTML = `<strong>${escapeHtml(jenisPart)}</strong><br>Harga: ${formatMoney(harga)}`;
+        info.innerHTML = `<strong>${escapeHtml(jenis)}</strong><br>Harga: ${formatMoney(harga)}`;
     } else {
         price.value = '0.00';
         info.textContent = 'Harga tidak sah.';
     }
     calculateGrandTotal();
 }
+
 function calculateGrandTotal() {
     let total = 0;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        total += (parseInt(row.querySelector('.inp-qty').value) || 1) * getNumber(row.querySelector('.inp-harga-final').value);
+        const qty = parseInt(row.querySelector('.inp-qty').value) || 1;
+        const price = parseFloat(row.querySelector('.inp-harga-final').value) || 0;
+        total += qty * price;
     });
     document.getElementById('grandTotalLabel').textContent = formatMoney(total);
 }
+
 function removeCarpetRow(rowId) {
-    if (document.getElementById('carpetItemsContainer').querySelectorAll('.card-item-row').length <= 1) { toast('Perlu sekurang-kurangnya satu item.'); return; }
-    document.getElementById(rowId)?.remove(); calculateGrandTotal();
+    const container = document.getElementById('carpetItemsContainer');
+    if (container.querySelectorAll('.card-item-row').length <= 1) {
+        toast('Perlu sekurang-kurangnya satu item.');
+        return;
+    }
+    const row = document.getElementById(rowId);
+    if (row) row.remove();
+    calculateGrandTotal();
 }
+
+// ========== SIMPAN TEMPAHAN ==========
 async function simpanTempahan() {
     const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
     let custId, custNama, custTel, custAlamat, custDaerah;
@@ -655,20 +727,31 @@ async function simpanTempahan() {
     } else {
         custId = document.getElementById('optPelanggan').value;
         if (!custId) { toast('Sila pilih pelanggan.'); return; }
-        STATE.lastCustomer = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
+        const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
+        if (!cust) { toast('Pelanggan tidak ditemui.'); return; }
+        STATE.lastCustomer = cust;
+        custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
     }
-    const items = []; let valid = true;
+    // Kumpul item karpet
+    const items = [];
+    let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const sel = row.querySelector('.select-kod-karpet'); if (!sel.value) { valid = false; return; }
-        const data = sel.options[sel.selectedIndex]._mycarpet;
+        const sel = row.querySelector('.select-kod-karpet');
+        if (!sel || !sel.value) { valid = false; return; }
+        const selectedOption = sel.options[sel.selectedIndex];
+        const kod = sel.value;
+        const jenis = selectedOption.dataset.jenis || '';
+        const harga = parseFloat(selectedOption.dataset.harga) || 0;
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
-        const harga = getNumber(row.querySelector('.inp-harga-final').value);
-        items.push({ kod: sel.value, jenis: data.jenis, harga: harga, qty: qty, subtotal: qty * harga });
+        items.push({ kod, jenis, harga, qty, subtotal: qty * harga });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
-    const today = getToday(), tarikhSiap = addDays(today, 7);
+    const today = getToday();
+    const tarikhSiap = addDays(today, 7);
+    // Hantar ke GAS (sementara toast)
     await postData({ action: 'createOrder', isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
+    // Jana mesej WhatsApp
     const itemsText = items.map((item, i) => ` ${i+1}. ${item.jenis} (${item.kod}) x${item.qty} = ${formatMoney(item.subtotal)}`).join('\n');
     const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 No Invoice: (akan dijana)\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 Butiran Jenis Karpet:\n${itemsText}\n\n💰 Jumlah Harga: ${formatMoney(total)}\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
     document.getElementById('tempahanPreview').textContent = msg;
@@ -676,12 +759,14 @@ async function simpanTempahan() {
     document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
 }
+
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
     if (!tel) { toast('Nombor telefon tiada.'); return; }
-    if (!STATE.lastOrderMsg) { toast('Tiada mesej.'); return; }
-    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(STATE.lastOrderMsg)}`, '_blank');
+    const msg = STATE.lastOrderMsg;
+    if (!msg) { toast('Tiada mesej.'); return; }
+    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // ==================== GLOBAL EVENTS ====================
