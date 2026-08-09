@@ -435,18 +435,20 @@ function loginAdmin() {
 }
 
 function loginCustomer() {
-    const phone = document.getElementById('custPhone').value.trim();
+    function loginCustomer() {
+    // Bersihkan input: buang sengkang dan ruang
+    const phone = document.getElementById('custPhone').value.trim().replace(/[- ]/g, '');
     if (!phone) {
         showLoginError('Sila masukkan nombor telefon.');
         return;
     }
-    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['TELEFON','NO TELEFON'])) === normalize(phone));
+    // Cari pelanggan – bandingkan selepas bersihkan kedua-dua nombor
+    const cust = STATE.pelanggan.find(c => {
+        const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
+        return normalize(dbPhone) === normalize(phone);
+    });
     if (cust) {
-        STATE.currentUser = {
-            role: 'customer',
-            customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']),
-            telefon: phone
-        };
+        // ... biarkan yang lain tidak berubah ...
         saveSession();
         afterLogin();
     } else {
