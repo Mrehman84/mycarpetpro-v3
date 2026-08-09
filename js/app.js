@@ -1,5 +1,10 @@
 // App initialization & navigation
 function initApp() {
+    // -- DATA DUMMY UNTUK UJIAN (BUANG BILA GAS SUDAH SIAP) --
+if (!STATE.admin.length) {
+    STATE.admin = [{ username: 'admin', password: 'admin', nama: 'Admin Utama' }];
+    STATE.pelanggan = [{ 'CUSTOMER ID': 'C001', NAMA: 'Ali', TELEFON: '60123456789', ALAMAT: 'No 12 Jalan Mawar' }];
+}
     // Bina menu sidebar mengikut peranan
     renderSidebar();
     // Muatkan data dari GAS (hanya jika belum ada)
