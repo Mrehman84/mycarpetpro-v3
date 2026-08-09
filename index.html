@@ -489,7 +489,30 @@ function hantarWhatsAppJanji() {
     if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
     window.open(`https://wa.me/60${telefon.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
+// ==================== PENJANA INVOIS ====================
+function generateInvoiceNumber() {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2); // '26'
+    const mm = ('0' + (now.getMonth() + 1)).slice(-2); // '08'
+    const prefix = yy + mm; // '2608'
 
+    // Cari invois bulan ini sahaja
+    let maxSeq = 499; // supaya permulaan 0500
+    STATE.tempahan.forEach(t => {
+        const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
+        // Abaikan jika tidak bermula dengan prefix (panjang minimum 8 aksara)
+        if (inv.length >= 8 && inv.substring(0,4) === prefix) {
+            const suffix = parseInt(inv.substring(4), 10);
+            if (!isNaN(suffix) && suffix > maxSeq) {
+                maxSeq = suffix;
+            }
+        }
+    });
+
+    const nextSeq = maxSeq + 1;
+    const paddedSeq = ('0000' + nextSeq).slice(-4); // 4 digit
+    return prefix + paddedSeq; // cth: '2608500'
+}
 // ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
     // Bina pilihan pelanggan dari STATE.pelanggan
@@ -772,6 +795,8 @@ async function simpanTempahan() {
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
     // Hantar ke GAS (sementara toast)
+       // Jana nombor invois
+    const invNo = generateInvoiceNumber();
     await postData({ action: 'createOrder', isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
     // Jana mesej WhatsApp
     const itemsText = items.map((item, i) => ` ${i+1}. ${item.jenis} (${item.kod}) x${item.qty} = ${formatMoney(item.subtotal)}`).join('\n');
