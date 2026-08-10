@@ -1,0 +1,1997 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MYCARPET PRO v3.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --primary-red: #ff4b4b;
+            --primary-dark: #1e1e2f;
+            --sidebar-width: 270px;
+            --bg-light: #f8f9fa;
+            --text-dark: #2d3748;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --info: #3498db;
+            --radius: 10px;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,.10), 0 2px 4px -1px rgba(0,0,0,.06);
+            --orange: #ff6d00;
+            --green: #28a745;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg-light); color: var(--text-dark); min-height: 100vh; }
+        #loadingOverlay {
+            position: fixed; inset: 0; background: rgba(255,255,255,.92); z-index: 9999;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+        }
+        #loadingOverlay.active { display: flex; }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid var(--border-color);
+            border-top-color: var(--primary-red); border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .login-screen {
+            position: fixed; inset: 0; background: linear-gradient(135deg, #1e1e2f 0%, #2d2d44 100%);
+            display: flex; align-items: center; justify-content: center; z-index: 10000;
+        }
+        .login-card {
+            background: #fff; border-radius: 16px; padding: 40px 30px;
+            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .login-logo { height: 60px; margin-bottom: 10px; }
+        .login-card h2 { font-size: 24px; font-weight: 700; color: var(--primary-dark); }
+        .login-tabs {
+            display: flex; margin: 20px 0; border-radius: 30px; overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .login-tab {
+            flex: 1; padding: 10px; background: #f7fafc; border: none;
+            cursor: pointer; font-weight: 600; font-size: 14px; transition: .2s;
+        }
+        .login-tab.active { background: var(--primary-red); color: #fff; }
+        .login-form { display: none; }
+        .login-form.active { display: block; }
+        .login-form .form-group { margin-bottom: 16px; text-align: left; }
+        .login-error {
+            background: #ffe0e0; color: #c00; padding: 10px;
+            border-radius: 6px; font-size: 13px; margin-top: 12px;
+        }
+        .app-container { display: flex; min-height: 100vh; }
+        .app-container.hidden { display: none; }
+        aside {
+            width: var(--sidebar-width); background: var(--primary-dark); color: #fff;
+            position: fixed; top: 0; bottom: 0; left: 0;
+            display: flex; flex-direction: column; z-index: 100;
+            transition: transform .3s; overflow-y: auto;
+        }
+        .sidebar-brand {
+            padding: 24px 20px; font-size: 20px; font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,.1);
+            display: flex; align-items: center; gap: 10px; color: var(--primary-red);
+        }
+        .sidebar-brand span { color: #fff; }
+        .sidebar-brand .brand-red { color: var(--primary-red); }
+        .sidebar-menu {
+            list-style: none; padding: 16px 12px; display: flex;
+            flex-direction: column; gap: 4px; flex: 1;
+        }
+        .menu-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 16px; color: #a0aec0; text-decoration: none;
+            border-radius: var(--radius); font-weight: 500; cursor: pointer;
+            transition: .2s; font-size: 14px;
+        }
+        .menu-item i { width: 22px; font-size: 16px; text-align: center; }
+        .menu-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+        .menu-item.active { background: var(--primary-red); color: #fff; }
+        .sidebar-footer { padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.1); }
+        main {
+            margin-left: var(--sidebar-width); flex: 1; padding: 30px;
+            width: calc(100% - var(--sidebar-width)); transition: .3s;
+        }
+        .card {
+            background: #fff; border-radius: var(--radius); padding: 24px;
+            box-shadow: var(--shadow); margin-bottom: 24px; border: 1px solid var(--border-color);
+        }
+        .card-title {
+            font-size: 18px; font-weight: 600; margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+        .form-control {
+            width: 100%; padding: 10px 14px; border: 1px solid var(--border-color);
+            border-radius: var(--radius); font-size: 14px; outline: none;
+            background: #fff; transition: border-color .2s;
+        }
+        .form-control:focus { border-color: var(--primary-red); }
+        .row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 200px; }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: var(--radius);
+            font-weight: 600; cursor: pointer; display: inline-flex;
+            align-items: center; justify-content: center; gap: 8px;
+            font-size: 14px; transition: .2s; text-decoration: none;
+        }
+        .btn:hover { opacity: .85; transform: translateY(-1px); }
+        .btn-primary { background: var(--primary-red); color: #fff; }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-danger { background: #e53e3e; color: #fff; }
+        .btn-whatsapp { background: #25D366; color: #fff; }
+        .btn-secondary { background: #e2e8f0; color: var(--text-dark); }
+        .btn-sm { padding: 6px 14px; font-size: 12px; }
+        .w-full { width: 100%; }
+        .hidden { display: none !important; }
+        .muted { color: var(--text-muted); }
+        .text-center { text-align: center; }
+        .mt-16 { margin-top: 16px; }
+        .flex { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+            gap: 18px; margin-bottom: 30px;
+        }
+        .metric-card {
+            background: #fff; padding: 20px; border-radius: var(--radius);
+            box-shadow: var(--shadow); border-left: 5px solid var(--primary-red);
+        }
+        .metric-card h3 { font-size: 13px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+        .metric-card p { font-size: 28px; font-weight: 700; }
+        .badge {
+            padding: 4px 12px; border-radius: 20px; font-size: 11px;
+            font-weight: 600; text-transform: uppercase; display: inline-block;
+        }
+        .badge-proses { background: #ffeeb2; color: #8a6500; }
+        .badge-cuci { background: #ebf8ff; color: #2b6cb0; }
+        .badge-ready { background: #e6fffa; color: #234e52; }
+        .badge-selesai { background: #c6f6d5; color: #22543d; }
+        .table-wrap { overflow-x: auto; }
+        .data-table {
+            width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px;
+        }
+        .data-table th {
+            padding: 10px 12px; border-bottom: 2px solid var(--border-color);
+            color: var(--text-muted); text-align: left; font-weight: 600;
+        }
+        .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .data-table tr:hover { background: #f7fafc; }
+        .wa-preview {
+            background: #dcf8c6; padding: 16px; border-radius: var(--radius);
+            white-space: pre-wrap; font-family: 'Segoe UI', sans-serif;
+            font-size: 14px; line-height: 1.6; margin-top: 12px;
+            border: 1px solid #b7d7a8;
+        }
+        .toast-container {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; flex-direction: column; gap: 8px; z-index: 99999;
+        }
+        .toast {
+            background: #333; color: #fff; padding: 12px 24px;
+            border-radius: 30px; font-size: 14px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            animation: fadeInUp 0.3s ease;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .mobile-menu { display: none; }
+        @media (max-width: 992px) {
+            aside { transform: translateX(-100%); }
+            body.sidebar-open aside { transform: translateX(0); }
+            main { margin-left: 0; width: 100%; padding: 16px; }
+            .mobile-menu { display: inline-flex; }
+            .row { flex-direction: column; }
+            .col { min-width: 0; }
+            .metrics-grid { grid-template-columns: repeat(2,1fr); }
+        }
+        @media (max-width: 600px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div id="loadingOverlay"><div class="spinner"></div><p style="margin-top:15px;font-weight:500;color:var(--text-muted)">Memuat data...</p></div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+    <div class="login-card">
+        <img src="assets/logo.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
+        <h2>MYCARPET PRO v3.0</h2>
+        <p class="muted">Sistem Pengurusan Cucian Karpet</p>
+        <div class="login-tabs">
+            <button class="login-tab active" data-role="admin">Admin</button>
+            <button class="login-tab" data-role="customer">Pelanggan</button>
+        </div>
+        <form id="loginFormAdmin" class="login-form active">
+            <div class="form-group"><label>Username</label><input type="text" id="adminUser" class="form-control" placeholder="admin" autocomplete="username"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="adminPass" class="form-control" placeholder="••••••" autocomplete="current-password"></div>
+            <div class="form-group flex"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rememberMeAdmin"> Ingat Saya</label></div>
+            <button type="button" class="btn btn-primary w-full" onclick="loginAdmin()"><i class="fa-solid fa-lock-open"></i> Log Masuk</button>
+        </form>
+        <form id="loginFormCustomer" class="login-form">
+            <div class="form-group"><label>Nombor Telefon</label><input type="tel" id="custPhone" class="form-control" placeholder="60123456789"></div>
+            <div class="form-group flex"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rememberMeCust"> Ingat Saya</label></div>
+            <button type="button" class="btn btn-success w-full" onclick="loginCustomer()"><i class="fa-solid fa-user-check"></i> Semak Status</button>
+        </form>
+        <div id="loginError" class="login-error hidden"></div>
+    </div>
+</div>
+
+<!-- APP -->
+<div id="appContainer" class="app-container hidden">
+    <aside id="sidebar">
+        <div class="sidebar-brand"><i class="fa-solid fa-rug"></i><span>MYCARPET<span class="brand-red">PRO</span></span></div>
+        <ul id="sidebarMenu" class="sidebar-menu"></ul>
+        <div class="sidebar-footer"><div class="menu-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Keluar</div></div>
+    </aside>
+    <main>
+        <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;"><i class="fa-solid fa-bars"></i> Menu</button>
+        <div id="tabContainer"></div>
+    </main>
+</div>
+<div id="toastContainer" class="toast-container"></div>
+
+<script>
+// ==================== CONFIG & STATE ====================
+const CONFIG = {
+    GAS_API_URL: "https://script.google.com/macros/s/AKfycbw4EwVH8bUoG9NXztrtAeB_41B_YQh-F-U1xrl60Tj8NCLhabxi6fcHdyAWTcxuiPUA/exec",
+    ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
+};
+let STATE = {
+    senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
+    currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
+    paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
+};
+
+// ==================== HELPERS ====================
+function $(s, c=document) { return c.querySelector(s); }
+function $$(s, c=document) { return [...c.querySelectorAll(s)]; }
+function getField(row, names, fallback="") {
+    if (!row || typeof row !== 'object') return fallback;
+    const norm = names.map(n => String(n).toUpperCase().trim());
+    for (let key of Object.keys(row)) {
+        if (norm.includes(String(key).toUpperCase().trim())) {
+            const v = row[key];
+            return (v !== undefined && v !== null) ? v : fallback;
+        }
+    }
+    return fallback;
+}
+function getNumber(v) {
+    const n = parseFloat(String(v || "0").replace(/[RM,]/g, '').trim());
+    return isNaN(n) ? 0 : n;
+}
+function formatMoney(v) { return "RM " + getNumber(v).toFixed(2); }
+function escapeHtml(t) { if (!t) return ''; return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function normalize(s) { return String(s || "").trim().toUpperCase(); }
+function showLoading(show) { const el = $('#loadingOverlay'); if (el) el.classList.toggle('active', show); }
+function getToday() { return new Date().toISOString().split('T')[0]; }
+function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; }
+function formatDateMY(dateStr) {
+    if (!dateStr) return '-';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+function toast(msg) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const div = document.createElement('div'); div.className = 'toast'; div.textContent = msg;
+    container.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
+}
+
+// ==================== API ====================
+function fetchData(callback, skipRefresh = false) {
+    if (STATE.isLoading) return;
+    STATE.isLoading = true;
+    showLoading(true);
+    $$('script[data-jsonp]').forEach(el => el.remove());
+    const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+    const timeout = setTimeout(() => {
+        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
+        toast('Masa muat turun tamat.');
+    }, 25000);
+    window[cbName] = function(resp) {
+        clearTimeout(timeout);
+        STATE.isLoading = false;
+        showLoading(false);
+        try {
+            if (resp && typeof resp === 'object') {
+                STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
+                STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
+                STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
+                STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
+                STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
+                if (callback) callback();
+                if (!skipRefresh) refreshAllUI();
+            } else { toast('Data tidak sah.'); }
+        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
+        finally { cleanupJsonp(cbName); }
+    };
+    const script = document.createElement('script');
+    script.id = cbName; script.dataset.jsonp = 'true';
+    script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
+    script.onerror = function() {
+        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
+        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
+    };
+    document.body.appendChild(script);
+}
+
+async function postData(data) {
+    try {
+        await fetch(CONFIG.GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        toast('Gagal menghantar data.');
+        return { success: false };
+    }
+}
+function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
+
+// ==================== AUTH ====================
+const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
+function loginAdmin() {
+    const username = document.getElementById('adminUser').value.trim();
+    const password = document.getElementById('adminPass').value.trim();
+    if (!username || !password) { showLoginError('Sila isi username dan password.'); return; }
+    if (username === ADMIN_DUMMY.username && password === ADMIN_DUMMY.password) {
+        STATE.currentUser = { role: 'admin', username: username, nama: ADMIN_DUMMY.nama };
+        saveSession(); afterLogin();
+    } else { showLoginError('Username atau password salah.'); }
+}
+function loginCustomer() {
+    const phone = document.getElementById('custPhone').value.trim().replace(/[- ]/g, '');
+    if (!phone) { showLoginError('Sila masukkan nombor telefon.'); return; }
+    const cust = STATE.pelanggan.find(c => {
+        const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
+        return normalize(dbPhone) === normalize(phone);
+    });
+    if (cust) {
+        STATE.currentUser = { role: 'customer', customerId: getField(cust, ['CUSTOMER ID','CUSTOMER_ID']), telefon: phone };
+        saveSession(); afterLogin();
+    } else { showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.'); }
+}
+function saveSession() {
+    const remember = STATE.currentUser.role === 'admin' ?
+        document.getElementById('rememberMeAdmin').checked : document.getElementById('rememberMeCust').checked;
+    const storage = remember ? localStorage : sessionStorage;
+    storage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
+}
+function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.classList.remove('hidden'); }
+function afterLogin() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); initApp(); }
+function logout() {
+    STATE.currentUser = null;
+    localStorage.removeItem('mycarpet_user'); sessionStorage.removeItem('mycarpet_user');
+    document.getElementById('appContainer').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('adminUser').value = '';
+    document.getElementById('adminPass').value = '';
+    document.getElementById('custPhone').value = '';
+    document.getElementById('loginError').classList.add('hidden');
+}
+
+// ==================== APP INIT ====================
+function initApp() {
+    renderSidebar();
+    fetchData(() => {
+        const defaultTab = STATE.currentUser.role === 'admin' ? 'dashboard' : 'customer-portal';
+        switchTab(defaultTab);
+    });
+}
+function renderSidebar() {
+    const menuContainer = document.getElementById('sidebarMenu'); menuContainer.innerHTML = '';
+    const role = STATE.currentUser.role;
+    const menuItems = role === 'admin' ? [
+        { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+        { id: 'temujanji', icon: 'fa-calendar-check', label: 'Temujanji' },
+        { id: 'tempahan', icon: 'fa-file-invoice-dollar', label: 'Tempahan Baru' },
+        { id: 'tracking', icon: 'fa-qrcode', label: 'Tracking' },
+        { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
+        { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
+        { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
+        { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' }
+    ] : [
+        { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
+    ];
+    menuItems.forEach(item => {
+        const li = document.createElement('li'); li.className = 'menu-item'; li.dataset.tab = item.id;
+        li.innerHTML = `<i class="fa-solid ${item.icon}"></i> ${item.label}`;
+        li.addEventListener('click', () => switchTab(item.id));
+        menuContainer.appendChild(li);
+    });
+}
+function switchTab(tabId) {
+    $$('.menu-item').forEach(el => el.classList.remove('active'));
+    const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
+    if (activeMenu) activeMenu.classList.add('active');
+    const container = document.getElementById('tabContainer'); container.innerHTML = '';
+    if (tabId === 'dashboard') renderDashboard(container);
+    else if (tabId === 'customer-portal') renderCustomerPortal(container);
+    else if (tabId === 'temujanji') renderTemujanji(container);
+    else if (tabId === 'tempahan') renderTempahan(container);
+    else if (tabId === 'tracking') renderTracking(container);
+    else if (tabId === 'payment') renderPayment(container);
+    else if (tabId === 'invoice') renderInvoiceTab(container);
+    else if (tabId === 'pelanggan') renderPelanggan(container);
+    else if (tabId === 'barcode') renderBarcode(container);
+    else if (tabId === 'pricematrix') renderPriceMatrix(container);
+        
+        
+    else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
+    if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
+}
+function refreshAllUI() { if (STATE.currentUser) { const ct = document.querySelector('.menu-item.active'); if (ct) switchTab(ct.dataset.tab); } }
+
+// ==================== DASHBOARD ====================
+function renderDashboard(container) {
+    const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
+    const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
+    const ready = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'READY TO DELIVER').length;
+    const selesai = STATE.karpet.filter(k => ['SELESAI','SELESAI DIHANTAR'].includes(normalize(getField(k,['STATUS'])))).length;
+    container.innerHTML = `
+        <header><div><h1>Dashboard Operasi</h1><p class="muted">Data sebenar dari spreadsheet</p></div><button class="btn btn-secondary" onclick="fetchData()"><i class="fa-solid fa-sync"></i> Refresh</button></header>
+        <div class="metrics-grid">
+            <div class="metric-card" style="border-left-color:#f1c40f"><h3>Dalam Proses</h3><p>${proses}</p></div>
+            <div class="metric-card" style="border-left-color:#3498db"><h3>Pengeringan</h3><p>${kering}</p></div>
+            <div class="metric-card" style="border-left-color:#38b2ac"><h3>Ready Deliver</h3><p>${ready}</p></div>
+            <div class="metric-card" style="border-left-color:#2ecc71"><h3>Selesai</h3><p>${selesai}</p></div>
+        </div>
+        <div class="card"><h3 class="card-title">Aktiviti Terkini</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
+            ${STATE.karpet.slice(-10).reverse().map(k => {
+                const st = normalize(getField(k,['STATUS']));
+                const badge = st==='READY TO DELIVER'?'badge-ready':(st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+                return `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
+            }).join('') || '<tr><td colspan="6" class="text-center muted">Tiada rekod</td></tr>'}
+        </tbody></table></div></div>`;
+}
+
+// ==================== CUSTOMER PORTAL ====================
+function renderCustomerPortal(container) {
+    const custId = STATE.currentUser.customerId;
+    const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
+    const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
+    container.innerHTML = `
+        <header><div><h1>Status Karpet Saya</h1><p class="muted">Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p></div></header>
+        <div class="card">
+            ${carpets.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
+                ${carpets.map(k => {
+                    const st = normalize(getField(k,['STATUS']));
+                    const badge = st==='READY TO DELIVER'?'badge-ready':(st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+                    return `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
+                }).join('')}
+            </tbody></table></div>` : '<p class="muted">Anda tiada karpet dalam sistem.</p>'}
+        </div>`;
+}
+
+// ==================== TEMUJANJI ====================
+function renderTemujanji(container) {
+    container.innerHTML = `
+        <header><div><h1>Temujanji Ambil Karpet</h1><p class="muted">Jana mesej WhatsApp untuk pengambilan</p></div></header>
+        <div class="card">
+            <div class="row"><div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="tjNama" class="form-control" placeholder="Nama pelanggan"></div><div class="col form-group"><label>No. Telefon</label><input type="text" id="tjTelefon" class="form-control" placeholder="60123456789"></div></div>
+            <div class="form-group"><label>Alamat Pengambilan</label><textarea id="tjAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea></div>
+            <div class="row"><div class="col form-group"><label>Tarikh Ambil</label><input type="date" id="tjTarikh" class="form-control"></div><div class="col form-group"><label>Masa Ambil</label><input type="time" id="tjMasa" class="form-control"></div></div>
+            <div class="flex"><button class="btn btn-primary" onclick="janaMesejJanji()"><i class="fa-regular fa-copy"></i> Salin Mesej</button><button class="btn btn-whatsapp" onclick="hantarWhatsAppJanji()"><i class="fa-brands fa-whatsapp"></i> Hantar</button></div>
+            <div id="mesejPreviewJanji" class="wa-preview hidden"></div>
+        </div>`;
+    document.getElementById('tjTarikh').value = getToday();
+}
+function janaMesejJanji() {
+    const nama = document.getElementById('tjNama').value.trim(), alamat = document.getElementById('tjAlamat').value.trim(), tarikh = document.getElementById('tjTarikh').value, masa = document.getElementById('tjMasa').value;
+    if (!nama || !alamat || !tarikh || !masa) { toast('Sila lengkapkan semua maklumat.'); return; }
+    const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nSlot janji temu untuk pengambilan karpet anda telah dimasukkan ke dalam sistem kami:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila maklumkan kepada kami jika anda perlu menukar slot ini. Terima kasih kerana mempercayai perkhidmatan kami! 🙏`;
+    document.getElementById('mesejPreviewJanji').textContent = msg;
+    document.getElementById('mesejPreviewJanji').classList.remove('hidden');
+    navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
+}
+function hantarWhatsAppJanji() {
+    const telefon = document.getElementById('tjTelefon').value.trim().replace(/[- ]/g, '');
+    if (!telefon) { toast('Sila masukkan nombor telefon.'); return; }
+    const preview = document.getElementById('mesejPreviewJanji');
+    let msg = preview.textContent;
+    if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
+    window.open(`https://wa.me/60${telefon.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ==================== PENJANA INVOIS ====================
+function generateInvoiceNumber() {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = ('0' + (now.getMonth() + 1)).slice(-2);
+    const prefix = yy + mm;
+    let maxSeq = 499;
+    STATE.tempahan.forEach(t => {
+        const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
+        if (inv.length === 11 && inv.startsWith('INV' + prefix)) {
+            const suffix = parseInt(inv.substring(4), 10);
+            if (!isNaN(suffix) && suffix > maxSeq) maxSeq = suffix;
+        }
+    });
+    const nextSeq = ('0000' + (maxSeq + 1)).slice(-4);
+    return 'INV' + prefix + nextSeq;
+}
+
+// ==================== TEMPAHAN BARU ====================
+function renderTempahan(container) {
+    let pelangganOptions = '<option value="">-- Pilih --</option>';
+    STATE.pelanggan.forEach(c => {
+        const id = getField(c, ['CUSTOMER ID','CUSTOMER_ID']), nama = getField(c, ['NAMA'], ''), alamat = getField(c, ['ALAMAT'], '');
+        pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
+    });
+    container.innerHTML = `
+        <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
+        <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
+            <div class="form-group"><label>Jenis Pelanggan</label><div style="display:flex;gap:20px;"><label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label><label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label></div></div>
+            <div id="secCustLama"><div class="form-group"><label>Pilih Pelanggan</label><select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select></div><div class="row"><div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div><div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div><div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div></div></div>
+            <div id="secCustBaru" style="display:none;"><div class="row"><div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div><div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div></div>
+        </div>
+        <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
+            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
+            <div id="carpetItemsContainer"></div>
+            <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
+            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
+            <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
+            <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
+        </div>`;
+    addCarpetRow();
+}
+function toggleCustType() {
+    const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
+    document.getElementById('secCustLama').style.display = baru ? 'none' : 'block';
+    document.getElementById('secCustBaru').style.display = baru ? 'block' : 'none';
+}
+function loadCustomerDetails() {
+    const id = document.getElementById('optPelanggan').value;
+    const c = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === id);
+    if (!c) { ['custNama','custTel','custAlamat','custDaerah'].forEach(f => document.getElementById(f).value = ''); return; }
+    document.getElementById('custNama').value = getField(c, ['NAMA'], '');
+    document.getElementById('custTel').value = getField(c, ['TELEFON','NO TELEFON'], '');
+    document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
+    document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
+}
+let carpetRowCount = 0;
+function resetCarpetRows() { document.getElementById('carpetItemsContainer').innerHTML = ''; carpetRowCount = 0; addCarpetRow(); }
+function addCarpetRow() {
+    carpetRowCount++;
+    const container = document.getElementById('carpetItemsContainer');
+    const rowId = 'carpetRow_' + carpetRowCount;
+    const div = document.createElement('div'); div.className = 'row card-item-row'; div.id = rowId;
+    div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
+    const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
+    col1.innerHTML = '<label>Kod</label>';
+    const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
+    sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
+    STATE.senaraiHarga.forEach(p => {
+        const kod = String(getField(p, ['KOD'])).trim(); if (!kod) return;
+        const jenis = getField(p, ['JENIS CARPET'], '');
+        let harga = getNumber(getField(p, ['LEBAR'], 0));
+        if (harga <= 0) harga = getNumber(getField(p, ['HARGA OPEN'], 0));
+        if (harga <= 0) return;
+        const opt = document.createElement('option'); opt.value = kod;
+        opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
+        opt.dataset.harga = harga; opt.dataset.jenis = jenis;
+        sel.appendChild(opt);
+    });
+    sel.onchange = function() { handleCodeSelection(rowId); };
+    col1.appendChild(sel);
+    const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
+    info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
+    info.textContent = 'Jenis & harga auto.'; col1.appendChild(info);
+    const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
+    col2.innerHTML = '<label>Qty</label>';
+    const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
+    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal; col2.appendChild(qty);
+    const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
+    col4.innerHTML = '<label>Harga (RM)</label>';
+    const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
+    const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
+    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
+    div.appendChild(col1); div.appendChild(col2); div.appendChild(col4); div.appendChild(col5);
+    container.appendChild(div);
+    calculateGrandTotal();
+}
+function handleCodeSelection(rowId) {
+    const row = document.getElementById(rowId); if (!row) return;
+    const sel = row.querySelector('.select-kod-karpet'), price = row.querySelector('.inp-harga-final'), info = row.querySelector('.jenis-vlookup-info');
+    const opt = sel.options[sel.selectedIndex];
+    if (opt && opt.dataset.harga) {
+        const harga = parseFloat(opt.dataset.harga);
+        price.value = harga.toFixed(2);
+        info.innerHTML = `<strong>${escapeHtml(opt.dataset.jenis)}</strong><br>Harga: ${formatMoney(harga)}`;
+    } else { price.value = '0.00'; info.textContent = 'Jenis & harga auto.'; }
+    calculateGrandTotal();
+}
+function calculateGrandTotal() {
+    let total = 0;
+    document.querySelectorAll('.card-item-row').forEach(row => {
+        total += (parseInt(row.querySelector('.inp-qty')?.value) || 1) * (parseFloat(row.querySelector('.inp-harga-final')?.value) || 0);
+    });
+    document.getElementById('grandTotalLabel').textContent = formatMoney(total);
+}
+function removeCarpetRow(rowId) {
+    if (document.getElementById('carpetItemsContainer').querySelectorAll('.card-item-row').length <= 1) { toast('Perlu sekurang-kurangnya satu item.'); return; }
+    document.getElementById(rowId)?.remove(); calculateGrandTotal();
+}
+async function simpanTempahan() {
+    const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
+    let custId, custNama, custTel, custAlamat, custDaerah;
+    if (isBaru) {
+        custNama = document.getElementById('custNamaBaru').value.trim();
+        custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
+        custAlamat = document.getElementById('custAlamatBaru').value.trim();
+        custDaerah = document.getElementById('custDaerahBaru').value.trim();
+        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
+        custId = '';
+        STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
+    } else {
+        custId = document.getElementById('optPelanggan').value;
+        if (!custId) { toast('Sila pilih pelanggan.'); return; }
+        const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
+        if (!cust) { toast('Pelanggan tidak ditemui.'); return; }
+        STATE.lastCustomer = cust;
+        custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
+    }
+    const items = []; let valid = true;
+    document.querySelectorAll('.card-item-row').forEach(row => {
+        const sel = row.querySelector('.select-kod-karpet'); if (!sel || !sel.value) { valid = false; return; }
+        const opt = sel.options[sel.selectedIndex];
+        const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
+        const harga = parseFloat(opt.dataset.harga) || 0;
+        items.push({ kod: sel.value, jenis: opt.dataset.jenis || '', harga, qty, subtotal: qty * harga });
+    });
+    if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
+    const total = items.reduce((sum, i) => sum + i.subtotal, 0);
+    const today = getToday();
+    const tarikhSiap = addDays(today, 7);
+    const invNo = generateInvoiceNumber();
+    showLoading(true);
+    await postData({ action: 'createOrder', invNo, isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
+    showLoading(false);
+    toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
+    const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
+    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 *No Invoice:* ${invNo}\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n💰 *Jumlah Harga:* *${formatMoney(total)}*\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
+    document.getElementById('tempahanPreview').textContent = msg;
+    document.getElementById('tempahanPreview').classList.remove('hidden');
+    document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
+    STATE.lastOrderMsg = msg;
+    fetchData(null, true);
+}
+function hantarWhatsAppTempahan() {
+    if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
+    const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    if (!tel) { toast('Nombor telefon tiada.'); return; }
+    const msg = STATE.lastOrderMsg;
+    if (!msg) { toast('Tiada mesej.'); return; }
+    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ==================== TRACKING ====================
+function renderTracking(container) {
+    const invSet = new Set();
+    STATE.karpet.forEach(k => {
+        if (!k) return;
+        const st = normalize(getField(k, ['STATUS']));
+        if (st === 'SELESAI DIHANTAR') return;
+        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
+        if (inv) invSet.add(inv);
+    });
+    const invoiceOptions = ['<option value="">-- Semua --</option>'];
+    invSet.forEach(inv => {
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const alamat = String(getField(cust, ['ALAMAT'], ''));
+        invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
+    });
+    container.innerHTML = `
+        <header><div><h1>Tracking QR</h1><p class="muted">Karpet aktif (kecuali Selesai Dihantar)</p></div></header>
+        <div class="card">
+            <div class="form-group"><label>Cari No. Invois / Alamat</label><select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select></div>
+            <div class="row"><div class="col form-group"><label>Cari QR ID</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1"></div><div class="col form-group"><label>Status Baharu (Pukal)</label><select id="batchStatusOpt" class="form-control"><option value="DALAM PROSES">DALAM PROSES</option><option value="PENGERINGAN">PENGERINGAN</option><option value="READY TO DELIVER">READY TO DELIVER</option><option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option></select></div></div>
+            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;"><div><strong id="trackingCheckedCount">0 item dipilih</strong></div><button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button></div>
+            <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="7" class="text-center muted">Tiada data</td></tr></tbody></table></div>
+        </div>`;
+    document.getElementById('trackingInvoiceSelect').addEventListener('change', executeTrackingSearch);
+    document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
+    executeTrackingSearch();
+}
+function executeTrackingSearch() {
+    const tbody = document.getElementById('trackingTableBody');
+    tbody.innerHTML = '';
+    const selInv = document.getElementById('trackingInvoiceSelect').value;
+    const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
+    let filtered = STATE.karpet.filter(k => {
+        if (!k) return false;
+        const st = normalize(getField(k, ['STATUS']));
+        if (st === 'SELESAI DIHANTAR') return false;
+        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
+        const qr = String(getField(k, ['QR ID','QR_ID'], '')).trim();
+        if (selInv && normalize(inv) !== normalize(selInv)) return false;
+        if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
+        return true;
+    });
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
+    filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
+    filtered.forEach(k => {
+        const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
+        const st = normalize(getField(k, ['STATUS']));
+        const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
+            <td><strong>${escapeHtml(qr)}</strong><br><small>${escapeHtml(inv)}</small></td>
+            <td><strong>${escapeHtml(String(getField(cust, ['NAMA'], 'TIADA')))}</strong><br><small>${escapeHtml(String(getField(cust, ['ALAMAT'], '')))}</small></td>
+            <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
+            <td>${formatMoney(getField(k, ['HARGA']))}</td>
+            <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
+            <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>`;
+        tbody.appendChild(tr);
+    });
+    updateTrackingCheckedCount();
+}
+function toggleSelectAll(masterCheckbox) {
+    document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
+    updateTrackingCheckedCount();
+}
+function updateTrackingCheckedCount() {
+    document.getElementById('trackingCheckedCount').textContent = `${document.querySelectorAll('.tracking-row-checkbox:checked').length} item dipilih`;
+}
+function updateSingleStatus(qrId) {
+    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+    if (!k) return toast('Karpet tidak dijumpai.');
+    const cur = normalize(getField(k, ['STATUS']));
+    const baru = prompt(`Status semasa: ${cur}\nMasukkan status baru:\nDALAM PROSES\nPENGERINGAN\nREADY TO DELIVER\nSELESAI DIHANTAR`, cur);
+    if (!baru) return;
+    const norm = normalize(baru);
+    if (!CONFIG.ACTIVE_STATUSES.includes(norm)) return toast('Status tidak sah.');
+    updateStatuses([qrId], norm);
+}
+async function submitBatchUpdate() {
+    const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
+    if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    const status = document.getElementById('batchStatusOpt').value;
+    await updateStatuses(ids, status);
+}
+async function updateStatuses(qrIds, status) {
+    showLoading(true);
+    await postData({ action: 'updateBatchStatus', qrIds, status });
+    showLoading(false);
+    toast('Status dikemas kini.');
+    const master = document.getElementById('trackingMasterCheck');
+    if (master) master.checked = false;
+    fetchData(() => executeTrackingSearch(), true);
+}
+
+// ==================== PEMBAYARAN ====================
+function renderPayment(container) {
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = getField(cust, ['NAMA'], '');
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, status, nama, alamat });
+    });
+    invList.sort((a, b) => {
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
+        return b.inv.localeCompare(a.inv);
+    });
+    const invoiceOptions = invList.map(item => {
+        const label = item.status === 'PENDING' ? '⏳ PENDING' : '✅ PAID';
+        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)} [${label}]</option>`;
+    }).join('');
+
+    container.innerHTML = `
+        <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
+        <div class="card">
+            <div class="form-group">
+                <label>Pilih Invois</label>
+                <select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()">
+                    <option value="">-- Pilih --</option>
+                    ${invoiceOptions}
+                </select>
+            </div>
+            <div id="paymentInfo" class="hidden">
+                <div class="row">
+                    <div class="col form-group"><label>Jumlah Keseluruhan (RM)</label><input id="payTotal" class="form-control" disabled></div>
+                    <div class="col form-group"><label>Deposit Telah Dibayar (RM)</label><input id="payDeposit" class="form-control" disabled></div>
+                    <div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div>
+                </div>
+                <div class="row">
+                    <div class="col form-group"><label>Jumlah Bayaran Baru (RM)</label><input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00"></div>
+                    <div class="col form-group"><label>Kaedah Pembayaran</label><select id="payMethod" class="form-control"><option value="TUNAI">TUNAI (CASH)</option><option value="TRANSFER BANK">TRANSFER BANK</option><option value="DuitNow">DuitNow</option></select></div>
+                </div>
+                <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
+                <div id="paymentHistory" class="mt-16"></div>
+                <div id="paymentWhatsAppPreview" class="wa-preview hidden mt-16"></div>
+                <div id="paymentWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppPembayaran()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
+            </div>
+        </div>
+    `;
+}
+
+function loadPaymentData() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    const infoDiv = document.getElementById('paymentInfo');
+    if (!inv) { infoDiv.classList.add('hidden'); return; }
+    infoDiv.classList.remove('hidden');
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+    let deposit = 0;
+    let baki = total;
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    if (payments.length > 0) {
+        const lastPayment = payments[payments.length - 1];
+        const lastBaki = getNumber(getField(lastPayment, ['BAKI']));
+        if (!isNaN(lastBaki)) baki = lastBaki;
+    } else {
+        baki = Math.max(0, total - deposit);
+    }
+    document.getElementById('payTotal').value = formatMoney(total);
+    document.getElementById('payDeposit').value = formatMoney(deposit);
+    document.getElementById('payBalance').value = formatMoney(baki);
+    const historyDiv = document.getElementById('paymentHistory');
+    if (payments.length) {
+        let html = '<strong>Sejarah Bayaran</strong><ul style="list-style:none;padding:0;margin-top:8px;">';
+        payments.forEach(p => {
+            html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})</li>`;
+        });
+        html += '</ul>';
+        historyDiv.innerHTML = html;
+    } else {
+        historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>';
+    }
+}
+
+async function rekodBayaran() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    if (!inv) return toast('Sila pilih invois.');
+    const amount = getNumber(document.getElementById('payAmount').value);
+    if (amount <= 0) return toast('Masukkan jumlah bayaran yang sah.');
+    const method = document.getElementById('payMethod').value;
+    const date = getToday();
+
+    showLoading(true);
+    await postData({ action: 'addPayment', invNo: inv, amount, method, date });
+    showLoading(false);
+
+    toast('Bayaran direkodkan.');
+    document.getElementById('payAmount').value = '';
+
+    // Dapatkan nama & telefon pelanggan untuk WhatsApp receipt
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+
+    // Refresh data & jana WhatsApp receipt
+    fetchData(() => {
+        loadPaymentData();
+        // Jika baki <= 0, update status ke PAID
+        const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        if (updatedOrder) {
+            let totalDeposit = 0;
+            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) totalDeposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+            if (totalDeposit >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) {
+                postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' });
+            }
+        }
+
+        // Dapatkan baki terkini dari STATE.payment
+        const latestPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        let bakiTerkini = 0;
+        if (latestPayments.length > 0) {
+            const lastP = latestPayments[latestPayments.length - 1];
+            bakiTerkini = getNumber(getField(lastP, ['BAKI']));
+        }
+
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+            `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
+            `🧾 No Invoice: ${inv}\n` +
+            `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
+            `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
+            `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
+            `💳 Kaedah: ${method}\n\n` +
+            `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
+
+        const previewEl = document.getElementById('paymentWhatsAppPreview');
+        const waBtnEl = document.getElementById('paymentWhatsAppBtn');
+        if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
+        if (waBtnEl) waBtnEl.classList.remove('hidden');
+        STATE.paymentWhatsAppMsg = msg;
+        STATE.paymentWhatsAppTel = tel;
+    }, true);
+}
+
+function hantarWhatsAppPembayaran() {
+    const tel = STATE.paymentWhatsAppTel;
+    const msg = STATE.paymentWhatsAppMsg;
+    if (!tel) { toast('Nombor telefon pelanggan tidak dijumpai.'); return; }
+    if (!msg) { toast('Tiada mesej.'); return; }
+    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ==================== INVOIS & RESIT ====================
+function renderInvoiceTab(container) {
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = getField(cust, ['NAMA'], '');
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, status, nama, alamat });
+    });
+    invList.sort((a, b) => b.inv.localeCompare(a.inv));
+    const invoiceOptions = invList.map(item => {
+        const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
+        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
+    }).join('');
+
+    container.innerHTML = `
+        <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
+        <div class="card no-print">
+            <div class="form-group">
+                <label>Pilih Invois</label>
+                <select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">
+                    <option value="">-- Pilih --</option>
+                    ${invoiceOptions}
+                </select>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Servis Tambahan</label>
+                    <input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()">
+                </div>
+                <div class="col form-group">
+                    <label>Harga (RM)</label>
+                    <input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()">
+                </div>
+            </div>
+            <div class="flex">
+                <button class="btn btn-secondary" onclick="downloadInvoicePDF()"><i class="fa-solid fa-file-pdf"></i> Muat Turun PDF</button>
+                <button class="btn btn-warning" onclick="shareInvoiceWithAttachment()"><i class="fa-solid fa-paper-plane"></i> Hantar Invois (Gambar/PDF)</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar Mesej WhatsApp</button>
+            </div>
+        </div>
+        <div id="invoicePreviewContainer"></div>
+    `;
+}
+
+function renderInvoicePreview() {
+    const inv = document.getElementById('invoiceSelect').value;
+    const container = document.getElementById('invoicePreviewContainer');
+    if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
+    const custId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID']) || getField(order, ['CUSTOMER ID','CUSTOMER_ID']) || '';
+    const telefon = getField(cust, ['TELEFON','NO TELEFON'], getField(order, ['TELEFON'], '-'));
+    const alamat = getField(cust, ['ALAMAT'], getField(order, ['ALAMAT'], '-'));
+    const daerah = getField(cust, ['DAERAH'], getField(order, ['DAERAH'], '-'));
+    const tarikh = String(getField(order, ['TARIKH', 'DATE'], getToday())).split('T')[0];
+    const status = normalize(getField(order, ['STATUS'], 'PENDING'));
+    const isPaid = status === 'PAID' || status === 'LUNAS' || status === 'SELESAI';
+
+    // Item karpet
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    let items = carpets.map(k => ({
+        nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'),
+        qr: getField(k, ['QR ID','QR_ID'], ''),
+        qty: 1,
+        harga: getNumber(getField(k, ['HARGA'])),
+        total: getNumber(getField(k, ['HARGA']))
+    }));
+    if (!items.length) {
+        const totalOrder = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+        if (totalOrder > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: totalOrder, total: totalOrder }];
+    }
+
+    // Deposit & Baki
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    let deposit = 0;
+    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    let baki = 0;
+    if (payments.length > 0) {
+        const lastP = payments[payments.length - 1];
+        baki = getNumber(getField(lastP, ['BAKI']));
+    } else {
+        baki = Math.max(0, getNumber(getField(order, ['JUMLAH HARGA'], 0)) - deposit);
+    }
+
+    const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
+    const extraPrice = getNumber(document.getElementById('extraServicePrice')?.value || 0);
+    const subtotal = items.reduce((s, i) => s + i.total, 0);
+    const total = subtotal + extraPrice;
+
+    // Warna tema
+    const brandColor = isPaid ? '#28a745' : '#ff6d00';
+
+    // Bina jadual item dengan lebar baru: BIL 5%, KETERANGAN 50%, UNIT 5%, HARGA SEUNIT 18%, TOTAL 22%
+    let itemsHTML = items.map((item, i) => `
+        <tr>
+            <td style="width:5%;">${i+1}</td>
+            <td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
+            <td style="width:5%;">${item.qty}</td>
+            <td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td>
+            <td style="width:22%;text-align:right;">${formatMoney(item.total)}</td>
+        </tr>
+    `).join('');
+    if (extraName && extraPrice > 0) {
+        itemsHTML += `
+        <tr>
+            <td style="width:5%;">${items.length+1}</td>
+            <td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td>
+            <td style="width:5%;">1</td>
+            <td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td>
+            <td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td>
+        </tr>`;
+    }
+
+    const html = `
+        <div class="card print-area" id="invoicePrintArea">
+            <div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
+                <!-- Logo kecil, rapat kiri -->
+                <div style="margin-bottom:6mm;">
+                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm;" onerror="this.style.display='none'">
+                </div>
+
+                <!-- Header -->
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;">
+                    <div>
+                        <div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">
+                            WESTBERRY ENTERPRISE
+                        </div>
+                        <div style="font-size:10px;color:#555;line-height:1.4;">
+                            LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>
+                            PAYA BESAR 09600 LUNAS KEDAH.<br>
+                            TEL: 017-4050336
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1>
+                        <table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;">
+                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr>
+                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">DATE</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikh)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status (teks sahaja, saiz 20, warna) -->
+                <div style="text-align:right;margin-bottom:6mm;">
+                    <span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span>
+                </div>
+
+                <!-- Maklumat Pelanggan -->
+                <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
+                <div style="margin-bottom:8mm;">
+                    <div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
+                    <div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
+                    <div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div>
+                </div>
+
+                <!-- Jadual Item -->
+                <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;">
+                    <thead>
+                        <tr style="background:${brandColor};color:#fff;">
+                            <th style="padding:4px;text-align:center;width:5%;">BIL</th>
+                            <th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th>
+                            <th style="padding:4px;text-align:center;width:5%;">UNIT</th>
+                            <th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th>
+                            <th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}
+                    </tbody>
+                </table>
+
+                <!-- Ringkasan Pembayaran -->
+                <div style="display:flex;justify-content:flex-end;margin-bottom:8mm;">
+                    <table style="border-collapse:collapse;font-size:10px;width:50%;">
+                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(subtotal)}</td></tr>
+                        ${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
+                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr>
+                        <tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
+                    </table>
+                </div>
+
+                <!-- Info Bank & Tandatangan -->
+                <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;">
+                    <div>
+                        <strong>UNTUK PEMBAYARAN:</strong><br>
+                        <strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br>
+                        <span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span>
+                    </div>
+                    <div style="text-align:center;">
+                        <strong>DISEDIAKAN OLEH / COP:</strong><br>
+                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'">
+                        <div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div>
+                    </div>
+                </div>
+
+                <!-- Nota Kaki -->
+                <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;">
+                    <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>
+                    1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>
+                    2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
+                    <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
+                </div>
+                <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">
+                    Thank you for your business! We look forward to serving you again.<br>
+                    ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
+                </div>
+            </div>
+        </div>
+    `;
+    container.innerHTML = html;
+
+    // Sediakan mesej WhatsApp
+    const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
+    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
+}
+
+async function shareInvoiceWithAttachment() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    const isPaid = data.isPaid;
+    const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
+    const mimeType = isPaid ? 'application/pdf' : 'image/png';
+    
+    toast('Menyediakan lampiran...');
+
+    let fileBlob;
+    try {
+        if (isPaid) {
+            const pdfBlob = await html2pdf().set({
+                margin: [5, 5, 5, 5],
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(element).outputPdf('blob');
+            fileBlob = pdfBlob;
+        } else {
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        }
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            const file = new File([fileBlob], fileName, { type: mimeType });
+            await navigator.share({
+                title: `Invoice ${data.inv}`,
+                text: data.msg,
+                files: [file]
+            });
+            toast('Invois berjaya dikongsi!');
+            setTimeout(() => {
+                const tel = String(data.telefon).replace(/^0+/, '');
+                const msg = data.msg;
+                const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+                const whatsappUrl = isMobile ? `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}` : `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
+                window.open(whatsappUrl, '_blank');
+            }, 800);
+            return;
+        }
+    } catch (err) {
+        console.warn('Web Share gagal atau tidak disokong:', err);
+    }
+
+    try {
+        if (fileBlob) {
+            const url = URL.createObjectURL(fileBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.');
+        }
+    } catch (e) {
+        console.error('Muat turun gagal:', e);
+        toast('Gagal memuat turun fail.');
+    }
+
+    const tel = String(data.telefon).replace(/^0+/, '');
+    const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
+    const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+
+    if (isMobile) {
+        window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+        window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+        setTimeout(() => {
+            window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+        }, 2000);
+    }
+}
+
+function downloadInvoicePDF() {
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    if (typeof html2pdf === 'undefined') {
+        toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => {
+            toast('Pustaka PDF siap. Sila cuba lagi.');
+        };
+        document.head.appendChild(script);
+        return;
+    }
+
+    const opt = {
+        margin: [5, 5, 5, 5],
+        filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 2,
+            useCORS: true,
+            logging: false
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
+    };
+
+    toast('Sedang menjana PDF...');
+    html2pdf().set(opt).from(element).save().then(() => {
+        toast('PDF berjaya dimuat turun!');
+    }).catch((err) => {
+        console.error('PDF error:', err);
+        toast('Gagal menjana PDF. Sila cuba lagi.');
+    });
+}
+
+function copyInvoiceWhatsApp() {
+    const data = STATE.currentInvoiceData;
+    if (!data) return toast('Sila pilih invois dahulu.');
+    const text = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
+    navigator.clipboard.writeText(text).then(() => toast('Mesej WhatsApp disalin.')).catch(() => toast('Gagal salin.'));
+}
+
+function hantarWhatsAppInvoice() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
+    const tel = String(data.telefon).replace(/^0+/, '');
+    const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
+    window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+}
+
+// ==================== PELANGGAN ====================
+function renderPelanggan(container) {
+    container.innerHTML = `
+        <header>
+            <div><h1>👥 Pengurusan Pelanggan</h1><p class="muted">Senarai pelanggan berdaftar</p></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <input type="text" id="pelangganSearch" class="form-control" placeholder="Cari nama atau telefon..." style="max-width:250px;" oninput="filterPelanggan()">
+                <button class="btn btn-primary" onclick="showTambahPelanggan()"><i class="fa-solid fa-plus"></i> Tambah Pelanggan</button>
+            </div>
+        </header>
+        <div class="card" id="pelangganListContainer"></div>
+        <div class="card hidden" id="pelangganFormContainer"></div>
+        <div class="card hidden" id="pelangganHistoryContainer"></div>
+    `;
+    renderPelangganList();
+}
+
+function filterPelanggan() {
+    renderPelangganList(document.getElementById('pelangganSearch').value.trim().toLowerCase());
+}
+
+function renderPelangganList(searchTerm = '') {
+    const container = document.getElementById('pelangganListContainer');
+    let list = STATE.pelanggan || [];
+    if (searchTerm) {
+        list = list.filter(c => {
+            const nama = String(getField(c, ['NAMA'], '')).toLowerCase();
+            const tel = String(getField(c, ['TELEFON','NO TELEFON'], '')).toLowerCase();
+            return nama.includes(searchTerm) || tel.includes(searchTerm);
+        });
+    }
+    if (!list.length) {
+        container.innerHTML = '<p class="muted text-center">Tiada pelanggan.</p>';
+        return;
+    }
+    let html = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Customer ID</th><th>Nama</th><th>Telefon</th><th>Alamat</th><th>Daerah</th><th>Tindakan</th></tr></thead>
+        <tbody>`;
+    list.forEach(c => {
+        const id = escapeHtml(getField(c, ['CUSTOMER ID','CUSTOMER_ID'], '-'));
+        const nama = escapeHtml(getField(c, ['NAMA'], '-'));
+        const tel = escapeHtml(String(getField(c, ['TELEFON','NO TELEFON'], '-')));
+        const alamat = escapeHtml(getField(c, ['ALAMAT'], '-'));
+        const daerah = escapeHtml(getField(c, ['DAERAH'], '-'));
+        html += `<tr>
+            <td><strong>${id}</strong></td>
+            <td>${nama}</td>
+            <td>${tel}</td>
+            <td>${alamat}</td>
+            <td>${daerah}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="lihatSejarahPelanggan('${id}')"><i class="fa-solid fa-clock-rotate-left"></i> Sejarah</button>
+                <button class="btn btn-secondary btn-sm" onclick="showEditPelanggan('${id}')"><i class="fa-solid fa-pen"></i> Edit</button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function showTambahPelanggan() {
+    const container = document.getElementById('pelangganFormContainer');
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <h3 class="card-title">Tambah Pelanggan Baru</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="plgNama" class="form-control" placeholder="Nama"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="plgTelefon" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="row">
+            <div class="col form-group"><label>Alamat</label><input type="text" id="plgAlamat" class="form-control" placeholder="No, Jalan, Taman..."></div>
+            <div class="col form-group"><label>Daerah</label><input type="text" id="plgDaerah" class="form-control" placeholder="Kulim"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanTambahPelanggan()"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('pelangganFormContainer').classList.add('hidden')">Batal</button>
+        </div>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function simpanTambahPelanggan() {
+    const nama = document.getElementById('plgNama').value.trim();
+    const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
+    const alamat = document.getElementById('plgAlamat').value.trim();
+    const daerah = document.getElementById('plgDaerah').value.trim();
+
+    if (!nama || !tel || !alamat) {
+        toast('Sila lengkapkan Nama, Telefon dan Alamat.');
+        return;
+    }
+
+    showLoading(true);
+    await postData({
+        action: 'addCustomer',
+        nama: nama,
+        telefon: tel,
+        alamat: alamat,
+        daerah: daerah
+    });
+    showLoading(false);
+
+    toast('Pelanggan baru berjaya ditambah!');
+    document.getElementById('pelangganFormContainer').classList.add('hidden');
+    fetchData(null, true);
+    setTimeout(() => renderPelangganList(), 1500);
+}
+
+function showEditPelanggan(customerId) {
+    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    if (!cust) return toast('Pelanggan tidak dijumpai.');
+    const container = document.getElementById('pelangganFormContainer');
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <h3 class="card-title">Edit Pelanggan (${escapeHtml(customerId)})</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="plgNama" class="form-control" value="${escapeHtml(getField(cust, ['NAMA'], ''))}"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="plgTelefon" class="form-control" value="${escapeHtml(String(getField(cust, ['TELEFON','NO TELEFON'], '')))}"></div>
+        </div>
+        <div class="row">
+            <div class="col form-group"><label>Alamat</label><input type="text" id="plgAlamat" class="form-control" value="${escapeHtml(getField(cust, ['ALAMAT'], ''))}"></div>
+            <div class="col form-group"><label>Daerah</label><input type="text" id="plgDaerah" class="form-control" value="${escapeHtml(getField(cust, ['DAERAH'], ''))}"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanEditPelanggan('${escapeHtml(customerId)}')"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('pelangganFormContainer').classList.add('hidden')">Batal</button>
+        </div>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function simpanEditPelanggan(customerId) {
+    const nama = document.getElementById('plgNama').value.trim();
+    const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
+    const alamat = document.getElementById('plgAlamat').value.trim();
+    const daerah = document.getElementById('plgDaerah').value.trim();
+
+    if (!nama || !tel || !alamat) {
+        toast('Sila lengkapkan Nama, Telefon dan Alamat.');
+        return;
+    }
+
+    showLoading(true);
+    await postData({
+        action: 'updateCustomer',
+        customerId: customerId,
+        nama: nama,
+        telefon: tel,
+        alamat: alamat,
+        daerah: daerah
+    });
+    showLoading(false);
+
+    toast('Maklumat pelanggan dikemaskini!');
+    document.getElementById('pelangganFormContainer').classList.add('hidden');
+    fetchData(null, true);
+    setTimeout(() => renderPelangganList(), 1500);
+}
+
+function lihatSejarahPelanggan(customerId) {
+    const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    const nama = getField(cust, ['NAMA'], customerId);
+    const container = document.getElementById('pelangganHistoryContainer');
+    container.classList.remove('hidden');
+    if (!invList.length) {
+        container.innerHTML = `<h3 class="card-title">Sejarah Invois untuk ${escapeHtml(nama)}</h3><p class="muted">Tiada invois ditemui.</p>`;
+        return;
+    }
+    let rows = '';
+    invList.sort((a, b) => String(getField(b, ['INV NO','INV_NO','NO INVOIS'])).localeCompare(String(getField(a, ['INV NO','INV_NO','NO INVOIS']))));
+    invList.forEach(t => {
+        const inv = escapeHtml(getField(t, ['INV NO','INV_NO','NO INVOIS'], '-'));
+        const tarikh = escapeHtml(String(getField(t, ['TARIKH','DATE'], '-')).split('T')[0]);
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const badge = status === 'PAID' ? 'badge-selesai' : 'badge-proses';
+        const jumlah = formatMoney(getField(t, ['JUMLAH HARGA'], 0));
+        rows += `<tr>
+            <td><strong>${inv}</strong></td>
+            <td>${tarikh}</td>
+            <td>${jumlah}</td>
+            <td><span class="badge ${badge}">${status}</span></td>
+        </tr>`;
+    });
+    container.innerHTML = `
+        <h3 class="card-title">Sejarah Invois untuk ${escapeHtml(nama)} (${escapeHtml(customerId)})</h3>
+        <div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Invois</th><th>Tarikh</th><th>Jumlah</th><th>Status</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <button class="btn btn-secondary mt-16" onclick="document.getElementById('pelangganHistoryContainer').classList.add('hidden')"><i class="fa-solid fa-xmark"></i> Tutup</button>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ==================== BARCODE ====================
+// ==================== BARCODE ====================
+function renderBarcode(container) {
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, alamat });
+    });
+    invList.sort((a, b) => b.inv.localeCompare(a.inv));
+    const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
+
+    container.innerHTML = `
+        <header>
+            <div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div>
+        </header>
+        <div class="card">
+            <div class="form-group">
+                <label>Pilih Invois</label>
+                <select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()">
+                    <option value="">-- Pilih --</option>
+                    ${invoiceOptions}
+                </select>
+            </div>
+            <div id="barcodePreviewContainer" class="mt-16">
+                <p class="muted">Sila pilih invois untuk lihat preview barcode.</p>
+            </div>
+        </div>
+    `;
+}
+
+function generateBarcodePreview() {
+    const inv = document.getElementById('barcodeInvoiceSelect').value;
+    const container = document.getElementById('barcodePreviewContainer');
+    if (!inv) {
+        container.innerHTML = '<p class="muted">Sila pilih invois.</p>';
+        return;
+    }
+
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    if (!carpets.length) {
+        container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>';
+        return;
+    }
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const telefon = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    const cusId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID'], '');
+    const nama = getField(cust, ['NAMA'], '');
+    const alamat = getField(cust, ['ALAMAT'], '');
+
+    // Bina stiker untuk setiap karpet
+    let stikersHTML = '';
+    carpets.forEach((k, idx) => {
+        const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
+        const kod = String(getField(k, ['KOD'], '')).trim();
+        const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
+        stikersHTML += `
+            <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
+                <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
+                <div style="font-size:7px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:10mm;display:flex;align-items:center;justify-content:center;"></div>
+                <div style="font-size:6px;font-weight:bold;font-family:monospace;">QR ID: ${escapeHtml(qrId)}</div>
+                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">
+                    KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}
+                </div>
+            </div>
+        `;
+    });
+
+    const html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
+            <div>
+                <strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br>
+                <small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br>
+                <small>Jumlah karpet: ${carpets.length}</small>
+            </div>
+            <div>
+                <button class="btn btn-primary btn-sm" onclick="printStikers()"><i class="fa-solid fa-print"></i> Cetak Semua</button>
+                <button class="btn btn-secondary btn-sm" onclick="simpanPDFStikers()"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="simpanGambarStikers()"><i class="fa-solid fa-image"></i> Simpan Gambar</button>
+            </div>
+        </div>
+        <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">
+            ${stikersHTML}
+        </div>
+        <div class="mt-16 muted" style="font-size:9px;">Setiap stiker berukuran 40mm x 30mm. Imbas QR untuk semak status.</div>
+    `;
+    container.innerHTML = html;
+
+    // Jana QR code untuk setiap stiker (dikecilkan)
+    carpets.forEach((k, idx) => {
+        const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
+        const qrContainer = document.getElementById(`qr-stiker-${idx}`);
+        if (qrContainer) {
+            qrContainer.innerHTML = ''; // bersihkan
+            new QRCode(qrContainer, {
+                text: trackingUrl,
+                width: 40,   // lebih kecil
+                height: 40,  // lebih kecil
+                colorDark: "#000",
+                colorLight: "#fff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        }
+    });
+}
+
+function printStikers() {
+    const grid = document.getElementById('stikerGrid');
+    if (!grid) return toast('Tiada stiker.');
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Cetak Stiker Barcode</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                @page { size: 40mm 30mm; margin: 0; }
+                body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; background: #fff; }
+                .stiker-box {
+                    width: 40mm !important;
+                    height: 30mm !important;
+                    margin: 0 !important;
+                    border: none;
+                    padding: 1mm;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: space-between;
+                    text-align: center;
+                    font-family: 'Inter', sans-serif;
+                    page-break-after: always;
+                    background: #fff;
+                    box-sizing: border-box;
+                }
+                .stiker-box img {
+                    width: 10mm !important;
+                    height: 10mm !important;
+                    object-fit: contain;
+                }
+                .stiker-box div {
+                    line-height: 1.1 !important;
+                }
+            </style>
+        </head>
+        <body>
+            ${grid.innerHTML}
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 750);
+}
+
+function simpanPDFStikers() {
+    printStikers(); // dialog cetakan, boleh pilih 'Simpan sebagai PDF'
+}
+
+function simpanGambarStikers() {
+    const grid = document.getElementById('stikerGrid');
+    if (!grid) return toast('Tiada stiker.');
+    html2canvas(grid, { scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'Stiker_Barcode.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast('Gambar disimpan.');
+    });
+}
+
+    // ==================== PRICE MATRIX ====================
+function renderPriceMatrix(container) {
+    // UI dengan 3 tab
+    container.innerHTML = `
+        <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
+        <div class="card">
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="pricelist" onclick="switchPriceTab('pricelist', this)">🔍 Senarai Katalog</button>
+                <button class="tab-btn" data-tab="addprice" onclick="switchPriceTab('addprice', this)">➕ Tambah Kod Baru</button>
+                <button class="tab-btn" data-tab="bulkprice" onclick="switchPriceTab('bulkprice', this)">🧮 Formula Pukal</button>
+            </div>
+            <!-- Kontena untuk setiap tab -->
+            <div id="priceTabContent"></div>
+        </div>
+    `;
+    // Papar tab pertama
+    switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
+}
+
+// Gaya untuk butang tab
+const priceTabStyle = `
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        transition: .2s;
+    }
+    .tab-btn.active {
+        color: var(--primary-red);
+        border-bottom-color: var(--primary-red);
+    }
+`;
+// Suntik gaya jika belum wujud
+if (!document.getElementById('priceTabStyles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'priceTabStyles';
+    styleTag.textContent = priceTabStyle;
+    document.head.appendChild(styleTag);
+}
+
+function switchPriceTab(tabId, btn) {
+    // Tukar butang aktif
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const content = document.getElementById('priceTabContent');
+    
+    if (tabId === 'pricelist') renderPriceList(content);
+    else if (tabId === 'addprice') renderAddPriceForm(content);
+    else if (tabId === 'bulkprice') renderBulkPrice(content);
+}
+
+// ==================== TAB 1: SENARAI KATALOG ====================
+function renderPriceList(container) {
+    const data = STATE.senaraiHarga || [];
+    if (!data.length) {
+        container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>';
+        return;
+    }
+    let html = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>KOD</th><th>JENIS CARPET</th><th>HARGA OPEN</th></tr></thead>
+        <tbody>`;
+    data.forEach(item => {
+        const kod = escapeHtml(getField(item, ['KOD'], ''));
+        const jenis = escapeHtml(getField(item, ['JENIS CARPET'], ''));
+        const harga = getNumber(getField(item, ['HARGA OPEN'], 0));
+        html += `<tr>
+            <td><strong>${kod}</strong></td>
+            <td>${jenis}</td>
+            <td>${formatMoney(harga)}</td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// ==================== TAB 2: TAMBAH KOD BARU ====================
+function renderAddPriceForm(container) {
+    container.innerHTML = `
+        <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
+        <div class="row">
+            <div class="col form-group">
+                <label>Kod Karpet Baru (Contoh: CK 5X7)</label>
+                <input type="text" id="newPriceKod" class="form-control" placeholder="CK 5X7" style="text-transform:uppercase;">
+            </div>
+            <div class="col form-group">
+                <label>Nama/Jenis Karpet (Contoh: Carpet Bulu Tebal)</label>
+                <input type="text" id="newPriceJenis" class="form-control" placeholder="CUCIAN CARPET...">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Harga Seunit (RM)</label>
+            <input type="number" id="newPriceHarga" class="form-control" min="0" step="0.50" value="15.00">
+        </div>
+        <button class="btn btn-primary" onclick="addNewPrice()"><i class="fa-solid fa-save"></i> Daftarkan Ke Dalam Katalog</button>
+        <div id="addPriceMsg" class="mt-16"></div>
+    `;
+}
+
+async function addNewPrice() {
+    const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
+    const jenis = document.getElementById('newPriceJenis').value.trim();
+    const harga = parseFloat(document.getElementById('newPriceHarga').value) || 0;
+
+    if (!kod || !jenis || harga <= 0) {
+        showPriceMsg('addPriceMsg', '❌ Sila lengkapkan semua ruangan.', 'error');
+        return;
+    }
+    // Semak kewujudan kod
+    const exists = STATE.senaraiHarga.some(item => normalize(getField(item, ['KOD'])) === normalize(kod));
+    if (exists) {
+        showPriceMsg('addPriceMsg', `❌ Kod \`${kod}\` sudah wujud! Guna tab Formula Pukal untuk ubah harga.`, 'error');
+        return;
+    }
+
+    // Hantar ke GAS (action: addHarga)
+    await postData({ action: 'addHarga', kod, jenis, harga: harga.toFixed(2) });
+    showPriceMsg('addPriceMsg', `🎉 Berjaya! Kod \`${kod}\` telah ditambah.`, 'success');
+    // Kosongkan borang
+    document.getElementById('newPriceKod').value = '';
+    document.getElementById('newPriceJenis').value = '';
+    document.getElementById('newPriceHarga').value = '15.00';
+    // Refresh data tempatan & papar senarai semula
+    fetchData(null, true);
+    setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
+}
+
+function showPriceMsg(containerId, msg, type) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+// ==================== TAB 3: FORMULA PUKAL (DIBETULKAN) ====================
+function renderBulkPrice(container) {
+  // Sediakan nilai darab (gandaan) lalai
+  const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
+  
+  container.innerHTML = `
+    <h3 class="card-title">🧮 Formula Pengiraan Kos Per Sqft</h3>
+    <p class="muted">Masukkan harga darab (RM) bagi setiap kumpulan kod. Sistem akan mengira luas secara automatik.</p>
+    
+    <div class="row" style="margin-bottom:20px;">
+      <div class="col form-group"><label>Prefix CK</label><input type="number" id="multCK" class="form-control" value="${mult.CK}" step="0.1" min="0"></div>
+      <div class="col form-group"><label>Prefix CN</label><input type="number" id="multCN" class="form-control" value="${mult.CN}" step="0.1" min="0"></div>
+      <div class="col form-group"><label>Prefix CS</label><input type="number" id="multCS" class="form-control" value="${mult.CS}" step="0.1" min="0"></div>
+      <div class="col form-group"><label>Prefix HP</label><input type="number" id="multHP" class="form-control" value="${mult.HP}" step="0.1" min="0"></div>
+      <div class="col form-group"><label>Prefix LP</label><input type="number" id="multLP" class="form-control" value="${mult.LP}" step="0.1" min="0"></div>
+      <div class="col form-group"><label>Prefix CSG</label><input type="number" id="multCSG" class="form-control" value="${mult.CSG}" step="0.1" min="0"></div>
+    </div>
+    
+    <div id="bulkPreviewContainer">
+      <!-- Jadual preview akan diletakkan di sini -->
+    </div>
+    
+    <button class="btn btn-success mt-16" onclick="saveBulkPrices()"><i class="fa-solid fa-cloud-upload-alt"></i> Sahkan & Kemas Kini Semua Harga</button>
+    <div id="bulkPriceMsg" class="mt-16"></div>
+  `;
+
+  // Fungsi untuk mengira luas daripada kod
+  const extractLuas = (kod) => {
+    const match = kod.match(/(\d+)\s*X\s*(\d+)/);
+    if (match) return parseFloat(match[1]) * parseFloat(match[2]);
+    if (kod.includes('TEBAL')) return 24.0;
+    return 0.0;
+  };
+
+  // Fungsi untuk mengemas kini jadual preview (Ditambah semakan elemen bagi mengelakkan ralat null)
+  const updatePreview = () => {
+    const elCK = document.getElementById('multCK');
+    if (!elCK) return; // Keluar awal jika elemen HTML belum siap dimuatkan oleh browser
+
+    const mults = {
+      CK: parseFloat(elCK.value) || 0,
+      CN: parseFloat(document.getElementById('multCN').value) || 0,
+      CS: parseFloat(document.getElementById('multCS').value) || 0,
+      HP: parseFloat(document.getElementById('multHP').value) || 0,
+      LP: parseFloat(document.getElementById('multLP').value) || 0,
+      CSG: parseFloat(document.getElementById('multCSG').value) || 0
+    };
+
+    const data = STATE.senaraiHarga || [];
+    const previewDiv = document.getElementById('bulkPreviewContainer');
+    if (!previewDiv) return;
+
+    let html = `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>KOD</th><th>JENIS</th><th>HARGA SEMASA</th><th>HARGA BARU (DIKIRA)</th></tr></thead>
+      <tbody>`;
+
+    data.forEach((item, idx) => {
+      const kod = String(getField(item, ['KOD'], '')).toUpperCase().trim();
+      const jenis = getField(item, ['JENIS CARPET'], '');
+      const hargaSemasa = getNumber(getField(item, ['HARGA OPEN'], 0));
+      const luas = extractLuas(kod);
+      
+      let multiplier = 1.0;
+      // Urutan CSG diletakkan di atas CS supaya padanan prefix tidak bertembung ralat
+      const prefixes = ['CSG', 'CK', 'CN', 'CS', 'HP', 'LP']; 
+      for (const p of prefixes) {
+        if (kod.startsWith(p)) {
+          multiplier = mults[p];
+          break;
+        }
+      }
+
+      // Jika kod tiada luas (luas == 0) dan bukan 'TEBAL', kekalkan harga semasa sebagai rujukan keselamatan
+      const hargaBaru = luas > 0 ? (luas * multiplier) : hargaSemasa;
+
+      html += `<tr>
+        <td><strong>${escapeHtml(kod)}</strong></td>
+        <td>${escapeHtml(jenis)}</td>
+        <td>${formatMoney(hargaSemasa)}</td>
+        <td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" data-kod="${escapeHtml(kod)}" class="form-control bulk-input" style="text-align:right;"></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    previewDiv.innerHTML = html;
+  };
+
+  // Pasang event listener pada semua input gandaan
+  document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => {
+    inp.addEventListener('input', updatePreview);
+  });
+
+  // Panggil selepas senggang masa yang sangat singkat (DOM Ready) bagi menjamin elemen wujud
+  setTimeout(updatePreview, 50);
+}
+
+async function saveBulkPrices() {
+  const inputs = document.querySelectorAll('.bulk-input');
+  if (inputs.length === 0) return toast('Tiada data harga.');
+  
+  const updates = [];
+  inputs.forEach(inp => {
+    const idx = parseInt(inp.getAttribute('data-index'));
+    const kodAtribut = inp.getAttribute('data-kod');
+    const newPrice = parseFloat(inp.value);
+    
+    if (!isNaN(newPrice) && idx >= 0) {
+      updates.push({
+        kod: kodAtribut,
+        harga: newPrice.toFixed(2)
+      });
+    }
+  });
+
+  if (updates.length === 0) {
+    showPriceMsg('bulkPriceMsg', '❌ Tiada perubahan harga yang dikesan.', 'error');
+    return;
+  }
+
+  // Papar status memuatkan (loading)
+  if (typeof showLoading === 'function') showLoading(true);
+  
+  try {
+    // Hantar data struktur JSON ke Google Apps Script
+    const respon = await postData({ action: 'batchUpdateHarga', updates: updates });
+    
+    if (typeof showLoading === 'function') showLoading(false);
+    
+    if (respon && respon.success) {
+      showPriceMsg('bulkPriceMsg', '🎉 Semua harga berjaya dikemas kini ke Google Sheets!', 'success');
+      
+      // Muat semula data dari database untuk mengemas kini paparan lokal
+      if (typeof fetchData === 'function') fetchData(null, true);
+      
+      setTimeout(() => {
+        renderBulkPrice(document.getElementById('priceTabContent'));
+      }, 1500);
+    } else {
+      showPriceMsg('bulkPriceMsg', '❌ Gagal: ' + (respon.error || 'Ralat database.'), 'error');
+    }
+  } catch (err) {
+    if (typeof showLoading === 'function') showLoading(false);
+    showPriceMsg('bulkPriceMsg', '❌ Ralat sistem penghantaran: ' + err.toString(), 'error');
+  }
+}
+
+// ==================== GLOBAL EVENTS ====================
+function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.login-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const role = this.dataset.role;
+            document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
+            document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
+            document.getElementById('loginError').classList.add('hidden');
+        });
+    });
+    const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
+    if (stored) {
+        try {
+            STATE.currentUser = JSON.parse(stored);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            initApp();
+        } catch(e) {}
+    }
+});
+document.addEventListener('click', function(e) {
+    if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
+        document.body.classList.remove('sidebar-open');
+    }
+});
+</script>
+</body>
+</html>
