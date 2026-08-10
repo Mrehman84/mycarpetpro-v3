@@ -1157,7 +1157,8 @@ function renderInvoicePreview() {
 
     // Sediakan mesej WhatsApp
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
-    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa };
+    // Simpan isPaid bersama data invois
+    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
 }
 
 async function shareInvoiceWithAttachment() {
@@ -1173,16 +1174,17 @@ async function shareInvoiceWithAttachment() {
         return;
     }
 
-    const isPaid = data.msg && data.msg.includes('PAID');
+    // Gunakan data.isPaid dari STATE.currentInvoiceData (disimpan semasa renderInvoicePreview)
+    const isPaid = data.isPaid;
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
-
+    
     toast('Menyediakan lampiran...');
 
     let fileBlob;
     try {
         if (isPaid) {
-            // Jana PDF guna html2pdf
+            // Jana PDF
             const pdfBlob = await html2pdf().set({
                 margin: [5, 5, 5, 5],
                 filename: fileName,
@@ -1192,7 +1194,7 @@ async function shareInvoiceWithAttachment() {
             }).from(element).outputPdf('blob');
             fileBlob = pdfBlob;
         } else {
-            // Jana imej guna html2canvas
+            // Jana gambar (Pending)
             const canvas = await html2canvas(element, { scale: 2, useCORS: true });
             fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
         }
@@ -1206,11 +1208,18 @@ async function shareInvoiceWithAttachment() {
                 files: [file]
             });
             toast('Invois berjaya dikongsi!');
+            // Buka WhatsApp dengan teks selepas perkongsian untuk pastikan teks dihantar
+            setTimeout(() => {
+                const tel = String(data.telefon).replace(/^0+/, '');
+                const msg = data.msg;
+                const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+                const whatsappUrl = isMobile ? `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}` : `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
+                window.open(whatsappUrl, '_blank');
+            }, 800);
             return;
         }
     } catch (err) {
-        console.warn('Web Share atau penjanaan gagal:', err);
-        // Jika Web Share gagal, teruskan ke fallback tanpa menunjukkan ralat kepada pengguna
+        console.warn('Web Share gagal atau tidak disokong:', err);
     }
 
     // Fallback universal: muat turun fail
@@ -1225,35 +1234,29 @@ async function shareInvoiceWithAttachment() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.');
-        } else {
-            toast('Gagal menyediakan lampiran.');
         }
     } catch (e) {
         console.error('Muat turun gagal:', e);
         toast('Gagal memuat turun fail.');
     }
 
-    // Buka WhatsApp mengikut peranti
+    // Buka WhatsApp dengan teks
     const tel = String(data.telefon).replace(/^0+/, '');
     const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
     const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
-    let whatsappUrl;
     if (isMobile) {
-        whatsappUrl = `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`;
+        window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
     } else {
-        whatsappUrl = `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
-    }
-
-    window.open(whatsappUrl, '_blank');
-
-    // Jika desktop, fallback ke WhatsApp Web selepas 1.5 saat
-    if (!isMobile) {
+        // Desktop: cuba whatsapp:// protocol dahulu
+        window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+        // Fallback ke WhatsApp Web jika aplikasi tidak dipasang
         setTimeout(() => {
             window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
-        }, 1500);
+        }, 2000);
     }
 }
+
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) {
@@ -1311,7 +1314,6 @@ function hantarWhatsAppInvoice() {
     const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-
    
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
