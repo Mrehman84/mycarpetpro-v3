@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
@@ -248,7 +247,7 @@
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
-    GAS_API_URL: "https://script.google.com/macros/s/AKfycbw4EwVH8bUoG9NXztrtAeB_41B_YQh-F-U1xrl60Tj8NCLhabxi6fcHdyAWTcxuiPUA/exec",
+    GAS_API_URL: "https://script.google.com/macros/s/AKfycbw7prrEtAmhCvP0Dcu21_BcDhf0VO62qJc-WXg1D3fFl3xrtjePq4M9DpHiLsCk3_dx/exec",
     ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
 };
 let STATE = {
@@ -411,8 +410,9 @@ function renderSidebar() {
         { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
         { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
         { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
-        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
-        { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' }
+        { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja' },
+        { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' },
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' }
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
@@ -436,10 +436,9 @@ function switchTab(tabId) {
     else if (tabId === 'payment') renderPayment(container);
     else if (tabId === 'invoice') renderInvoiceTab(container);
     else if (tabId === 'pelanggan') renderPelanggan(container);
-    else if (tabId === 'barcode') renderBarcode(container);
+    else if (tabId === 'pekerja') renderPekerja(container);
     else if (tabId === 'pricematrix') renderPriceMatrix(container);
-        
-        
+    else if (tabId === 'barcode') renderBarcode(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -534,7 +533,7 @@ function generateInvoiceNumber() {
     return 'INV' + prefix + nextSeq;
 }
 
-// ==================== TEMPAHAN BARU ====================
+// ==================== TEMPAHAN BARU (dengan QC Pra-Basuhan) ====================
 function renderTempahan(container) {
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
@@ -552,11 +551,66 @@ function renderTempahan(container) {
             <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
             <div id="carpetItemsContainer"></div>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
-            <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
-            <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
-            <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
-        </div>`;
+        </div>
+        <!-- QC Pra-Basuhan Card -->
+        <div class="card" id="qcCard" style="margin-top:16px;">
+            <h3 class="card-title">🔍 QC Pra-Basuhan (Kerosakan Sedia Ada)</h3>
+            <div class="row">
+                <div class="col">
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcLuntur"> Warna Luntur</label>
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcKoyak"> Tepi Koyak</label>
+                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcBulu"> Bulu Gugur</label>
+                </div>
+                <div class="col">
+                    <label>Nota Kerosakan</label>
+                    <textarea id="qcNota" class="form-control" rows="2" placeholder="Terangkan kerosakan..."></textarea>
+                </div>
+            </div>
+            <div class="mt-16">
+                <label>Gambar Kerosakan (Klik untuk ambil/muat naik)</label>
+                <input type="file" id="qcImageInput" accept="image/*" capture="environment" style="display:block;margin-top:8px;">
+                <img id="qcImagePreview" src="" alt="Preview" style="max-width:200px;max-height:200px;display:none;margin-top:8px;">
+            </div>
+            <div class="flex mt-16">
+                <button class="btn btn-warning" onclick="hantarQcWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Hantar Kerosakan ke WhatsApp</button>
+            </div>
+        </div>
+        <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;">
+            <span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span>
+            <button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button>
+        </div>
+        <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
+        <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
+    `;
     addCarpetRow();
+    // Preview gambar QC
+    document.getElementById('qcImageInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('qcImagePreview').src = ev.target.result;
+                document.getElementById('qcImagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+// QC WhatsApp
+function hantarQcWhatsApp() {
+    const nama = document.getElementById('custNama').value || document.getElementById('custNamaBaru').value || 'Pelanggan';
+    const tel = document.getElementById('custTel').value || document.getElementById('custTelBaru').value || '';
+    if (!tel) { toast('Sila pilih pelanggan dahulu.'); return; }
+    let kerosakan = [];
+    if (document.getElementById('qcLuntur').checked) kerosakan.push('Warna Luntur');
+    if (document.getElementById('qcKoyak').checked) kerosakan.push('Tepi Koyak');
+    if (document.getElementById('qcBulu').checked) kerosakan.push('Bulu Gugur');
+    const nota = document.getElementById('qcNota').value.trim();
+    let msg = `🔍 *PEMERIKSAAN KUALITI (QC)*\n\nKami dapati kerosakan berikut pada karpet anda:\n`;
+    if (kerosakan.length) msg += kerosakan.map(k => `• ${k}`).join('\n') + '\n';
+    if (nota) msg += `Nota: ${nota}\n`;
+    msg += `\nSila sahkan sama ada kami teruskan basuhan. Terima kasih.`;
+    window.open(`https://wa.me/60${tel.replace(/[- ]/g,'').replace(/^0+/,'')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 function toggleCustType() {
     const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
@@ -690,7 +744,7 @@ function hantarWhatsAppTempahan() {
     window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// ==================== TRACKING ====================
+    // ==================== TRACKING (dengan Lokasi Rak) ====================
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -713,7 +767,7 @@ function renderTracking(container) {
             <div class="form-group"><label>Cari No. Invois / Alamat</label><select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select></div>
             <div class="row"><div class="col form-group"><label>Cari QR ID</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1"></div><div class="col form-group"><label>Status Baharu (Pukal)</label><select id="batchStatusOpt" class="form-control"><option value="DALAM PROSES">DALAM PROSES</option><option value="PENGERINGAN">PENGERINGAN</option><option value="READY TO DELIVER">READY TO DELIVER</option><option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option></select></div></div>
             <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;"><div><strong id="trackingCheckedCount">0 item dipilih</strong></div><button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button></div>
-            <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="7" class="text-center muted">Tiada data</td></tr></tbody></table></div>
+            <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Rak</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="8" class="text-center muted">Tiada data</td></tr></tbody></table></div>
         </div>`;
     document.getElementById('trackingInvoiceSelect').addEventListener('change', executeTrackingSearch);
     document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
@@ -734,7 +788,7 @@ function executeTrackingSearch() {
         if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
         return true;
     });
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
@@ -743,6 +797,7 @@ function executeTrackingSearch() {
         const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
+        const rak = getField(k, ['RAK'], '');
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
@@ -751,11 +806,27 @@ function executeTrackingSearch() {
             <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
             <td>${formatMoney(getField(k, ['HARGA']))}</td>
             <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
-            <td><button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button></td>`;
+            <td>${escapeHtml(rak) || '-'}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button>
+                ${st === 'READY TO DELIVER' ? `<button class="btn btn-info btn-sm" onclick="assignRak('${escapeHtml(qr)}')"><i class="fa-solid fa-box-archive"></i> Rak</button>` : ''}
+            </td>`;
         tbody.appendChild(tr);
     });
     updateTrackingCheckedCount();
 }
+function assignRak(qrId) {
+    const rak = prompt('Masukkan kod rak (contoh: RAK-A1):');
+    if (!rak) return;
+    // Simpan ke STATE dan hantar ke GAS
+    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+    if (k) k['RAK'] = rak; // simpan sementara di STATE
+    postData({ action: 'updateRak', qrId: qrId, rak: rak }).then(() => {
+        toast('Rak disimpan!');
+        executeTrackingSearch();
+    });
+}
+// ... (fungsi toggleSelectAll, updateTrackingCheckedCount, updateSingleStatus, submitBatchUpdate, updateStatuses sama seperti kod asal, tidak berubah)
 function toggleSelectAll(masterCheckbox) {
     document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
     updateTrackingCheckedCount();
@@ -1309,7 +1380,7 @@ function hantarWhatsAppInvoice() {
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-// ==================== PELANGGAN ====================
+// ==================== PELANGGAN (dengan Loyalty) ====================
 function renderPelanggan(container) {
     container.innerHTML = `
         <header>
@@ -1344,8 +1415,17 @@ function renderPelangganList(searchTerm = '') {
         container.innerHTML = '<p class="muted text-center">Tiada pelanggan.</p>';
         return;
     }
+    // Kira mata kesetiaan untuk setiap pelanggan
+    const loyaltyMap = {};
+    STATE.tempahan.forEach(t => {
+        const cid = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
+        if (cid) {
+            loyaltyMap[cid] = (loyaltyMap[cid] || 0) + getNumber(getField(t, ['JUMLAH HARGA'], 0));
+        }
+    });
+
     let html = `<div class="table-wrap"><table class="data-table">
-        <thead><tr><th>Customer ID</th><th>Nama</th><th>Telefon</th><th>Alamat</th><th>Daerah</th><th>Tindakan</th></tr></thead>
+        <thead><tr><th>Customer ID</th><th>Nama</th><th>Telefon</th><th>Alamat</th><th>Daerah</th><th>Mata</th><th>Tindakan</th></tr></thead>
         <tbody>`;
     list.forEach(c => {
         const id = escapeHtml(getField(c, ['CUSTOMER ID','CUSTOMER_ID'], '-'));
@@ -1353,20 +1433,29 @@ function renderPelangganList(searchTerm = '') {
         const tel = escapeHtml(String(getField(c, ['TELEFON','NO TELEFON'], '-')));
         const alamat = escapeHtml(getField(c, ['ALAMAT'], '-'));
         const daerah = escapeHtml(getField(c, ['DAERAH'], '-'));
+        const mata = Math.floor(loyaltyMap[id] || 0);
         html += `<tr>
             <td><strong>${id}</strong></td>
             <td>${nama}</td>
             <td>${tel}</td>
             <td>${alamat}</td>
             <td>${daerah}</td>
+            <td>${mata} ★</td>
             <td>
                 <button class="btn btn-secondary btn-sm" onclick="lihatSejarahPelanggan('${id}')"><i class="fa-solid fa-clock-rotate-left"></i> Sejarah</button>
                 <button class="btn btn-secondary btn-sm" onclick="showEditPelanggan('${id}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button class="btn btn-success btn-sm" onclick="gunaDiskaun('${id}', ${mata})"><i class="fa-solid fa-tags"></i> Guna Diskaun</button>
             </td>
         </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;
+}
+
+function gunaDiskaun(customerId, mata) {
+    if (mata < 10) return toast('Mata tidak mencukupi untuk tebus diskaun (minimum 10 mata).');
+    const diskaun = Math.floor(mata / 10) * 5; // setiap 10 mata = RM5 diskaun
+    toast(`Pelanggan ini layak mendapat diskaun RM${diskaun}. Sila gunakan di menu Pembayaran.`);
 }
 
 function showTambahPelanggan() {
@@ -1503,8 +1592,378 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
+    // ==================== PEKERJA (Senarai, Komisen, Runner) ====================
+function renderPekerja(container) {
+    container.innerHTML = `
+        <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
+        <div class="card">
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="workerlist" onclick="switchWorkerTab('workerlist', this)">👥 Senarai Pekerja</button>
+                <button class="tab-btn" data-tab="workercommission" onclick="switchWorkerTab('workercommission', this)">💰 Komisen</button>
+                <button class="tab-btn" data-tab="workerrunner" onclick="switchWorkerTab('workerrunner', this)">🚚 Runner</button>
+            </div>
+            <div id="workerTabContent"></div>
+        </div>
+    `;
+    // Default tab
+    switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
+}
 
-// ==================== BARCODE ====================
+// Gaya butang tab pekerja (guna semula gaya price matrix)
+const workerTabStyle = `
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        transition: .2s;
+    }
+    .tab-btn.active {
+        color: var(--primary-red);
+        border-bottom-color: var(--primary-red);
+    }
+`;
+if (!document.getElementById('workerTabStyles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'workerTabStyles';
+    styleTag.textContent = workerTabStyle;
+    document.head.appendChild(styleTag);
+}
+
+function switchWorkerTab(tabId, btn) {
+    document.querySelectorAll('#workerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const content = document.getElementById('workerTabContent');
+    if (tabId === 'workerlist') renderWorkerList(content);
+    else if (tabId === 'workercommission') renderWorkerCommission(content);
+    else if (tabId === 'workerrunner') renderWorkerRunner(content);
+}
+
+// ---------- SUB TAB 1: SENARAI PEKERJA ----------
+function renderWorkerList(container) {
+    const workers = STATE.pekerja || [];
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 class="card-title" style="border:none;padding:0;">Senarai Pekerja</h3>
+        <button class="btn btn-primary btn-sm" onclick="showAddWorker()"><i class="fa-solid fa-plus"></i> Tambah Pekerja</button>
+    </div>`;
+    if (!workers.length) {
+        html += '<p class="muted">Tiada pekerja.</p>';
+    } else {
+        html += `<div class="table-wrap"><table class="data-table">
+            <thead><tr><th>ID</th><th>Nama</th><th>Telefon</th><th>Peranan</th><th>Tindakan</th></tr></thead>
+            <tbody>`;
+        workers.forEach(w => {
+            const id = escapeHtml(getField(w, ['ID','WORKER_ID'], '-'));
+            const nama = escapeHtml(getField(w, ['NAMA'], '-'));
+            const tel = escapeHtml(String(getField(w, ['TELEFON'], '-')));
+            const peranan = escapeHtml(getField(w, ['PERANAN'], 'Pekerja'));
+            html += `<tr>
+                <td><strong>${id}</strong></td>
+                <td>${nama}</td>
+                <td>${tel}</td>
+                <td>${peranan}</td>
+                <td>
+                    <button class="btn btn-secondary btn-sm" onclick="editWorker('${id}')"><i class="fa-solid fa-pen"></i></button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteWorker('${id}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+    container.innerHTML = html;
+}
+
+function showAddWorker() {
+    const content = document.getElementById('workerTabContent');
+    content.innerHTML = `
+        <h3 class="card-title">Tambah Pekerja Baru</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" placeholder="Nama pekerja"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja">Pekerja</option><option value="Pencuci">Pencuci</option><option value="Runner">Runner</option></select></div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanTambahPekerja()"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
+        </div>
+    `;
+}
+
+async function simpanTambahPekerja() {
+    const nama = document.getElementById('workerNama').value.trim();
+    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
+    const role = document.getElementById('workerRole').value;
+    if (!nama || !tel) { toast('Sila isi Nama dan Telefon.'); return; }
+    await postData({ action: 'addWorker', nama, telefon: tel, peranan: role });
+    toast('Pekerja ditambah!');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
+async function deleteWorker(id) {
+    if (!confirm('Padam pekerja ini?')) return;
+    await postData({ action: 'deleteWorker', id });
+    toast('Pekerja dipadam.');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
+function editWorker(id) {
+    const w = (STATE.pekerja || []).find(x => normalize(getField(x, ['ID','WORKER_ID'])) === normalize(id));
+    if (!w) return;
+    const content = document.getElementById('workerTabContent');
+    content.innerHTML = `
+        <h3 class="card-title">Edit Pekerja (${escapeHtml(id)})</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" value="${escapeHtml(getField(w, ['NAMA'], ''))}"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" value="${escapeHtml(String(getField(w, ['TELEFON'], '')))}"></div>
+        </div>
+        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja" ${getField(w, ['PERANAN'])==='Pekerja'?'selected':''}>Pekerja</option><option value="Pencuci" ${getField(w, ['PERANAN'])==='Pencuci'?'selected':''}>Pencuci</option><option value="Runner" ${getField(w, ['PERANAN'])==='Runner'?'selected':''}>Runner</option></select></div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanEditPekerja('${escapeHtml(id)}')"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
+        </div>
+    `;
+}
+
+async function simpanEditPekerja(id) {
+    const nama = document.getElementById('workerNama').value.trim();
+    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
+    const role = document.getElementById('workerRole').value;
+    await postData({ action: 'updateWorker', id, nama, telefon: tel, peranan: role });
+    toast('Pekerja dikemaskini!');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
+// ---------- SUB TAB 2: KOMISEN ----------
+function renderWorkerCommission(container) {
+    const workers = STATE.pekerja || [];
+    // Dummy: kira komisen dari tugasan (scan QR pekerja x QR karpet)
+    // Untuk demo, papar jadual ringkas
+    let html = '<h3 class="card-title">Laporan Komisen Pekerja</h3>';
+    if (!workers.length) {
+        html += '<p class="muted">Tiada pekerja.</p>';
+    } else {
+        html += '<div class="table-wrap"><table class="data-table"><thead><tr><th>Pekerja</th><th>Jumlah Karpet Disiapkan</th><th>Komisen (RM)</th></tr></thead><tbody>';
+        workers.forEach(w => {
+            const nama = getField(w, ['NAMA'], '-');
+            // Contoh data statik (nanti ambil dari sheet)
+            const jumlah = 0; // kira dari tugasan
+            const kadar = 1.00; // RM per karpet
+            const komisen = jumlah * kadar;
+            html += `<tr><td>${escapeHtml(nama)}</td><td>${jumlah}</td><td>${formatMoney(komisen)}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+    container.innerHTML = html;
+}
+
+// ---------- SUB TAB 3: RUNNER ----------
+function renderWorkerRunner(container) {
+    container.innerHTML = `
+        <h3 class="card-title">🚚 Tugasan Runner (Pick-up & Delivery)</h3>
+        <p class="muted">Senarai tugasan penghantaran dan pengambilan.</p>
+        <div id="runnerTaskList">
+            <!-- Akan datang: integrasi dengan data tugasan -->
+            <p class="muted text-center">Modul Runner akan datang.</p>
+        </div>
+    `;
+}
+
+// ==================== PRICE MATRIX ====================
+// (Gunakan kod lengkap yang telah dibetulkan sebelum ini)
+function renderPriceMatrix(container) {
+    container.innerHTML = `
+        <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
+        <div class="card">
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="pricelist" onclick="switchPriceTab('pricelist', this)">🔍 Senarai Katalog</button>
+                <button class="tab-btn" data-tab="addprice" onclick="switchPriceTab('addprice', this)">➕ Tambah Kod Baru</button>
+                <button class="tab-btn" data-tab="bulkprice" onclick="switchPriceTab('bulkprice', this)">🧮 Formula Pukal</button>
+            </div>
+            <div id="priceTabContent"></div>
+        </div>
+    `;
+    switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
+}
+
+// Gaya untuk butang tab
+const priceTabStyle = `
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        transition: .2s;
+    }
+    .tab-btn.active {
+        color: var(--primary-red);
+        border-bottom-color: var(--primary-red);
+    }
+`;
+if (!document.getElementById('priceTabStyles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'priceTabStyles';
+    styleTag.textContent = priceTabStyle;
+    document.head.appendChild(styleTag);
+}
+
+function switchPriceTab(tabId, btn) {
+    document.querySelectorAll('#priceTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const content = document.getElementById('priceTabContent');
+    if (tabId === 'pricelist') renderPriceList(content);
+    else if (tabId === 'addprice') renderAddPriceForm(content);
+    else if (tabId === 'bulkprice') renderBulkPrice(content);
+}
+
+function renderPriceList(container) {
+    const data = STATE.senaraiHarga || [];
+    if (!data.length) { container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>'; return; }
+    let html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>KOD</th><th>JENIS CARPET</th><th>HARGA OPEN</th></tr></thead><tbody>';
+    data.forEach(item => {
+        const kod = escapeHtml(getField(item, ['KOD'], ''));
+        const jenis = escapeHtml(getField(item, ['JENIS CARPET'], ''));
+        const harga = getNumber(getField(item, ['HARGA OPEN'], 0));
+        html += `<tr><td><strong>${kod}</strong></td><td>${jenis}</td><td>${formatMoney(harga)}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function renderAddPriceForm(container) {
+    container.innerHTML = `
+        <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
+        <div class="row">
+            <div class="col form-group"><label>Kod Karpet Baru (Contoh: CK 5X7)</label><input type="text" id="newPriceKod" class="form-control" placeholder="CK 5X7" style="text-transform:uppercase;"></div>
+            <div class="col form-group"><label>Nama/Jenis Karpet</label><input type="text" id="newPriceJenis" class="form-control" placeholder="CUCIAN CARPET..."></div>
+        </div>
+        <div class="form-group"><label>Harga Seunit (RM)</label><input type="number" id="newPriceHarga" class="form-control" min="0" step="0.50" value="15.00"></div>
+        <button class="btn btn-primary" onclick="addNewPrice()"><i class="fa-solid fa-save"></i> Daftarkan Ke Dalam Katalog</button>
+        <div id="addPriceMsg" class="mt-16"></div>
+    `;
+}
+
+async function addNewPrice() {
+    const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
+    const jenis = document.getElementById('newPriceJenis').value.trim();
+    const harga = parseFloat(document.getElementById('newPriceHarga').value) || 0;
+    if (!kod || !jenis || harga <= 0) { showPriceMsg('addPriceMsg', '❌ Sila lengkapkan semua ruangan.', 'error'); return; }
+    const exists = STATE.senaraiHarga.some(item => normalize(getField(item, ['KOD'])) === normalize(kod));
+    if (exists) { showPriceMsg('addPriceMsg', `❌ Kod \`${kod}\` sudah wujud!`, 'error'); return; }
+    await postData({ action: 'addHarga', kod, jenis, harga: harga.toFixed(2) });
+    showPriceMsg('addPriceMsg', `🎉 Berjaya! Kod \`${kod}\` telah ditambah.`, 'success');
+    document.getElementById('newPriceKod').value = '';
+    document.getElementById('newPriceJenis').value = '';
+    document.getElementById('newPriceHarga').value = '15.00';
+    fetchData(null, true);
+    setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
+}
+
+function showPriceMsg(containerId, msg, type) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+function renderBulkPrice(container) {
+    const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
+    container.innerHTML = `
+        <h3 class="card-title">🧮 Formula Pengiraan Kos Per Sqft</h3>
+        <p class="muted">Masukkan harga darab (RM) bagi setiap kumpulan kod.</p>
+        <div class="row" style="margin-bottom:20px;">
+            <div class="col form-group"><label>Prefix CK</label><input type="number" id="multCK" class="form-control" value="${mult.CK}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CN</label><input type="number" id="multCN" class="form-control" value="${mult.CN}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CS</label><input type="number" id="multCS" class="form-control" value="${mult.CS}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix HP</label><input type="number" id="multHP" class="form-control" value="${mult.HP}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix LP</label><input type="number" id="multLP" class="form-control" value="${mult.LP}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CSG</label><input type="number" id="multCSG" class="form-control" value="${mult.CSG}" step="0.1" min="0"></div>
+        </div>
+        <div id="bulkPreviewContainer"></div>
+        <button class="btn btn-success mt-16" onclick="saveBulkPrices()"><i class="fa-solid fa-cloud-upload-alt"></i> Sahkan & Kemas Kini Semua Harga</button>
+        <div id="bulkPriceMsg" class="mt-16"></div>
+    `;
+
+    const extractLuas = (kod) => {
+        const match = kod.match(/(\d+)\s*X\s*(\d+)/);
+        if (match) return parseFloat(match[1]) * parseFloat(match[2]);
+        if (kod.includes('TEBAL')) return 24.0;
+        return 0.0;
+    };
+
+    const updatePreview = () => {
+        const elCK = document.getElementById('multCK');
+        if (!elCK) return;
+        const mults = {
+            CK: parseFloat(elCK.value) || 0,
+            CN: parseFloat(document.getElementById('multCN')?.value) || 0,
+            CS: parseFloat(document.getElementById('multCS')?.value) || 0,
+            HP: parseFloat(document.getElementById('multHP')?.value) || 0,
+            LP: parseFloat(document.getElementById('multLP')?.value) || 0,
+            CSG: parseFloat(document.getElementById('multCSG')?.value) || 0
+        };
+        const data = STATE.senaraiHarga || [];
+        const previewDiv = document.getElementById('bulkPreviewContainer');
+        if (!previewDiv) return;
+        let html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>KOD</th><th>JENIS</th><th>HARGA SEMASA</th><th>HARGA BARU (DIKIRA)</th></tr></thead><tbody>';
+        data.forEach((item, idx) => {
+            const kod = String(getField(item, ['KOD'], '')).toUpperCase().trim();
+            const jenis = getField(item, ['JENIS CARPET'], '');
+            const hargaSemasa = getNumber(getField(item, ['HARGA OPEN'], 0));
+            const luas = extractLuas(kod);
+            let multiplier = 1.0;
+            const prefixes = ['CSG', 'CK', 'CN', 'CS', 'HP', 'LP'];
+            for (const p of prefixes) {
+                if (kod.startsWith(p)) { multiplier = mults[p]; break; }
+            }
+            const hargaBaru = luas > 0 ? (luas * multiplier) : hargaSemasa;
+            html += `<tr>
+                <td><strong>${escapeHtml(kod)}</strong></td>
+                <td>${escapeHtml(jenis)}</td>
+                <td>${formatMoney(hargaSemasa)}</td>
+                <td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" data-kod="${escapeHtml(kod)}" class="form-control bulk-input" style="text-align:right;"></td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        previewDiv.innerHTML = html;
+    };
+
+    document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => {
+        inp.addEventListener('input', updatePreview);
+    });
+    setTimeout(updatePreview, 50);
+}
+
+async function saveBulkPrices() {
+    const inputs = document.querySelectorAll('.bulk-input');
+    if (inputs.length === 0) return toast('Tiada data harga.');
+    const updates = [];
+    inputs.forEach(inp => {
+        const idx = parseInt(inp.getAttribute('data-index'));
+        const kod = inp.getAttribute('data-kod');
+        const newPrice = parseFloat(inp.value);
+        if (!isNaN(newPrice) && idx >= 0) {
+            updates.push({ kod, harga: newPrice.toFixed(2) });
+        }
+    });
+    if (updates.length === 0) { showPriceMsg('bulkPriceMsg', '❌ Tiada perubahan harga.', 'error'); return; }
+    showLoading(true);
+    await postData({ action: 'batchUpdateHarga', updates });
+    showLoading(false);
+    showPriceMsg('bulkPriceMsg', '🎉 Semua harga berjaya dikemas kini!', 'success');
+    fetchData(null, true);
+    setTimeout(() => renderBulkPrice(document.getElementById('priceTabContent')), 1500);
+}
+
 // ==================== BARCODE ====================
 function renderBarcode(container) {
     const invList = [];
@@ -1519,9 +1978,7 @@ function renderBarcode(container) {
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
 
     container.innerHTML = `
-        <header>
-            <div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div>
-        </header>
+        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
         <div class="card">
             <div class="form-group">
                 <label>Pilih Invois</label>
@@ -1540,16 +1997,9 @@ function renderBarcode(container) {
 function generateBarcodePreview() {
     const inv = document.getElementById('barcodeInvoiceSelect').value;
     const container = document.getElementById('barcodePreviewContainer');
-    if (!inv) {
-        container.innerHTML = '<p class="muted">Sila pilih invois.</p>';
-        return;
-    }
-
+    if (!inv) { container.innerHTML = '<p class="muted">Sila pilih invois.</p>'; return; }
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
-    if (!carpets.length) {
-        container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>';
-        return;
-    }
+    if (!carpets.length) { container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>'; return; }
 
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
@@ -1558,7 +2008,6 @@ function generateBarcodePreview() {
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
 
-    // Bina stiker untuk setiap karpet
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
@@ -1593,20 +2042,17 @@ function generateBarcodePreview() {
         <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">
             ${stikersHTML}
         </div>
-        <div class="mt-16 muted" style="font-size:9px;">Setiap stiker berukuran 40mm x 30mm. Imbas QR untuk semak status.</div>
     `;
     container.innerHTML = html;
 
-    // Jana QR code untuk setiap stiker (dikecilkan)
     carpets.forEach((k, idx) => {
-        const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
-            qrContainer.innerHTML = ''; // bersihkan
+            qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
                 text: trackingUrl,
-                width: 40,   // lebih kecil
-                height: 40,  // lebih kecil
+                width: 40,
+                height: 40,
                 colorDark: "#000",
                 colorLight: "#fff",
                 correctLevel: QRCode.CorrectLevel.M
@@ -1620,54 +2066,29 @@ function printStikers() {
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     printWindow.document.write(`
-        <html>
-        <head>
-            <title>Cetak Stiker Barcode</title>
-            <style>
-                * { box-sizing: border-box; margin: 0; padding: 0; }
-                @page { size: 40mm 30mm; margin: 0; }
-                body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; background: #fff; }
-                .stiker-box {
-                    width: 40mm !important;
-                    height: 30mm !important;
-                    margin: 0 !important;
-                    border: none;
-                    padding: 1mm;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: space-between;
-                    text-align: center;
-                    font-family: 'Inter', sans-serif;
-                    page-break-after: always;
-                    background: #fff;
-                    box-sizing: border-box;
-                }
-                .stiker-box img {
-                    width: 10mm !important;
-                    height: 10mm !important;
-                    object-fit: contain;
-                }
-                .stiker-box div {
-                    line-height: 1.1 !important;
-                }
-            </style>
-        </head>
-        <body>
-            ${grid.innerHTML}
-        </body>
-        </html>
+        <html><head><title>Cetak Stiker Barcode</title>
+        <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            @page { size: 40mm 30mm; margin: 0; }
+            body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; background: #fff; }
+            .stiker-box {
+                width: 40mm !important; height: 30mm !important; margin: 0 !important;
+                border: none; padding: 1mm; display: flex; flex-direction: column;
+                justify-content: space-between; text-align: center;
+                font-family: 'Inter', sans-serif; page-break-after: always;
+                background: #fff; box-sizing: border-box;
+            }
+            .stiker-box img { width: 10mm !important; height: 10mm !important; object-fit: contain; }
+            .stiker-box div { line-height: 1.1 !important; }
+        </style></head>
+        <body>${grid.innerHTML}</body></html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-    }, 750);
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
 }
 
-function simpanPDFStikers() {
-    printStikers(); // dialog cetakan, boleh pilih 'Simpan sebagai PDF'
-}
+function simpanPDFStikers() { printStikers(); }
 
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
@@ -1679,289 +2100,6 @@ function simpanGambarStikers() {
         link.click();
         toast('Gambar disimpan.');
     });
-}
-
-    // ==================== PRICE MATRIX ====================
-function renderPriceMatrix(container) {
-    // UI dengan 3 tab
-    container.innerHTML = `
-        <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
-        <div class="card">
-            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
-                <button class="tab-btn active" data-tab="pricelist" onclick="switchPriceTab('pricelist', this)">🔍 Senarai Katalog</button>
-                <button class="tab-btn" data-tab="addprice" onclick="switchPriceTab('addprice', this)">➕ Tambah Kod Baru</button>
-                <button class="tab-btn" data-tab="bulkprice" onclick="switchPriceTab('bulkprice', this)">🧮 Formula Pukal</button>
-            </div>
-            <!-- Kontena untuk setiap tab -->
-            <div id="priceTabContent"></div>
-        </div>
-    `;
-    // Papar tab pertama
-    switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
-}
-
-// Gaya untuk butang tab
-const priceTabStyle = `
-    .tab-btn {
-        padding: 10px 20px;
-        border: none;
-        background: none;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        color: var(--text-muted);
-        border-bottom: 2px solid transparent;
-        transition: .2s;
-    }
-    .tab-btn.active {
-        color: var(--primary-red);
-        border-bottom-color: var(--primary-red);
-    }
-`;
-// Suntik gaya jika belum wujud
-if (!document.getElementById('priceTabStyles')) {
-    const styleTag = document.createElement('style');
-    styleTag.id = 'priceTabStyles';
-    styleTag.textContent = priceTabStyle;
-    document.head.appendChild(styleTag);
-}
-
-function switchPriceTab(tabId, btn) {
-    // Tukar butang aktif
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    const content = document.getElementById('priceTabContent');
-    
-    if (tabId === 'pricelist') renderPriceList(content);
-    else if (tabId === 'addprice') renderAddPriceForm(content);
-    else if (tabId === 'bulkprice') renderBulkPrice(content);
-}
-
-// ==================== TAB 1: SENARAI KATALOG ====================
-function renderPriceList(container) {
-    const data = STATE.senaraiHarga || [];
-    if (!data.length) {
-        container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>';
-        return;
-    }
-    let html = `<div class="table-wrap"><table class="data-table">
-        <thead><tr><th>KOD</th><th>JENIS CARPET</th><th>HARGA OPEN</th></tr></thead>
-        <tbody>`;
-    data.forEach(item => {
-        const kod = escapeHtml(getField(item, ['KOD'], ''));
-        const jenis = escapeHtml(getField(item, ['JENIS CARPET'], ''));
-        const harga = getNumber(getField(item, ['HARGA OPEN'], 0));
-        html += `<tr>
-            <td><strong>${kod}</strong></td>
-            <td>${jenis}</td>
-            <td>${formatMoney(harga)}</td>
-        </tr>`;
-    });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
-// ==================== TAB 2: TAMBAH KOD BARU ====================
-function renderAddPriceForm(container) {
-    container.innerHTML = `
-        <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
-        <div class="row">
-            <div class="col form-group">
-                <label>Kod Karpet Baru (Contoh: CK 5X7)</label>
-                <input type="text" id="newPriceKod" class="form-control" placeholder="CK 5X7" style="text-transform:uppercase;">
-            </div>
-            <div class="col form-group">
-                <label>Nama/Jenis Karpet (Contoh: Carpet Bulu Tebal)</label>
-                <input type="text" id="newPriceJenis" class="form-control" placeholder="CUCIAN CARPET...">
-            </div>
-        </div>
-        <div class="form-group">
-            <label>Harga Seunit (RM)</label>
-            <input type="number" id="newPriceHarga" class="form-control" min="0" step="0.50" value="15.00">
-        </div>
-        <button class="btn btn-primary" onclick="addNewPrice()"><i class="fa-solid fa-save"></i> Daftarkan Ke Dalam Katalog</button>
-        <div id="addPriceMsg" class="mt-16"></div>
-    `;
-}
-
-async function addNewPrice() {
-    const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
-    const jenis = document.getElementById('newPriceJenis').value.trim();
-    const harga = parseFloat(document.getElementById('newPriceHarga').value) || 0;
-
-    if (!kod || !jenis || harga <= 0) {
-        showPriceMsg('addPriceMsg', '❌ Sila lengkapkan semua ruangan.', 'error');
-        return;
-    }
-    // Semak kewujudan kod
-    const exists = STATE.senaraiHarga.some(item => normalize(getField(item, ['KOD'])) === normalize(kod));
-    if (exists) {
-        showPriceMsg('addPriceMsg', `❌ Kod \`${kod}\` sudah wujud! Guna tab Formula Pukal untuk ubah harga.`, 'error');
-        return;
-    }
-
-    // Hantar ke GAS (action: addHarga)
-    await postData({ action: 'addHarga', kod, jenis, harga: harga.toFixed(2) });
-    showPriceMsg('addPriceMsg', `🎉 Berjaya! Kod \`${kod}\` telah ditambah.`, 'success');
-    // Kosongkan borang
-    document.getElementById('newPriceKod').value = '';
-    document.getElementById('newPriceJenis').value = '';
-    document.getElementById('newPriceHarga').value = '15.00';
-    // Refresh data tempatan & papar senarai semula
-    fetchData(null, true);
-    setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
-}
-
-function showPriceMsg(containerId, msg, type) {
-    const el = document.getElementById(containerId);
-    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
-    setTimeout(() => { el.innerHTML = ''; }, 4000);
-}
-
-// ==================== TAB 3: FORMULA PUKAL (DIBETULKAN) ====================
-function renderBulkPrice(container) {
-  // Sediakan nilai darab (gandaan) lalai
-  const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
-  
-  container.innerHTML = `
-    <h3 class="card-title">🧮 Formula Pengiraan Kos Per Sqft</h3>
-    <p class="muted">Masukkan harga darab (RM) bagi setiap kumpulan kod. Sistem akan mengira luas secara automatik.</p>
-    
-    <div class="row" style="margin-bottom:20px;">
-      <div class="col form-group"><label>Prefix CK</label><input type="number" id="multCK" class="form-control" value="${mult.CK}" step="0.1" min="0"></div>
-      <div class="col form-group"><label>Prefix CN</label><input type="number" id="multCN" class="form-control" value="${mult.CN}" step="0.1" min="0"></div>
-      <div class="col form-group"><label>Prefix CS</label><input type="number" id="multCS" class="form-control" value="${mult.CS}" step="0.1" min="0"></div>
-      <div class="col form-group"><label>Prefix HP</label><input type="number" id="multHP" class="form-control" value="${mult.HP}" step="0.1" min="0"></div>
-      <div class="col form-group"><label>Prefix LP</label><input type="number" id="multLP" class="form-control" value="${mult.LP}" step="0.1" min="0"></div>
-      <div class="col form-group"><label>Prefix CSG</label><input type="number" id="multCSG" class="form-control" value="${mult.CSG}" step="0.1" min="0"></div>
-    </div>
-    
-    <div id="bulkPreviewContainer">
-      <!-- Jadual preview akan diletakkan di sini -->
-    </div>
-    
-    <button class="btn btn-success mt-16" onclick="saveBulkPrices()"><i class="fa-solid fa-cloud-upload-alt"></i> Sahkan & Kemas Kini Semua Harga</button>
-    <div id="bulkPriceMsg" class="mt-16"></div>
-  `;
-
-  // Fungsi untuk mengira luas daripada kod
-  const extractLuas = (kod) => {
-    const match = kod.match(/(\d+)\s*X\s*(\d+)/);
-    if (match) return parseFloat(match[1]) * parseFloat(match[2]);
-    if (kod.includes('TEBAL')) return 24.0;
-    return 0.0;
-  };
-
-  // Fungsi untuk mengemas kini jadual preview (Ditambah semakan elemen bagi mengelakkan ralat null)
-  const updatePreview = () => {
-    const elCK = document.getElementById('multCK');
-    if (!elCK) return; // Keluar awal jika elemen HTML belum siap dimuatkan oleh browser
-
-    const mults = {
-      CK: parseFloat(elCK.value) || 0,
-      CN: parseFloat(document.getElementById('multCN').value) || 0,
-      CS: parseFloat(document.getElementById('multCS').value) || 0,
-      HP: parseFloat(document.getElementById('multHP').value) || 0,
-      LP: parseFloat(document.getElementById('multLP').value) || 0,
-      CSG: parseFloat(document.getElementById('multCSG').value) || 0
-    };
-
-    const data = STATE.senaraiHarga || [];
-    const previewDiv = document.getElementById('bulkPreviewContainer');
-    if (!previewDiv) return;
-
-    let html = `<div class="table-wrap"><table class="data-table">
-      <thead><tr><th>KOD</th><th>JENIS</th><th>HARGA SEMASA</th><th>HARGA BARU (DIKIRA)</th></tr></thead>
-      <tbody>`;
-
-    data.forEach((item, idx) => {
-      const kod = String(getField(item, ['KOD'], '')).toUpperCase().trim();
-      const jenis = getField(item, ['JENIS CARPET'], '');
-      const hargaSemasa = getNumber(getField(item, ['HARGA OPEN'], 0));
-      const luas = extractLuas(kod);
-      
-      let multiplier = 1.0;
-      // Urutan CSG diletakkan di atas CS supaya padanan prefix tidak bertembung ralat
-      const prefixes = ['CSG', 'CK', 'CN', 'CS', 'HP', 'LP']; 
-      for (const p of prefixes) {
-        if (kod.startsWith(p)) {
-          multiplier = mults[p];
-          break;
-        }
-      }
-
-      // Jika kod tiada luas (luas == 0) dan bukan 'TEBAL', kekalkan harga semasa sebagai rujukan keselamatan
-      const hargaBaru = luas > 0 ? (luas * multiplier) : hargaSemasa;
-
-      html += `<tr>
-        <td><strong>${escapeHtml(kod)}</strong></td>
-        <td>${escapeHtml(jenis)}</td>
-        <td>${formatMoney(hargaSemasa)}</td>
-        <td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" data-kod="${escapeHtml(kod)}" class="form-control bulk-input" style="text-align:right;"></td>
-      </tr>`;
-    });
-
-    html += '</tbody></table></div>';
-    previewDiv.innerHTML = html;
-  };
-
-  // Pasang event listener pada semua input gandaan
-  document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => {
-    inp.addEventListener('input', updatePreview);
-  });
-
-  // Panggil selepas senggang masa yang sangat singkat (DOM Ready) bagi menjamin elemen wujud
-  setTimeout(updatePreview, 50);
-}
-
-async function saveBulkPrices() {
-  const inputs = document.querySelectorAll('.bulk-input');
-  if (inputs.length === 0) return toast('Tiada data harga.');
-  
-  const updates = [];
-  inputs.forEach(inp => {
-    const idx = parseInt(inp.getAttribute('data-index'));
-    const kodAtribut = inp.getAttribute('data-kod');
-    const newPrice = parseFloat(inp.value);
-    
-    if (!isNaN(newPrice) && idx >= 0) {
-      updates.push({
-        kod: kodAtribut,
-        harga: newPrice.toFixed(2)
-      });
-    }
-  });
-
-  if (updates.length === 0) {
-    showPriceMsg('bulkPriceMsg', '❌ Tiada perubahan harga yang dikesan.', 'error');
-    return;
-  }
-
-  // Papar status memuatkan (loading)
-  if (typeof showLoading === 'function') showLoading(true);
-  
-  try {
-    // Hantar data struktur JSON ke Google Apps Script
-    const respon = await postData({ action: 'batchUpdateHarga', updates: updates });
-    
-    if (typeof showLoading === 'function') showLoading(false);
-    
-    if (respon && respon.success) {
-      showPriceMsg('bulkPriceMsg', '🎉 Semua harga berjaya dikemas kini ke Google Sheets!', 'success');
-      
-      // Muat semula data dari database untuk mengemas kini paparan lokal
-      if (typeof fetchData === 'function') fetchData(null, true);
-      
-      setTimeout(() => {
-        renderBulkPrice(document.getElementById('priceTabContent'));
-      }, 1500);
-    } else {
-      showPriceMsg('bulkPriceMsg', '❌ Gagal: ' + (respon.error || 'Ralat database.'), 'error');
-    }
-  } catch (err) {
-    if (typeof showLoading === 'function') showLoading(false);
-    showPriceMsg('bulkPriceMsg', '❌ Ralat sistem penghantaran: ' + err.toString(), 'error');
-  }
 }
 
 // ==================== GLOBAL EVENTS ====================
@@ -1992,6 +2130,3 @@ document.addEventListener('click', function(e) {
         document.body.classList.remove('sidebar-open');
     }
 });
-</script>
-</body>
-</html>
