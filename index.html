@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ms">
-   
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,9 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-      <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -412,10 +411,7 @@ function renderSidebar() {
         { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
         { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
         { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
-        { id: 'laporan', icon: 'fa-chart-line', label: 'Laporan' },
-        { id: 'inventori', icon: 'fa-boxes', label: 'Inventori' },
-        { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja & Komisen' },
-       { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' }
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' }
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
@@ -438,8 +434,8 @@ function switchTab(tabId) {
     else if (tabId === 'tracking') renderTracking(container);
     else if (tabId === 'payment') renderPayment(container);
     else if (tabId === 'invoice') renderInvoiceTab(container);
-      else if (tabId === 'pelanggan') renderPelanggan(container);
-         else if (tabId === 'barcode') renderBarcode(container);
+    else if (tabId === 'pelanggan') renderPelanggan(container);
+    else if (tabId === 'barcode') renderBarcode(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -525,12 +521,12 @@ function generateInvoiceNumber() {
     let maxSeq = 499;
     STATE.tempahan.forEach(t => {
         const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-                if (inv.length === 11 && inv.startsWith('INV' + prefix)) {
+        if (inv.length === 11 && inv.startsWith('INV' + prefix)) {
             const suffix = parseInt(inv.substring(4), 10);
             if (!isNaN(suffix) && suffix > maxSeq) maxSeq = suffix;
         }
     });
-        const nextSeq = ('0000' + (maxSeq + 1)).slice(-4);
+    const nextSeq = ('0000' + (maxSeq + 1)).slice(-4);
     return 'INV' + prefix + nextSeq;
 }
 
@@ -943,7 +939,6 @@ function hantarWhatsAppPembayaran() {
 }
 
 // ==================== INVOIS & RESIT ====================
-// ==================== INVOIS & RESIT ====================
 function renderInvoiceTab(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1162,7 +1157,6 @@ function renderInvoicePreview() {
 
     // Sediakan mesej WhatsApp
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
-    // Simpan isPaid bersama data invois
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
 }
 
@@ -1179,7 +1173,6 @@ async function shareInvoiceWithAttachment() {
         return;
     }
 
-    // Gunakan data.isPaid dari STATE.currentInvoiceData (disimpan semasa renderInvoicePreview)
     const isPaid = data.isPaid;
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
@@ -1189,7 +1182,6 @@ async function shareInvoiceWithAttachment() {
     let fileBlob;
     try {
         if (isPaid) {
-            // Jana PDF
             const pdfBlob = await html2pdf().set({
                 margin: [5, 5, 5, 5],
                 filename: fileName,
@@ -1199,12 +1191,10 @@ async function shareInvoiceWithAttachment() {
             }).from(element).outputPdf('blob');
             fileBlob = pdfBlob;
         } else {
-            // Jana gambar (Pending)
             const canvas = await html2canvas(element, { scale: 2, useCORS: true });
             fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
         }
 
-        // Cuba Web Share API (telefon) dengan lampiran
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
             const file = new File([fileBlob], fileName, { type: mimeType });
             await navigator.share({
@@ -1213,7 +1203,6 @@ async function shareInvoiceWithAttachment() {
                 files: [file]
             });
             toast('Invois berjaya dikongsi!');
-            // Buka WhatsApp dengan teks selepas perkongsian untuk pastikan teks dihantar
             setTimeout(() => {
                 const tel = String(data.telefon).replace(/^0+/, '');
                 const msg = data.msg;
@@ -1227,7 +1216,6 @@ async function shareInvoiceWithAttachment() {
         console.warn('Web Share gagal atau tidak disokong:', err);
     }
 
-    // Fallback universal: muat turun fail
     try {
         if (fileBlob) {
             const url = URL.createObjectURL(fileBlob);
@@ -1245,7 +1233,6 @@ async function shareInvoiceWithAttachment() {
         toast('Gagal memuat turun fail.');
     }
 
-    // Buka WhatsApp dengan teks
     const tel = String(data.telefon).replace(/^0+/, '');
     const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
     const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
@@ -1253,9 +1240,7 @@ async function shareInvoiceWithAttachment() {
     if (isMobile) {
         window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
     } else {
-        // Desktop: cuba whatsapp:// protocol dahulu
         window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
-        // Fallback ke WhatsApp Web jika aplikasi tidak dipasang
         setTimeout(() => {
             window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
         }, 2000);
@@ -1320,8 +1305,6 @@ function hantarWhatsAppInvoice() {
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
-
-   // ==================== PELANGGAN ====================
 // ==================== PELANGGAN ====================
 function renderPelanggan(container) {
     container.innerHTML = `
@@ -1333,9 +1316,7 @@ function renderPelanggan(container) {
             </div>
         </header>
         <div class="card" id="pelangganListContainer"></div>
-        <!-- Container untuk borang tambah/edit pelanggan -->
         <div class="card hidden" id="pelangganFormContainer"></div>
-        <!-- Container untuk sejarah invois -->
         <div class="card hidden" id="pelangganHistoryContainer"></div>
     `;
     renderPelangganList();
@@ -1384,7 +1365,6 @@ function renderPelangganList(searchTerm = '') {
     container.innerHTML = html;
 }
 
-// ---------- TAMBAH PELANGGAN ----------
 function showTambahPelanggan() {
     const container = document.getElementById('pelangganFormContainer');
     container.classList.remove('hidden');
@@ -1429,12 +1409,10 @@ async function simpanTambahPelanggan() {
 
     toast('Pelanggan baru berjaya ditambah!');
     document.getElementById('pelangganFormContainer').classList.add('hidden');
-    fetchData(null, true); // Refresh data tanpa refresh UI keseluruhan
-    // Refresh senarai pelanggan selepas fetch selesai
+    fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
 
-// ---------- EDIT PELANGGAN ----------
 function showEditPelanggan(customerId) {
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     if (!cust) return toast('Pelanggan tidak dijumpai.');
@@ -1486,7 +1464,6 @@ async function simpanEditPelanggan(customerId) {
     setTimeout(() => renderPelangganList(), 1500);
 }
 
-// ---------- SEJARAH PELANGGAN ----------
 function lihatSejarahPelanggan(customerId) {
     const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
@@ -1524,9 +1501,7 @@ function lihatSejarahPelanggan(customerId) {
 }
 
 // ==================== BARCODE ====================
-// ==================== BARCODE ====================
 function renderBarcode(container) {
-    // Bina senarai invois, diisih supaya terbaru di atas
     const invList = [];
     STATE.tempahan.forEach(t => {
         const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
@@ -1578,7 +1553,6 @@ function generateBarcodePreview() {
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
 
-    // Bina stiker untuk setiap karpet
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
@@ -1617,12 +1591,11 @@ function generateBarcodePreview() {
     `;
     container.innerHTML = html;
 
-    // Jana QR code untuk setiap stiker
     carpets.forEach((k, idx) => {
         const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
-            qrContainer.innerHTML = ''; // bersihkan
+            qrContainer.innerHTML = '';
             new QRCode(qrContainer, {
                 text: trackingUrl,
                 width: 60,
@@ -1669,7 +1642,7 @@ function printStikers() {
 }
 
 function simpanPDFStikers() {
-    printStikers(); // Guna dialog cetakan, pengguna boleh pilih 'Simpan sebagai PDF' dalam pelayar
+    printStikers();
 }
 
 function simpanGambarStikers() {
@@ -1683,6 +1656,7 @@ function simpanGambarStikers() {
         toast('Gambar disimpan.');
     });
 }
+
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
