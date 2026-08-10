@@ -1501,6 +1501,7 @@ function lihatSejarahPelanggan(customerId) {
 }
 
 // ==================== BARCODE ====================
+// ==================== BARCODE ====================
 function renderBarcode(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1553,6 +1554,7 @@ function generateBarcodePreview() {
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
 
+    // Bina stiker untuk setiap karpet
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
@@ -1560,11 +1562,11 @@ function generateBarcodePreview() {
         const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
         stikersHTML += `
             <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
-                <div style="font-size:5.5px;font-weight:bold;letter-spacing:0.1px;color:#333;">MYCARPET PRO v2.0</div>
-                <div style="font-size:6.5px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
+                <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
+                <div style="font-size:7px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
                 <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:10mm;display:flex;align-items:center;justify-content:center;"></div>
-                <div style="font-size:5px;font-weight:bold;font-family:monospace;">QR ID: ${escapeHtml(qrId)}</div>
-                <div style="font-size:4.5px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">
+                <div style="font-size:6px;font-weight:bold;font-family:monospace;">QR ID: ${escapeHtml(qrId)}</div>
+                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">
                     KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}
                 </div>
             </div>
@@ -1591,15 +1593,16 @@ function generateBarcodePreview() {
     `;
     container.innerHTML = html;
 
+    // Jana QR code untuk setiap stiker (dikecilkan)
     carpets.forEach((k, idx) => {
         const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
-            qrContainer.innerHTML = '';
+            qrContainer.innerHTML = ''; // bersihkan
             new QRCode(qrContainer, {
                 text: trackingUrl,
-                width: 60,
-                height: 60,
+                width: 40,   // <-- lebih kecil
+                height: 40,  // <-- lebih kecil
                 colorDark: "#000",
                 colorLight: "#fff",
                 correctLevel: QRCode.CorrectLevel.M
@@ -1624,7 +1627,7 @@ function printStikers() {
                     display: flex; flex-direction: column; justify-content: space-between; text-align: center;
                     font-family: 'Inter', sans-serif; page-break-after: always; background: #fff;
                 }
-                .stiker-box img { width: 20mm; height: 20mm; }
+                .stiker-box img { width: 12mm; height: 12mm; }  /* QR kecil */
                 .stiker-box div { line-height: 1.2; }
             </style>
         </head>
@@ -1642,7 +1645,7 @@ function printStikers() {
 }
 
 function simpanPDFStikers() {
-    printStikers();
+    printStikers(); // dialog cetakan, boleh pilih 'Simpan sebagai PDF'
 }
 
 function simpanGambarStikers() {
