@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ms">
+   
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -935,53 +937,6 @@ function hantarWhatsAppPembayaran() {
 }
 
 // ==================== INVOIS & RESIT ====================
-function renderInvoiceTab(container) {
-    const invList = [];
-    STATE.tempahan.forEach(t => {
-        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
-        if (!inv) return;
-        const status = normalize(getField(t, ['STATUS'], 'Pending'));
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
-        const nama = getField(cust, ['NAMA'], '');
-        const alamat = getField(cust, ['ALAMAT'], '');
-        invList.push({ inv, status, nama, alamat });
-    });
-    invList.sort((a, b) => b.inv.localeCompare(a.inv));
-    const invoiceOptions = invList.map(item => {
-        const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
-        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
-    }).join('');
-
-    container.innerHTML = `
-        <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
-        <div class="card no-print">
-            <div class="form-group">
-                <label>Pilih Invois</label>
-                <select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">
-                    <option value="">-- Pilih --</option>
-                    ${invoiceOptions}
-                </select>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Servis Tambahan</label>
-                    <input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()">
-                </div>
-                <div class="col form-group">
-                    <label>Harga (RM)</label>
-                    <input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()">
-                </div>
-            </div>
-            <div class="flex">
-                <button class="btn btn-secondary" onclick="downloadInvoicePDF()"><i class="fa-solid fa-file-pdf"></i> Muat Turun PDF</button>
-                <button class="btn btn-success" onclick="copyInvoiceWhatsApp()"><i class="fa-regular fa-copy"></i> Salin WhatsApp</button>
-                <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
-            </div>
-        </div>
-        <div id="invoicePreviewContainer"></div>
-    `;
-}
-
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
@@ -1055,16 +1010,18 @@ function renderInvoicePreview() {
     const html = `
         <div class="card print-area" id="invoicePrintArea">
             <div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
-                <!-- Logo diperbesarkan & simetri di atas -->
-                <div style="text-align:center;margin-bottom:6mm;">
-                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:25mm;" onerror="this.style.display='none'">
+                <!-- Logo kecil, rapat kiri -->
+                <div style="margin-bottom:6mm;">
+                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm;" onerror="this.style.display='none'">
                 </div>
 
                 <!-- Header -->
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;">
                     <div>
+                        <div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">
+                            WESTBERRY ENTERPRISE
+                        </div>
                         <div style="font-size:10px;color:#555;line-height:1.4;">
-                            <strong>WESTBERRY ENTERPRISE</strong><br>
                             LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>
                             PAYA BESAR 09600 LUNAS KEDAH.<br>
                             TEL: 017-4050336
@@ -1079,9 +1036,9 @@ function renderInvoicePreview() {
                     </div>
                 </div>
 
-                <!-- Status Badge (diperbesarkan, tiada LUNAS/BELUM LUNAS) -->
-                <div style="display:flex;justify-content:flex-end;margin-bottom:6mm;">
-                    <span style="display:inline-block;padding:5px 20px;border-radius:20px;font-weight:700;font-size:16px;color:#fff;background:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span>
+                <!-- Status (teks sahaja, saiz 20, warna) -->
+                <div style="text-align:right;margin-bottom:6mm;">
+                    <span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span>
                 </div>
 
                 <!-- Maklumat Pelanggan -->
@@ -1152,18 +1109,218 @@ function renderInvoicePreview() {
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa };
 }
+
+function renderInvoicePreview() {
+    const inv = document.getElementById('invoiceSelect').value;
+    const container = document.getElementById('invoicePreviewContainer');
+    if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
+    const telefon = getField(cust, ['TELEFON','NO TELEFON'], getField(order, ['TELEFON'], '-'));
+    const alamat = getField(cust, ['ALAMAT'], getField(order, ['ALAMAT'], '-'));
+    const daerah = getField(cust, ['DAERAH'], getField(order, ['DAERAH'], '-'));
+    const tarikh = String(getField(order, ['TARIKH', 'DATE'], getToday())).split('T')[0];
+    const status = normalize(getField(order, ['STATUS'], 'PENDING'));
+    const isPaid = status === 'PAID' || status === 'LUNAS' || status === 'SELESAI';
+
+    // Item karpet
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    let items = carpets.map(k => ({
+        nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'),
+        qr: getField(k, ['QR ID','QR_ID'], ''),
+        qty: 1,
+        harga: getNumber(getField(k, ['HARGA'])),
+        total: getNumber(getField(k, ['HARGA']))
+    }));
+    if (!items.length) {
+        const totalOrder = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+        if (totalOrder > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: totalOrder, total: totalOrder }];
+    }
+
+    // Deposit & Baki
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    let deposit = 0;
+    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    let baki = 0;
+    if (payments.length > 0) {
+        const lastP = payments[payments.length - 1];
+        baki = getNumber(getField(lastP, ['BAKI']));
+    } else {
+        baki = Math.max(0, getNumber(getField(order, ['JUMLAH HARGA'], 0)) - deposit);
+    }
+
+    const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
+    const extraPrice = getNumber(document.getElementById('extraServicePrice')?.value || 0);
+    const subtotal = items.reduce((s, i) => s + i.total, 0);
+    const total = subtotal + extraPrice;
+
+    // Warna tema
+    const brandColor = isPaid ? '#28a745' : '#ff6d00';
+
+    // Bina jadual item
+    let itemsHTML = items.map((item, i) => `
+        <tr>
+            <td style="width:10%;">${i+1}</td>
+            <td style="width:40%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
+            <td style="width:8%;">${item.qty}</td>
+            <td style="width:20%;text-align:right;">${formatMoney(item.harga)}</td>
+            <td style="width:22%;text-align:right;">${formatMoney(item.total)}</td>
+        </tr>
+    `).join('');
+    if (extraName && extraPrice > 0) {
+        itemsHTML += `
+        <tr>
+            <td>${items.length+1}</td>
+            <td>${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td>
+            <td>1</td>
+            <td style="text-align:right;">${formatMoney(extraPrice)}</td>
+            <td style="text-align:right;">${formatMoney(extraPrice)}</td>
+        </tr>`;
+    }
+
+       const html = `
+        <div class="card print-area" id="invoicePrintArea">
+            <div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
+                <!-- Header dengan logo di kiri -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10mm;">
+                    <div style="text-align:left;">
+                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:20mm;" onerror="this.style.display='none'">
+                        <div style="font-size:14px;font-weight:700;color:#555;margin-top:2mm;">WESTBERRY ENTERPRISE</div>
+                        <div style="font-size:9px;color:#555;line-height:1.4;">
+                            LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>
+                            PAYA BESAR 09600 LUNAS KEDAH.<br>
+                            TEL: 017-4050336
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1>
+                        <table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;">
+                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr>
+                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">DATE</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikh)}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Status (teks sahaja, saiz 20) -->
+                <div style="text-align:right;margin-bottom:6mm;font-size:20px;font-weight:700;color:${brandColor};">
+                    ${isPaid ? 'PAID' : 'PENDING'}
+                </div>
+
+                <!-- Maklumat Pelanggan -->
+                <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
+                <div style="margin-bottom:8mm;">
+                    <div style="font-weight:700;font-size:12px;">${escapeHtml(nama)}</div>
+                    <div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
+                    <div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div>
+                </div>
+
+                <!-- Jadual Item -->
+                <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;">
+                    <thead>
+                        <tr style="background:${brandColor};color:#fff;">
+                            <th style="padding:4px;text-align:center;">BIL</th>
+                            <th style="padding:4px;">KETERANGAN SERVIS / JENIS CARPET</th>
+                            <th style="padding:4px;text-align:center;">UNIT</th>
+                            <th style="padding:4px;text-align:right;">HARGA SEUNIT (RM)</th>
+                            <th style="padding:4px;text-align:right;">TOTAL (RM)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}
+                    </tbody>
+                </table>
+
+                <!-- Ringkasan Pembayaran -->
+                <div style="display:flex;justify-content:flex-end;margin-bottom:8mm;">
+                    <table style="border-collapse:collapse;font-size:10px;width:50%;">
+                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(subtotal)}</td></tr>
+                        ${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
+                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr>
+                        <tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
+                    </table>
+                </div>
+
+                <!-- Info Bank & Tandatangan -->
+                <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;">
+                    <div>
+                        <strong>UNTUK PEMBAYARAN:</strong><br>
+                        <strong>MAYBANK-MATI-UR REHMAN</strong><br>
+                        <span style="color:#b42828;font-size:10px;font-weight:700;">15-203-142-4070</span>
+                    </div>
+                    <div style="text-align:center;">
+                        <strong>DISEDIAKAN OLEH / COP:</strong><br>
+                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'">
+                        <div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div>
+                    </div>
+                </div>
+
+                <!-- Nota Kaki -->
+                <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;">
+                    <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>
+                    1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>
+                    2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
+                    <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
+                </div>
+                <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">
+                    Thank you for your business! We look forward to serving you again.<br>
+                    ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
+                </div>
+            </div>
+        </div>
+    `;
+    `
+    container.innerHTML = html;
+
+    // Sediakan mesej WhatsApp baru
+    const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
+    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa };
+}
     
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
-    if (!element) return toast('Sila pilih invois dahulu.');
+    if (!element) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    // Pastikan html2pdf tersedia
+    if (typeof html2pdf === 'undefined') {
+        toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.');
+        // Muat semula pustaka jika perlu
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = () => {
+            toast('Pustaka PDF siap. Sila cuba lagi.');
+        };
+        document.head.appendChild(script);
+        return;
+    }
+
     const opt = {
-        margin: 0,
+        margin: [5, 5, 5, 5],        // margin atas, kanan, bawah, kiri (mm)
         filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        html2canvas: { 
+            scale: 2,
+            useCORS: true,           // penting untuk gambar dari domain lain
+            logging: false
+        },
+        jsPDF: { 
+            unit: 'mm', 
+            format: 'a4', 
+            orientation: 'portrait' 
+        }
     };
-    html2pdf().set(opt).from(element).save();
+
+    toast('Sedang menjana PDF...');
+    html2pdf().set(opt).from(element).save().then(() => {
+        toast('PDF berjaya dimuat turun!');
+    }).catch((err) => {
+        console.error('PDF error:', err);
+        toast('Gagal menjana PDF. Sila cuba lagi.');
+    });
 }
 
 function copyInvoiceWhatsApp() {
