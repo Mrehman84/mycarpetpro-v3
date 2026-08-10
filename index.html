@@ -252,9 +252,9 @@ const CONFIG = {
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
+    pekerja: [], komisen: [], runnerTugasan: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
-    paymentWhatsAppMsg: '', paymentWhatsAppTel: '',
-    pekerja: [], komisen: [], runnerTugasan: []
+    paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
 };
 
 // ==================== HELPERS ====================
@@ -320,7 +320,6 @@ function fetchData(callback, skipRefresh = false) {
                 STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
                 STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
                 STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
-                
                 if (callback) callback();
                 if (!skipRefresh) refreshAllUI();
             } else { toast('Data tidak sah.'); }
@@ -588,7 +587,6 @@ function renderTempahan(container) {
         <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
     `;
     addCarpetRow();
-    // Preview gambar QC
     document.getElementById('qcImageInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -601,7 +599,6 @@ function renderTempahan(container) {
         }
     });
 }
-// QC WhatsApp
 function hantarQcWhatsApp() {
     const nama = document.getElementById('custNama').value || document.getElementById('custNamaBaru').value || 'Pelanggan';
     const tel = document.getElementById('custTel').value || document.getElementById('custTelBaru').value || '';
@@ -748,7 +745,6 @@ function hantarWhatsAppTempahan() {
     if (!msg) { toast('Tiada mesej.'); return; }
     window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-
     // ==================== TRACKING (dengan Lokasi Rak) ====================
 function renderTracking(container) {
     const invSet = new Set();
@@ -823,15 +819,13 @@ function executeTrackingSearch() {
 function assignRak(qrId) {
     const rak = prompt('Masukkan kod rak (contoh: RAK-A1):');
     if (!rak) return;
-    // Simpan ke STATE dan hantar ke GAS
     const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
-    if (k) k['RAK'] = rak; // simpan sementara di STATE
+    if (k) k['RAK'] = rak;
     postData({ action: 'updateRak', qrId: qrId, rak: rak }).then(() => {
         toast('Rak disimpan!');
         executeTrackingSearch();
     });
 }
-// ... (fungsi toggleSelectAll, updateTrackingCheckedCount, updateSingleStatus, submitBatchUpdate, updateStatuses sama seperti kod asal, tidak berubah)
 function toggleSelectAll(masterCheckbox) {
     document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
     updateTrackingCheckedCount();
@@ -866,7 +860,7 @@ async function updateStatuses(qrIds, status) {
     fetchData(() => executeTrackingSearch(), true);
 }
 
-// ==================== PEMBAYARAN ====================
+// ==================== PEMBAYARAN (dengan Diskaun) ====================
 function renderPayment(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -891,36 +885,17 @@ function renderPayment(container) {
     container.innerHTML = `
         <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
         <div class="card">
-            <div class="form-group">
-                <label>Pilih Invois</label>
-                <select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()">
-                    <option value="">-- Pilih --</option>
-                    ${invoiceOptions}
-                </select>
-            </div>
+            <div class="form-group"><label>Pilih Invois</label><select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
             <div id="paymentInfo" class="hidden">
-                <div class="row">
-                    <div class="col form-group"><label>Jumlah Keseluruhan (RM)</label><input id="payTotal" class="form-control" disabled></div>
-                    <div class="col form-group"><label>Deposit Telah Dibayar (RM)</label><input id="payDeposit" class="form-control" disabled></div>
-                    <div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div>
-                </div>
-                <div class="row">
-                    <div class="col form-group"><label>Jumlah Bayaran Baru (RM)</label><input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00"></div>
-                    <div class="col form-group"><label>Kaedah Pembayaran</label><select id="payMethod" class="form-control"><option value="TUNAI">TUNAI (CASH)</option><option value="TRANSFER BANK">TRANSFER BANK</option><option value="DuitNow">DuitNow</option></select></div>
-                </div>
-                <div class="row">
-                <div class="col form-group">
-                    <label>Diskaun / Potongan (RM)</label>
-                    <input type="number" id="payDiscount" class="form-control" min="0" step="0.01" value="0.00" oninput="loadPaymentData()">
-                </div>
-            </div>
-                            <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
+                <div class="row"><div class="col form-group"><label>Jumlah Keseluruhan (RM)</label><input id="payTotal" class="form-control" disabled></div><div class="col form-group"><label>Deposit Telah Dibayar (RM)</label><input id="payDeposit" class="form-control" disabled></div><div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div></div>
+                <div class="row"><div class="col form-group"><label>Jumlah Bayaran Baru (RM)</label><input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00"></div><div class="col form-group"><label>Kaedah Pembayaran</label><select id="payMethod" class="form-control"><option value="TUNAI">TUNAI (CASH)</option><option value="TRANSFER BANK">TRANSFER BANK</option><option value="DuitNow">DuitNow</option></select></div></div>
+                <div class="row"><div class="col form-group"><label>Diskaun / Potongan (RM)</label><input type="number" id="payDiscount" class="form-control" min="0" step="0.01" value="0.00" oninput="loadPaymentData()"></div></div>
+                <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
                 <div id="paymentHistory" class="mt-16"></div>
                 <div id="paymentWhatsAppPreview" class="wa-preview hidden mt-16"></div>
                 <div id="paymentWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppPembayaran()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
             </div>
-        </div>
-    `;
+        </div>`;
 }
 
 function loadPaymentData() {
@@ -936,27 +911,17 @@ function loadPaymentData() {
     let baki = effectiveTotal;
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
-    if (payments.length > 0) {
-        const lastPayment = payments[payments.length - 1];
-        const lastBaki = getNumber(getField(lastPayment, ['BAKI']));
-        if (!isNaN(lastBaki)) baki = lastBaki;
-    } else {
-        baki = Math.max(0, effectiveTotal - deposit);
-    }
+    if (payments.length > 0) { const lastP = payments[payments.length - 1]; const lb = getNumber(getField(lastP, ['BAKI'])); if (!isNaN(lb)) baki = lb; }
+    else { baki = Math.max(0, effectiveTotal - deposit); }
     document.getElementById('payTotal').value = formatMoney(effectiveTotal);
     document.getElementById('payDeposit').value = formatMoney(deposit);
     document.getElementById('payBalance').value = formatMoney(baki);
     const historyDiv = document.getElementById('paymentHistory');
     if (payments.length) {
         let html = '<strong>Sejarah Bayaran</strong><ul style="list-style:none;padding:0;margin-top:8px;">';
-        payments.forEach(p => {
-            html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})</li>`;
-        });
-        html += '</ul>';
-        historyDiv.innerHTML = html;
-    } else {
-        historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>';
-    }
+        payments.forEach(p => { html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})</li>`; });
+        html += '</ul>'; historyDiv.innerHTML = html;
+    } else { historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>'; }
 }
 
 async function rekodBayaran() {
@@ -966,63 +931,38 @@ async function rekodBayaran() {
     if (amount <= 0) return toast('Masukkan jumlah bayaran yang sah.');
     const method = document.getElementById('payMethod').value;
     const date = getToday();
-
+    const discount = getNumber(document.getElementById('payDiscount')?.value || 0);
     showLoading(true);
-    await postData({ action: 'addPayment', invNo: inv, amount, method, date });
+    await postData({ action: 'addPayment', invNo: inv, amount, method, date, discount });
     showLoading(false);
-
     toast('Bayaran direkodkan.');
     document.getElementById('payAmount').value = '';
-
-    // Dapatkan nama & telefon pelanggan untuk WhatsApp receipt
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-
-    // Refresh data & jana WhatsApp receipt
     fetchData(() => {
         loadPaymentData();
-        // Jika baki <= 0, update status ke PAID
         const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
         if (updatedOrder) {
-            let totalDeposit = 0;
-            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) totalDeposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
-            if (totalDeposit >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) {
-                postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' });
-            }
+            let td = 0;
+            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) td += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+            if (td >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) { postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' }); }
         }
-
-        // Dapatkan baki terkini dari STATE.payment
-        const latestPayments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        let bakiTerkini = 0;
-        if (latestPayments.length > 0) {
-            const lastP = latestPayments[latestPayments.length - 1];
-            bakiTerkini = getNumber(getField(lastP, ['BAKI']));
-        }
-
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
-            `Pembayaran anda telah kami terima. Berikut adalah maklumat pembayaran:\n\n` +
-            `🧾 No Invoice: ${inv}\n` +
-            `💰 Jumlah Dibayar: ${formatMoney(amount)}\n` +
-            `💳 Baki Terkini: ${formatMoney(bakiTerkini)}\n` +
-            `📅 Tarikh Bayaran: ${formatDateMY(date)}\n` +
-            `💳 Kaedah: ${method}\n\n` +
-            `Terima kasih kerana membuat pembayaran. Karpet anda akan diproses secepat mungkin! 🙏`;
-
-        const previewEl = document.getElementById('paymentWhatsAppPreview');
-        const waBtnEl = document.getElementById('paymentWhatsAppBtn');
-        if (previewEl) { previewEl.textContent = msg; previewEl.classList.remove('hidden'); }
-        if (waBtnEl) waBtnEl.classList.remove('hidden');
-        STATE.paymentWhatsAppMsg = msg;
-        STATE.paymentWhatsAppTel = tel;
+        const lps = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        let bt = 0;
+        if (lps.length > 0) { bt = getNumber(getField(lps[lps.length - 1], ['BAKI'])); }
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima.\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bt)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih! 🙏`;
+        const pe = document.getElementById('paymentWhatsAppPreview'), wb = document.getElementById('paymentWhatsAppBtn');
+        if (pe) { pe.textContent = msg; pe.classList.remove('hidden'); }
+        if (wb) wb.classList.remove('hidden');
+        STATE.paymentWhatsAppMsg = msg; STATE.paymentWhatsAppTel = tel;
     }, true);
 }
 
 function hantarWhatsAppPembayaran() {
-    const tel = STATE.paymentWhatsAppTel;
-    const msg = STATE.paymentWhatsAppMsg;
-    if (!tel) { toast('Nombor telefon pelanggan tidak dijumpai.'); return; }
-    if (!msg) { toast('Tiada mesej.'); return; }
+    const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
+    if (!tel) return toast('Nombor telefon tidak dijumpai.');
+    if (!msg) return toast('Tiada mesej.');
     window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
@@ -1047,38 +987,21 @@ function renderInvoiceTab(container) {
     container.innerHTML = `
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
         <div class="card no-print">
-            <div class="form-group">
-                <label>Pilih Invois</label>
-                <select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">
-                    <option value="">-- Pilih --</option>
-                    ${invoiceOptions}
-                </select>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Servis Tambahan</label>
-                    <input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()">
-                </div>
-                <div class="col form-group">
-                    <label>Harga (RM)</label>
-                    <input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()">
-                </div>
-            </div>
+            <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
+            <div class="row"><div class="col form-group"><label>Servis Tambahan</label><input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()"></div><div class="col form-group"><label>Harga (RM)</label><input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()"></div></div>
             <div class="flex">
                 <button class="btn btn-secondary" onclick="downloadInvoicePDF()"><i class="fa-solid fa-file-pdf"></i> Muat Turun PDF</button>
                 <button class="btn btn-warning" onclick="shareInvoiceWithAttachment()"><i class="fa-solid fa-paper-plane"></i> Hantar Invois (Gambar/PDF)</button>
                 <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar Mesej WhatsApp</button>
             </div>
         </div>
-        <div id="invoicePreviewContainer"></div>
-    `;
+        <div id="invoicePreviewContainer"></div>`;
 }
 
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
     if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
-
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
@@ -1089,300 +1012,72 @@ function renderInvoicePreview() {
     const tarikh = String(getField(order, ['TARIKH', 'DATE'], getToday())).split('T')[0];
     const status = normalize(getField(order, ['STATUS'], 'PENDING'));
     const isPaid = status === 'PAID' || status === 'LUNAS' || status === 'SELESAI';
-
-    // Item karpet
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
-    let items = carpets.map(k => ({
-        nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'),
-        qr: getField(k, ['QR ID','QR_ID'], ''),
-        qty: 1,
-        harga: getNumber(getField(k, ['HARGA'])),
-        total: getNumber(getField(k, ['HARGA']))
-    }));
-    if (!items.length) {
-        const totalOrder = getNumber(getField(order, ['JUMLAH HARGA'], 0));
-        if (totalOrder > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: totalOrder, total: totalOrder }];
-    }
-
-    // Deposit & Baki
+    let items = carpets.map(k => ({ nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'), qr: getField(k, ['QR ID','QR_ID'], ''), qty: 1, harga: getNumber(getField(k, ['HARGA'])), total: getNumber(getField(k, ['HARGA'])) }));
+    if (!items.length) { const to = getNumber(getField(order, ['JUMLAH HARGA'], 0)); if (to > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: to, total: to }]; }
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-    let deposit = 0;
-    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    let deposit = 0; payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
     let baki = 0;
-    if (payments.length > 0) {
-        const lastP = payments[payments.length - 1];
-        baki = getNumber(getField(lastP, ['BAKI']));
-    } else {
-        baki = Math.max(0, getNumber(getField(order, ['JUMLAH HARGA'], 0)) - deposit);
-    }
-
+    if (payments.length > 0) { const lp = payments[payments.length - 1]; baki = getNumber(getField(lp, ['BAKI'])); }
+    else { baki = Math.max(0, getNumber(getField(order, ['JUMLAH HARGA'], 0)) - deposit); }
     const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
     const extraPrice = getNumber(document.getElementById('extraServicePrice')?.value || 0);
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const total = subtotal + extraPrice;
-
-    // Warna tema
     const brandColor = isPaid ? '#28a745' : '#ff6d00';
-
-    // Bina jadual item dengan lebar baru: BIL 5%, KETERANGAN 50%, UNIT 5%, HARGA SEUNIT 18%, TOTAL 22%
-    let itemsHTML = items.map((item, i) => `
-        <tr>
-            <td style="width:5%;">${i+1}</td>
-            <td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
-            <td style="width:5%;">${item.qty}</td>
-            <td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td>
-            <td style="width:22%;text-align:right;">${formatMoney(item.total)}</td>
-        </tr>
-    `).join('');
-    if (extraName && extraPrice > 0) {
-        itemsHTML += `
-        <tr>
-            <td style="width:5%;">${items.length+1}</td>
-            <td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td>
-            <td style="width:5%;">1</td>
-            <td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td>
-            <td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td>
-        </tr>`;
-    }
-
+    let itemsHTML = items.map((item, i) => `<tr><td style="width:5%;">${i+1}</td><td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td><td style="width:5%;">${item.qty}</td><td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td><td style="width:22%;text-align:right;">${formatMoney(item.total)}</td></tr>`).join('');
+    if (extraName && extraPrice > 0) { itemsHTML += `<tr><td style="width:5%;">${items.length+1}</td><td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td><td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td></tr>`; }
     const html = `
-        <div class="card print-area" id="invoicePrintArea">
-            <div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
-                <!-- Logo kecil, rapat kiri -->
-                <div style="margin-bottom:6mm;">
-                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm;" onerror="this.style.display='none'">
-                </div>
-
-                <!-- Header -->
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;">
-                    <div>
-                        <div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">
-                            WESTBERRY ENTERPRISE
-                        </div>
-                        <div style="font-size:10px;color:#555;line-height:1.4;">
-                            LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>
-                            PAYA BESAR 09600 LUNAS KEDAH.<br>
-                            TEL: 017-4050336
-                        </div>
-                    </div>
-                    <div style="text-align:right;">
-                        <h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1>
-                        <table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;">
-                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr>
-                            <tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">DATE</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikh)}</td></tr>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Status (teks sahaja, saiz 20, warna) -->
-                <div style="text-align:right;margin-bottom:6mm;">
-                    <span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span>
-                </div>
-
-                <!-- Maklumat Pelanggan -->
-                <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
-                <div style="margin-bottom:8mm;">
-                    <div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
-                    <div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
-                    <div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div>
-                </div>
-
-                <!-- Jadual Item -->
-                <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;">
-                    <thead>
-                        <tr style="background:${brandColor};color:#fff;">
-                            <th style="padding:4px;text-align:center;width:5%;">BIL</th>
-                            <th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th>
-                            <th style="padding:4px;text-align:center;width:5%;">UNIT</th>
-                            <th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th>
-                            <th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}
-                    </tbody>
-                </table>
-
-                <!-- Ringkasan Pembayaran -->
-                <div style="display:flex;justify-content:flex-end;margin-bottom:8mm;">
-                    <table style="border-collapse:collapse;font-size:10px;width:50%;">
-                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(subtotal)}</td></tr>
-                        ${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
-                        <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr>
-                        <tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
-                    </table>
-                </div>
-
-                <!-- Info Bank & Tandatangan -->
-                <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;">
-                    <div>
-                        <strong>UNTUK PEMBAYARAN:</strong><br>
-                        <strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br>
-                        <span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span>
-                    </div>
-                    <div style="text-align:center;">
-                        <strong>DISEDIAKAN OLEH / COP:</strong><br>
-                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'">
-                        <div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div>
-                    </div>
-                </div>
-
-                <!-- Nota Kaki -->
-                <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;">
-                    <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>
-                    1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>
-                    2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
-                    <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
-                </div>
-                <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">
-                    Thank you for your business! We look forward to serving you again.<br>
-                    ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
-                </div>
-            </div>
-        </div>
-    `;
+        <div class="card print-area" id="invoicePrintArea"><div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
+        <div style="margin-bottom:6mm;"><img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm;" onerror="this.style.display='none'"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;"><div><div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">WESTBERRY ENTERPRISE</div><div style="font-size:10px;color:#555;line-height:1.4;">LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>PAYA BESAR 09600 LUNAS KEDAH.<br>TEL: 017-4050336</div></div><div style="text-align:right;"><h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1><table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;"><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">DATE</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikh)}</td></tr></table></div></div>
+        <div style="text-align:right;margin-bottom:6mm;"><span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span></div>
+        <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
+        <div style="margin-bottom:8mm;"><div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div><div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div><div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;"><thead><tr style="background:${brandColor};color:#fff;"><th style="padding:4px;text-align:center;width:5%;">BIL</th><th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th><th style="padding:4px;text-align:center;width:5%;">UNIT</th><th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th><th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th></tr></thead><tbody>${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}</tbody></table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8mm;"><table style="border-collapse:collapse;font-size:10px;width:50%;"><tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(subtotal)}</td></tr>${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}<tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr><tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr></table></div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;"><div><strong>UNTUK PEMBAYARAN:</strong><br><strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br><span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span></div><div style="text-align:center;"><strong>DISEDIAKAN OLEH / COP:</strong><br><img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'"><div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div></div></div>
+        <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;"><strong>TERMA & SYARAT PEMBAYARAN:</strong><br>1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br><em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em></div>
+        <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">Thank you for your business! We look forward to serving you again.<br>~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~</div></div></div>`;
     container.innerHTML = html;
-
-    // Sediakan mesej WhatsApp
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
 }
 
 async function shareInvoiceWithAttachment() {
     const data = STATE.currentInvoiceData;
-    if (!data || !data.telefon) {
-        toast('Sila pilih invois dahulu.');
-        return;
-    }
-
+    if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
     const element = document.getElementById('invoicePrintArea');
-    if (!element) {
-        toast('Sila pilih invois dahulu.');
-        return;
-    }
-
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
     const isPaid = data.isPaid;
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
-    
     toast('Menyediakan lampiran...');
-
     let fileBlob;
     try {
-        if (isPaid) {
-            const pdfBlob = await html2pdf().set({
-                margin: [5, 5, 5, 5],
-                filename: fileName,
-                image: { type: 'jpeg', quality: 0.95 },
-                html2canvas: { scale: 2, useCORS: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).from(element).outputPdf('blob');
-            fileBlob = pdfBlob;
-        } else {
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
-            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-        }
-
+        if (isPaid) { const pdfBlob = await html2pdf().set({ margin: [5,5,5,5], filename: fileName, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(element).outputPdf('blob'); fileBlob = pdfBlob; }
+        else { const canvas = await html2canvas(element, { scale: 2, useCORS: true }); fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); }
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
             const file = new File([fileBlob], fileName, { type: mimeType });
-            await navigator.share({
-                title: `Invoice ${data.inv}`,
-                text: data.msg,
-                files: [file]
-            });
+            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
             toast('Invois berjaya dikongsi!');
-            setTimeout(() => {
-                const tel = String(data.telefon).replace(/^0+/, '');
-                const msg = data.msg;
-                const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
-                const whatsappUrl = isMobile ? `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}` : `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
-                window.open(whatsappUrl, '_blank');
-            }, 800);
+            setTimeout(() => { const tel = String(data.telefon).replace(/^0+/, ''); const msg = data.msg; const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent); const whatsappUrl = isMobile ? `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}` : `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`; window.open(whatsappUrl, '_blank'); }, 800);
             return;
         }
-    } catch (err) {
-        console.warn('Web Share gagal atau tidak disokong:', err);
-    }
-
-    try {
-        if (fileBlob) {
-            const url = URL.createObjectURL(fileBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.');
-        }
-    } catch (e) {
-        console.error('Muat turun gagal:', e);
-        toast('Gagal memuat turun fail.');
-    }
-
-    const tel = String(data.telefon).replace(/^0+/, '');
-    const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
-    const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
-
-    if (isMobile) {
-        window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-        window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
-        setTimeout(() => {
-            window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
-        }, 2000);
-    }
+    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
+    try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
+    const tel = String(data.telefon).replace(/^0+/, ''); const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`; const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+    if (isMobile) { window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank'); }
+    else { window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); setTimeout(() => { window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); }, 2000); }
 }
 
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
-    if (!element) {
-        toast('Sila pilih invois dahulu.');
-        return;
-    }
-
-    if (typeof html2pdf === 'undefined') {
-        toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.');
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-        script.onload = () => {
-            toast('Pustaka PDF siap. Sila cuba lagi.');
-        };
-        document.head.appendChild(script);
-        return;
-    }
-
-    const opt = {
-        margin: [5, 5, 5, 5],
-        filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2,
-            useCORS: true,
-            logging: false
-        },
-        jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait' 
-        }
-    };
-
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+    if (typeof html2pdf === 'undefined') { toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.'); const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; script.onload = () => { toast('Pustaka PDF siap. Sila cuba lagi.'); }; document.head.appendChild(script); return; }
+    const opt = { margin: [5,5,5,5], filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
     toast('Sedang menjana PDF...');
-    html2pdf().set(opt).from(element).save().then(() => {
-        toast('PDF berjaya dimuat turun!');
-    }).catch((err) => {
-        console.error('PDF error:', err);
-        toast('Gagal menjana PDF. Sila cuba lagi.');
-    });
-}
-
-function copyInvoiceWhatsApp() {
-    const data = STATE.currentInvoiceData;
-    if (!data) return toast('Sila pilih invois dahulu.');
-    const text = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
-    navigator.clipboard.writeText(text).then(() => toast('Mesej WhatsApp disalin.')).catch(() => toast('Gagal salin.'));
+    html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch((err) => { console.error('PDF error:', err); toast('Gagal menjana PDF. Sila cuba lagi.'); });
 }
 
 function hantarWhatsAppInvoice() {
@@ -1466,11 +1161,9 @@ function renderPelangganList(searchTerm = '') {
 }
 
 function gunaDiskaun(customerId, mata) {
-    // Minimum 100 mata (RM100 perbelanjaan) untuk layak tebus
     if (mata < 100) {
         return toast('Maaf, mata minimum untuk tebus diskaun ialah 100 (bersamaan RM100 perbelanjaan).');
     }
-    // Setiap 100 mata = RM1 diskaun
     const diskaun = Math.floor(mata / 100) * 1;
     toast(`Pelanggan ini layak mendapat diskaun RM${diskaun}. Sila gunakan di menu Pembayaran.`);
 }
@@ -1508,15 +1201,8 @@ async function simpanTambahPelanggan() {
     }
 
     showLoading(true);
-    await postData({
-        action: 'addCustomer',
-        nama: nama,
-        telefon: tel,
-        alamat: alamat,
-        daerah: daerah
-    });
+    await postData({ action: 'addCustomer', nama, telefon: tel, alamat, daerah });
     showLoading(false);
-
     toast('Pelanggan baru berjaya ditambah!');
     document.getElementById('pelangganFormContainer').classList.add('hidden');
     fetchData(null, true);
@@ -1558,16 +1244,8 @@ async function simpanEditPelanggan(customerId) {
     }
 
     showLoading(true);
-    await postData({
-        action: 'updateCustomer',
-        customerId: customerId,
-        nama: nama,
-        telefon: tel,
-        alamat: alamat,
-        daerah: daerah
-    });
+    await postData({ action: 'updateCustomer', customerId, nama, telefon: tel, alamat, daerah });
     showLoading(false);
-
     toast('Maklumat pelanggan dikemaskini!');
     document.getElementById('pelangganFormContainer').classList.add('hidden');
     fetchData(null, true);
@@ -1592,19 +1270,11 @@ function lihatSejarahPelanggan(customerId) {
         const status = normalize(getField(t, ['STATUS'], 'Pending'));
         const badge = status === 'PAID' ? 'badge-selesai' : 'badge-proses';
         const jumlah = formatMoney(getField(t, ['JUMLAH HARGA'], 0));
-        rows += `<tr>
-            <td><strong>${inv}</strong></td>
-            <td>${tarikh}</td>
-            <td>${jumlah}</td>
-            <td><span class="badge ${badge}">${status}</span></td>
-        </tr>`;
+        rows += `<tr><td><strong>${inv}</strong></td><td>${tarikh}</td><td>${jumlah}</td><td><span class="badge ${badge}">${status}</span></td></tr>`;
     });
     container.innerHTML = `
         <h3 class="card-title">Sejarah Invois untuk ${escapeHtml(nama)} (${escapeHtml(customerId)})</h3>
-        <div class="table-wrap"><table class="data-table">
-            <thead><tr><th>Invois</th><th>Tarikh</th><th>Jumlah</th><th>Status</th></tr></thead>
-            <tbody>${rows}</tbody>
-        </table></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Invois</th><th>Tarikh</th><th>Jumlah</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>
         <button class="btn btn-secondary mt-16" onclick="document.getElementById('pelangganHistoryContainer').classList.add('hidden')"><i class="fa-solid fa-xmark"></i> Tutup</button>
     `;
     container.scrollIntoView({ behavior: 'smooth' });
@@ -1622,11 +1292,10 @@ function renderPekerja(container) {
             <div id="workerTabContent"></div>
         </div>
     `;
-    // Default tab
     switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
 }
 
-// Gaya butang tab pekerja (guna semula gaya price matrix)
+// Gaya butang tab pekerja
 const workerTabStyle = `
     .tab-btn {
         padding: 10px 20px;
@@ -1780,7 +1449,7 @@ function renderWorkerCommission(container) {
         }
     });
 
-    // Kira komisen bulan semasa (contoh untuk paparan)
+    // Kira komisen bulan semasa
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
     const monthlyKomisen = {};
@@ -1804,14 +1473,8 @@ function renderWorkerCommission(container) {
     container.innerHTML = `
         <h3 class="card-title">💰 Tambah Komisen Pekerja</h3>
         <div class="row">
-            <div class="col form-group">
-                <label>Pilih Pekerja</label>
-                <select id="komisenWorkerSelect" class="form-control">${workerOptions}</select>
-            </div>
-            <div class="col form-group">
-                <label>Pilih QR ID (Status: DALAM PROSES)</label>
-                <select id="komisenQrSelect" class="form-control">${qrOptions}</select>
-            </div>
+            <div class="col form-group"><label>Pilih Pekerja</label><select id="komisenWorkerSelect" class="form-control">${workerOptions}</select></div>
+            <div class="col form-group"><label>Pilih QR ID (Status: DALAM PROSES)</label><select id="komisenQrSelect" class="form-control">${qrOptions}</select></div>
         </div>
         <button class="btn btn-success" onclick="tambahKomisen()"><i class="fa-solid fa-plus"></i> Tambah Komisen (RM 1.00)</button>
         <div id="komisenMsg" class="mt-16"></div>
@@ -1832,24 +1495,12 @@ async function tambahKomisen() {
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
     const today = getToday();
 
-    await postData({
-        action: 'addKomisen',
-        workerId: workerId,
-        workerName: workerName,
-        qrId: qrId,
-        date: today,
-        amount: 1.00
-    });
-
+    await postData({ action: 'addKomisen', workerId, workerName, qrId, date: today, amount: 1.00 });
     showPriceMsg('komisenMsg', '✅ Komisen RM 1.00 berjaya direkodkan!', 'success');
-    // Refresh data
     fetchData(null, true);
-    setTimeout(() => {
-        renderWorkerCommission(document.getElementById('workerTabContent'));
-    }, 1500);
+    setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
 
-// ---------- SUB TAB 3: RUNNER ----------
 // ---------- SUB TAB 3: RUNNER ----------
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
@@ -1879,13 +1530,7 @@ function renderWorkerRunner(container) {
             const tarikh = escapeHtml(String(getField(t, ['TARIKH'], '')).split('T')[0]);
             const status = normalize(getField(t, ['STATUS'], 'PENDING'));
             const badge = status === 'DELIVERED' || status === 'PICKED_UP' ? 'badge-selesai' : 'badge-proses';
-            tasksHtml += `<tr>
-                <td><strong>${id}</strong></td>
-                <td>${nama}</td>
-                <td>${alamat}</td>
-                <td>${tarikh}</td>
-                <td><span class="badge ${badge}">${status}</span></td>
-            </tr>`;
+            tasksHtml += `<tr><td><strong>${id}</strong></td><td>${nama}</td><td>${alamat}</td><td>${tarikh}</td><td><span class="badge ${badge}">${status}</span></td></tr>`;
         });
         tasksHtml += '</tbody></table></div>';
     } else {
@@ -1895,28 +1540,12 @@ function renderWorkerRunner(container) {
     container.innerHTML = `
         <h3 class="card-title">🚚 Tambah Tugasan Runner</h3>
         <div class="row">
-            <div class="col form-group">
-                <label>Pilih Runner</label>
-                <select id="runnerSelect" class="form-control">${workerOptions}</select>
-            </div>
-            <div class="col form-group">
-                <label>Alamat (Pick‑up / Delivery)</label>
-                <input type="text" id="runnerAlamat" class="form-control" placeholder="No, Jalan, Taman...">
-            </div>
+            <div class="col form-group"><label>Pilih Runner</label><select id="runnerSelect" class="form-control">${workerOptions}</select></div>
+            <div class="col form-group"><label>Alamat (Pick‑up / Delivery)</label><input type="text" id="runnerAlamat" class="form-control" placeholder="No, Jalan, Taman..."></div>
         </div>
         <div class="row">
-            <div class="col form-group">
-                <label>Tarikh</label>
-                <input type="date" id="runnerTarikh" class="form-control" value="${getToday()}">
-            </div>
-            <div class="col form-group">
-                <label>Status</label>
-                <select id="runnerStatus" class="form-control">
-                    <option value="PENDING">PENDING</option>
-                    <option value="PICKED_UP">PICKED UP</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                </select>
-            </div>
+            <div class="col form-group"><label>Tarikh</label><input type="date" id="runnerTarikh" class="form-control" value="${getToday()}"></div>
+            <div class="col form-group"><label>Status</label><select id="runnerStatus" class="form-control"><option value="PENDING">PENDING</option><option value="PICKED_UP">PICKED UP</option><option value="DELIVERED">DELIVERED</option></select></div>
         </div>
         <button class="btn btn-success" onclick="tambahRunnerTask()"><i class="fa-solid fa-plus"></i> Simpan Tugasan</button>
         <div id="runnerMsg" class="mt-16"></div>
@@ -1940,24 +1569,13 @@ async function tambahRunnerTask() {
     const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
 
-    await postData({
-        action: 'addRunnerTask',
-        workerId: workerId,
-        workerName: workerName,
-        alamat: alamat,
-        tarikh: tarikh,
-        status: status
-    });
-
+    await postData({ action: 'addRunnerTask', workerId, workerName, alamat, tarikh, status });
     showPriceMsg('runnerMsg', '✅ Tugasan berjaya disimpan!', 'success');
     fetchData(null, true);
-    setTimeout(() => {
-        renderWorkerRunner(document.getElementById('workerTabContent'));
-    }, 1500);
+    setTimeout(() => renderWorkerRunner(document.getElementById('workerTabContent')), 1500);
 }
 
 // ==================== PRICE MATRIX ====================
-// (Gunakan kod lengkap yang telah dibetulkan sebelum ini)
 function renderPriceMatrix(container) {
     container.innerHTML = `
         <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
@@ -1973,23 +1591,9 @@ function renderPriceMatrix(container) {
     switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
 }
 
-// Gaya untuk butang tab
 const priceTabStyle = `
-    .tab-btn {
-        padding: 10px 20px;
-        border: none;
-        background: none;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        color: var(--text-muted);
-        border-bottom: 2px solid transparent;
-        transition: .2s;
-    }
-    .tab-btn.active {
-        color: var(--primary-red);
-        border-bottom-color: var(--primary-red);
-    }
+    .tab-btn { padding: 10px 20px; border: none; background: none; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: .2s; }
+    .tab-btn.active { color: var(--primary-red); border-bottom-color: var(--primary-red); }
 `;
 if (!document.getElementById('priceTabStyles')) {
     const styleTag = document.createElement('style');
@@ -2085,12 +1689,9 @@ function renderBulkPrice(container) {
         const elCK = document.getElementById('multCK');
         if (!elCK) return;
         const mults = {
-            CK: parseFloat(elCK.value) || 0,
-            CN: parseFloat(document.getElementById('multCN')?.value) || 0,
-            CS: parseFloat(document.getElementById('multCS')?.value) || 0,
-            HP: parseFloat(document.getElementById('multHP')?.value) || 0,
-            LP: parseFloat(document.getElementById('multLP')?.value) || 0,
-            CSG: parseFloat(document.getElementById('multCSG')?.value) || 0
+            CK: parseFloat(elCK.value) || 0, CN: parseFloat(document.getElementById('multCN')?.value) || 0,
+            CS: parseFloat(document.getElementById('multCS')?.value) || 0, HP: parseFloat(document.getElementById('multHP')?.value) || 0,
+            LP: parseFloat(document.getElementById('multLP')?.value) || 0, CSG: parseFloat(document.getElementById('multCSG')?.value) || 0
         };
         const data = STATE.senaraiHarga || [];
         const previewDiv = document.getElementById('bulkPreviewContainer');
@@ -2103,24 +1704,15 @@ function renderBulkPrice(container) {
             const luas = extractLuas(kod);
             let multiplier = 1.0;
             const prefixes = ['CSG', 'CK', 'CN', 'CS', 'HP', 'LP'];
-            for (const p of prefixes) {
-                if (kod.startsWith(p)) { multiplier = mults[p]; break; }
-            }
+            for (const p of prefixes) { if (kod.startsWith(p)) { multiplier = mults[p]; break; } }
             const hargaBaru = luas > 0 ? (luas * multiplier) : hargaSemasa;
-            html += `<tr>
-                <td><strong>${escapeHtml(kod)}</strong></td>
-                <td>${escapeHtml(jenis)}</td>
-                <td>${formatMoney(hargaSemasa)}</td>
-                <td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" data-kod="${escapeHtml(kod)}" class="form-control bulk-input" style="text-align:right;"></td>
-            </tr>`;
+            html += `<tr><td><strong>${escapeHtml(kod)}</strong></td><td>${escapeHtml(jenis)}</td><td>${formatMoney(hargaSemasa)}</td><td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" data-kod="${escapeHtml(kod)}" class="form-control bulk-input" style="text-align:right;"></td></tr>`;
         });
         html += '</tbody></table></div>';
         previewDiv.innerHTML = html;
     };
 
-    document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => {
-        inp.addEventListener('input', updatePreview);
-    });
+    document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => inp.addEventListener('input', updatePreview));
     setTimeout(updatePreview, 50);
 }
 
@@ -2129,12 +1721,9 @@ async function saveBulkPrices() {
     if (inputs.length === 0) return toast('Tiada data harga.');
     const updates = [];
     inputs.forEach(inp => {
-        const idx = parseInt(inp.getAttribute('data-index'));
         const kod = inp.getAttribute('data-kod');
         const newPrice = parseFloat(inp.value);
-        if (!isNaN(newPrice) && idx >= 0) {
-            updates.push({ kod, harga: newPrice.toFixed(2) });
-        }
+        if (!isNaN(newPrice)) { updates.push({ kod, harga: newPrice.toFixed(2) }); }
     });
     if (updates.length === 0) { showPriceMsg('bulkPriceMsg', '❌ Tiada perubahan harga.', 'error'); return; }
     showLoading(true);
@@ -2161,18 +1750,9 @@ function renderBarcode(container) {
     container.innerHTML = `
         <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
         <div class="card">
-            <div class="form-group">
-                <label>Pilih Invois</label>
-                <select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()">
-                    <option value="">-- Pilih --</option>
-                    ${invoiceOptions}
-                </select>
-            </div>
-            <div id="barcodePreviewContainer" class="mt-16">
-                <p class="muted">Sila pilih invois untuk lihat preview barcode.</p>
-            </div>
-        </div>
-    `;
+            <div class="form-group"><label>Pilih Invois</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
+            <div id="barcodePreviewContainer" class="mt-16"><p class="muted">Sila pilih invois untuk lihat preview barcode.</p></div>
+        </div>`;
 }
 
 function generateBarcodePreview() {
@@ -2200,44 +1780,27 @@ function generateBarcodePreview() {
                 <div style="font-size:7px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
                 <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:10mm;display:flex;align-items:center;justify-content:center;"></div>
                 <div style="font-size:6px;font-weight:bold;font-family:monospace;">QR ID: ${escapeHtml(qrId)}</div>
-                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">
-                    KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}
-                </div>
-            </div>
-        `;
+                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+            </div>`;
     });
 
     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
-            <div>
-                <strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br>
-                <small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br>
-                <small>Jumlah karpet: ${carpets.length}</small>
-            </div>
+            <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
                 <button class="btn btn-primary btn-sm" onclick="printStikers()"><i class="fa-solid fa-print"></i> Cetak Semua</button>
                 <button class="btn btn-secondary btn-sm" onclick="simpanPDFStikers()"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="simpanGambarStikers()"><i class="fa-solid fa-image"></i> Simpan Gambar</button>
             </div>
         </div>
-        <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">
-            ${stikersHTML}
-        </div>
-    `;
+        <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
     carpets.forEach((k, idx) => {
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
             qrContainer.innerHTML = '';
-            new QRCode(qrContainer, {
-                text: trackingUrl,
-                width: 40,
-                height: 40,
-                colorDark: "#000",
-                colorLight: "#fff",
-                correctLevel: QRCode.CorrectLevel.M
-            });
+            new QRCode(qrContainer, { text: trackingUrl, width: 40, height: 40, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.M });
         }
     });
 }
@@ -2246,24 +1809,7 @@ function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    printWindow.document.write(`
-        <html><head><title>Cetak Stiker Barcode</title>
-        <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            @page { size: 40mm 30mm; margin: 0; }
-            body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; background: #fff; }
-            .stiker-box {
-                width: 40mm !important; height: 30mm !important; margin: 0 !important;
-                border: none; padding: 1mm; display: flex; flex-direction: column;
-                justify-content: space-between; text-align: center;
-                font-family: 'Inter', sans-serif; page-break-after: always;
-                background: #fff; box-sizing: border-box;
-            }
-            .stiker-box img { width: 10mm !important; height: 10mm !important; object-fit: contain; }
-            .stiker-box div { line-height: 1.1 !important; }
-        </style></head>
-        <body>${grid.innerHTML}</body></html>
-    `);
+    printWindow.document.write(`<html><head><title>Cetak Stiker Barcode</title><style>*{box-sizing:border-box;margin:0;padding:0;}@page{size:40mm 30mm;margin:0;}body{margin:0;display:flex;flex-wrap:wrap;justify-content:center;background:#fff;}.stiker-box{width:40mm!important;height:30mm!important;margin:0!important;border:none;padding:1mm;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;page-break-after:always;background:#fff;box-sizing:border-box;}.stiker-box img{width:10mm!important;height:10mm!important;object-fit:contain;}.stiker-box div{line-height:1.1!important;}</style></head><body>${grid.innerHTML}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
