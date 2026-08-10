@@ -1037,13 +1037,13 @@ function renderInvoicePreview() {
 
     // Bina jadual item
     let itemsHTML = items.map((item, i) => `
-        <tr>
-            <td style="width:10%;">${i+1}</td>
-            <td style="width:40%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
-            <td style="width:8%;">${item.qty}</td>
-            <td style="width:20%;text-align:right;">${formatMoney(item.harga)}</td>
-            <td style="width:22%;text-align:right;">${formatMoney(item.total)}</td>
-        </tr>
+       <tr>
+    <td style="width:5%;">${i+1}</td>
+    <td style="width:52%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
+    <td style="width:5%;">${item.qty}</td>
+    <td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td>
+    <td style="width:20%;text-align:right;">${formatMoney(item.total)}</td>
+</tr>
     `).join('');
     if (extraName && extraPrice > 0) {
         itemsHTML += `
@@ -1102,11 +1102,11 @@ function renderInvoicePreview() {
                 <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;">
                     <thead>
                         <tr style="background:${brandColor};color:#fff;">
-                            <th style="padding:4px;text-align:center;">BIL</th>
-                            <th style="padding:4px;">KETERANGAN SERVIS / JENIS CARPET</th>
-                            <th style="padding:4px;text-align:center;">UNIT</th>
-                            <th style="padding:4px;text-align:right;">HARGA SEUNIT (RM)</th>
-                            <th style="padding:4px;text-align:right;">TOTAL (RM)</th>
+                            <th style="padding:4px;text-align:center;width:5%;">BIL</th>
+                           <th style="padding:4px;width:52%;">KETERANGAN SERVIS / JENIS CARPET</th>
+                           <th style="padding:4px;text-align:center;width:5%;">UNIT</th>
+                           <th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th>
+                           <th style="padding:4px;text-align:right;width:20%;">TOTAL (RM)</th>
                         </tr>
                     </thead>
                     <tbody>
