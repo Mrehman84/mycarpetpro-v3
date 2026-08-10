@@ -435,6 +435,7 @@ function switchTab(tabId) {
     else if (tabId === 'tracking') renderTracking(container);
     else if (tabId === 'payment') renderPayment(container);
     else if (tabId === 'invoice') renderInvoiceTab(container);
+      else if (tabId === 'pelanggan') renderPelanggan(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -1314,7 +1315,117 @@ function hantarWhatsAppInvoice() {
     const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-   
+
+
+   // ==================== PELANGGAN ====================
+function renderPelanggan(container) {
+    // Carian pantas
+    container.innerHTML = `
+        <header>
+            <div><h1>👥 Pengurusan Pelanggan</h1><p class="muted">Senarai pelanggan berdaftar</p></div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <input type="text" id="pelangganSearch" class="form-control" placeholder="Cari nama atau telefon..." style="max-width:250px;" oninput="filterPelanggan()">
+                <button class="btn btn-primary" onclick="showTambahPelanggan()"><i class="fa-solid fa-plus"></i> Tambah Pelanggan</button>
+            </div>
+        </header>
+        <div class="card" id="pelangganListContainer">
+            <!-- Jadual pelanggan akan dijana di sini -->
+        </div>
+        <div class="card hidden" id="pelangganHistoryContainer">
+            <!-- Sejarah invois akan dijana di sini -->
+        </div>
+    `;
+    renderPelangganList();
+}
+
+function filterPelanggan() {
+    renderPelangganList(document.getElementById('pelangganSearch').value.trim().toLowerCase());
+}
+
+function renderPelangganList(searchTerm = '') {
+    const container = document.getElementById('pelangganListContainer');
+    let list = STATE.pelanggan || [];
+    if (searchTerm) {
+        list = list.filter(c => {
+            const nama = String(getField(c, ['NAMA'], '')).toLowerCase();
+            const tel = String(getField(c, ['TELEFON','NO TELEFON'], '')).toLowerCase();
+            return nama.includes(searchTerm) || tel.includes(searchTerm);
+        });
+    }
+    if (!list.length) {
+        container.innerHTML = '<p class="muted text-center">Tiada pelanggan.</p>';
+        return;
+    }
+    let html = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Customer ID</th><th>Nama</th><th>Telefon</th><th>Alamat</th><th>Daerah</th><th>Tindakan</th></tr></thead>
+        <tbody>`;
+    list.forEach(c => {
+        const id = escapeHtml(getField(c, ['CUSTOMER ID','CUSTOMER_ID'], '-'));
+        const nama = escapeHtml(getField(c, ['NAMA'], '-'));
+        const tel = escapeHtml(String(getField(c, ['TELEFON','NO TELEFON'], '-')));
+        const alamat = escapeHtml(getField(c, ['ALAMAT'], '-'));
+        const daerah = escapeHtml(getField(c, ['DAERAH'], '-'));
+        html += `<tr>
+            <td><strong>${id}</strong></td>
+            <td>${nama}</td>
+            <td>${tel}</td>
+            <td>${alamat}</td>
+            <td>${daerah}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="lihatSejarahPelanggan('${id}')"><i class="fa-solid fa-clock-rotate-left"></i> Sejarah</button>
+                <button class="btn btn-secondary btn-sm" onclick="editPelanggan('${id}')"><i class="fa-solid fa-pen"></i> Edit</button>
+            </td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+function lihatSejarahPelanggan(customerId) {
+    // Cari semua invois untuk pelanggan ini
+    const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    const nama = getField(cust, ['NAMA'], customerId);
+    const container = document.getElementById('pelangganHistoryContainer');
+    container.classList.remove('hidden');
+    if (!invList.length) {
+        container.innerHTML = `<h3 class="card-title">Sejarah Invois untuk ${escapeHtml(nama)}</h3><p class="muted">Tiada invois ditemui.</p>`;
+        return;
+    }
+    let rows = '';
+    invList.sort((a, b) => String(getField(b, ['INV NO','INV_NO','NO INVOIS'])).localeCompare(String(getField(a, ['INV NO','INV_NO','NO INVOIS']))));
+    invList.forEach(t => {
+        const inv = escapeHtml(getField(t, ['INV NO','INV_NO','NO INVOIS'], '-'));
+        const tarikh = escapeHtml(String(getField(t, ['TARIKH','DATE'], '-')).split('T')[0]);
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const badge = status === 'PAID' ? 'badge-selesai' : 'badge-proses';
+        const jumlah = formatMoney(getField(t, ['JUMLAH HARGA'], 0));
+        rows += `<tr>
+            <td><strong>${inv}</strong></td>
+            <td>${tarikh}</td>
+            <td>${jumlah}</td>
+            <td><span class="badge ${badge}">${status}</span></td>
+        </tr>`;
+    });
+    container.innerHTML = `
+        <h3 class="card-title">Sejarah Invois untuk ${escapeHtml(nama)} (${escapeHtml(customerId)})</h3>
+        <div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Invois</th><th>Tarikh</th><th>Jumlah</th><th>Status</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <button class="btn btn-secondary mt-16" onclick="document.getElementById('pelangganHistoryContainer').classList.add('hidden')"><i class="fa-solid fa-xmark"></i> Tutup</button>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+// Fungsi placeholder untuk Tambah & Edit (akan dibina kemudian)
+function showTambahPelanggan() {
+    toast('Fungsi Tambah Pelanggan akan datang.');
+}
+
+function editPelanggan(id) {
+    toast(`Edit pelanggan ${id} akan datang.`);
+}
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
