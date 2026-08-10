@@ -937,6 +937,7 @@ function hantarWhatsAppPembayaran() {
 }
 
 // ==================== INVOIS & RESIT ====================
+// ==================== INVOIS & RESIT ====================
 function renderInvoiceTab(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -992,6 +993,7 @@ function renderInvoicePreview() {
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
+    const custId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID']) || getField(order, ['CUSTOMER ID','CUSTOMER_ID']) || '';
     const telefon = getField(cust, ['TELEFON','NO TELEFON'], getField(order, ['TELEFON'], '-'));
     const alamat = getField(cust, ['ALAMAT'], getField(order, ['ALAMAT'], '-'));
     const daerah = getField(cust, ['DAERAH'], getField(order, ['DAERAH'], '-'));
@@ -1091,7 +1093,7 @@ function renderInvoicePreview() {
                 <!-- Maklumat Pelanggan -->
                 <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
                 <div style="margin-bottom:8mm;">
-                    <div style="font-weight:700;font-size:12px;">${escapeHtml(nama)}</div>
+                    <div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
                     <div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
                     <div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div>
                 </div>
