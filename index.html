@@ -1318,8 +1318,8 @@ function hantarWhatsAppInvoice() {
 
 
    // ==================== PELANGGAN ====================
+// ==================== PELANGGAN ====================
 function renderPelanggan(container) {
-    // Carian pantas
     container.innerHTML = `
         <header>
             <div><h1>👥 Pengurusan Pelanggan</h1><p class="muted">Senarai pelanggan berdaftar</p></div>
@@ -1328,12 +1328,11 @@ function renderPelanggan(container) {
                 <button class="btn btn-primary" onclick="showTambahPelanggan()"><i class="fa-solid fa-plus"></i> Tambah Pelanggan</button>
             </div>
         </header>
-        <div class="card" id="pelangganListContainer">
-            <!-- Jadual pelanggan akan dijana di sini -->
-        </div>
-        <div class="card hidden" id="pelangganHistoryContainer">
-            <!-- Sejarah invois akan dijana di sini -->
-        </div>
+        <div class="card" id="pelangganListContainer"></div>
+        <!-- Container untuk borang tambah/edit pelanggan -->
+        <div class="card hidden" id="pelangganFormContainer"></div>
+        <!-- Container untuk sejarah invois -->
+        <div class="card hidden" id="pelangganHistoryContainer"></div>
     `;
     renderPelangganList();
 }
@@ -1373,7 +1372,7 @@ function renderPelangganList(searchTerm = '') {
             <td>${daerah}</td>
             <td>
                 <button class="btn btn-secondary btn-sm" onclick="lihatSejarahPelanggan('${id}')"><i class="fa-solid fa-clock-rotate-left"></i> Sejarah</button>
-                <button class="btn btn-secondary btn-sm" onclick="editPelanggan('${id}')"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button class="btn btn-secondary btn-sm" onclick="showEditPelanggan('${id}')"><i class="fa-solid fa-pen"></i> Edit</button>
             </td>
         </tr>`;
     });
@@ -1381,8 +1380,110 @@ function renderPelangganList(searchTerm = '') {
     container.innerHTML = html;
 }
 
+// ---------- TAMBAH PELANGGAN ----------
+function showTambahPelanggan() {
+    const container = document.getElementById('pelangganFormContainer');
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <h3 class="card-title">Tambah Pelanggan Baru</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="plgNama" class="form-control" placeholder="Nama"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="plgTelefon" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="row">
+            <div class="col form-group"><label>Alamat</label><input type="text" id="plgAlamat" class="form-control" placeholder="No, Jalan, Taman..."></div>
+            <div class="col form-group"><label>Daerah</label><input type="text" id="plgDaerah" class="form-control" placeholder="Kulim"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanTambahPelanggan()"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('pelangganFormContainer').classList.add('hidden')">Batal</button>
+        </div>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function simpanTambahPelanggan() {
+    const nama = document.getElementById('plgNama').value.trim();
+    const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
+    const alamat = document.getElementById('plgAlamat').value.trim();
+    const daerah = document.getElementById('plgDaerah').value.trim();
+
+    if (!nama || !tel || !alamat) {
+        toast('Sila lengkapkan Nama, Telefon dan Alamat.');
+        return;
+    }
+
+    showLoading(true);
+    await postData({
+        action: 'addCustomer',
+        nama: nama,
+        telefon: tel,
+        alamat: alamat,
+        daerah: daerah
+    });
+    showLoading(false);
+
+    toast('Pelanggan baru berjaya ditambah!');
+    document.getElementById('pelangganFormContainer').classList.add('hidden');
+    fetchData(null, true); // Refresh data tanpa refresh UI keseluruhan
+    // Refresh senarai pelanggan selepas fetch selesai
+    setTimeout(() => renderPelangganList(), 1500);
+}
+
+// ---------- EDIT PELANGGAN ----------
+function showEditPelanggan(customerId) {
+    const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
+    if (!cust) return toast('Pelanggan tidak dijumpai.');
+    const container = document.getElementById('pelangganFormContainer');
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <h3 class="card-title">Edit Pelanggan (${escapeHtml(customerId)})</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="plgNama" class="form-control" value="${escapeHtml(getField(cust, ['NAMA'], ''))}"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="plgTelefon" class="form-control" value="${escapeHtml(String(getField(cust, ['TELEFON','NO TELEFON'], '')))}"></div>
+        </div>
+        <div class="row">
+            <div class="col form-group"><label>Alamat</label><input type="text" id="plgAlamat" class="form-control" value="${escapeHtml(getField(cust, ['ALAMAT'], ''))}"></div>
+            <div class="col form-group"><label>Daerah</label><input type="text" id="plgDaerah" class="form-control" value="${escapeHtml(getField(cust, ['DAERAH'], ''))}"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanEditPelanggan('${escapeHtml(customerId)}')"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('pelangganFormContainer').classList.add('hidden')">Batal</button>
+        </div>
+    `;
+    container.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function simpanEditPelanggan(customerId) {
+    const nama = document.getElementById('plgNama').value.trim();
+    const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
+    const alamat = document.getElementById('plgAlamat').value.trim();
+    const daerah = document.getElementById('plgDaerah').value.trim();
+
+    if (!nama || !tel || !alamat) {
+        toast('Sila lengkapkan Nama, Telefon dan Alamat.');
+        return;
+    }
+
+    showLoading(true);
+    await postData({
+        action: 'updateCustomer',
+        customerId: customerId,
+        nama: nama,
+        telefon: tel,
+        alamat: alamat,
+        daerah: daerah
+    });
+    showLoading(false);
+
+    toast('Maklumat pelanggan dikemaskini!');
+    document.getElementById('pelangganFormContainer').classList.add('hidden');
+    fetchData(null, true);
+    setTimeout(() => renderPelangganList(), 1500);
+}
+
+// ---------- SEJARAH PELANGGAN ----------
 function lihatSejarahPelanggan(customerId) {
-    // Cari semua invois untuk pelanggan ini
     const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     const nama = getField(cust, ['NAMA'], customerId);
@@ -1416,15 +1517,6 @@ function lihatSejarahPelanggan(customerId) {
         <button class="btn btn-secondary mt-16" onclick="document.getElementById('pelangganHistoryContainer').classList.add('hidden')"><i class="fa-solid fa-xmark"></i> Tutup</button>
     `;
     container.scrollIntoView({ behavior: 'smooth' });
-}
-
-// Fungsi placeholder untuk Tambah & Edit (akan dibina kemudian)
-function showTambahPelanggan() {
-    toast('Fungsi Tambah Pelanggan akan datang.');
-}
-
-function editPelanggan(id) {
-    toast(`Edit pelanggan ${id} akan datang.`);
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
