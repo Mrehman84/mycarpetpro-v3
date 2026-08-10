@@ -1453,8 +1453,12 @@ function renderPelangganList(searchTerm = '') {
 }
 
 function gunaDiskaun(customerId, mata) {
-    if (mata < 10) return toast('Mata tidak mencukupi untuk tebus diskaun (minimum 10 mata).');
-    const diskaun = Math.floor(mata / 10) * 5; // setiap 10 mata = RM5 diskaun
+    // Minimum 100 mata (RM100 perbelanjaan) untuk layak tebus
+    if (mata < 100) {
+        return toast('Maaf, mata minimum untuk tebus diskaun ialah 100 (bersamaan RM100 perbelanjaan).');
+    }
+    // Setiap 100 mata = RM1 diskaun
+    const diskaun = Math.floor(mata / 100) * 1;
     toast(`Pelanggan ini layak mendapat diskaun RM${diskaun}. Sila gunakan di menu Pembayaran.`);
 }
 
