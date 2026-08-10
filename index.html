@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
       <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -413,6 +414,7 @@ function renderSidebar() {
         { id: 'laporan', icon: 'fa-chart-line', label: 'Laporan' },
         { id: 'inventori', icon: 'fa-boxes', label: 'Inventori' },
         { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja & Komisen' }
+       { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
@@ -436,6 +438,7 @@ function switchTab(tabId) {
     else if (tabId === 'payment') renderPayment(container);
     else if (tabId === 'invoice') renderInvoiceTab(container);
       else if (tabId === 'pelanggan') renderPelanggan(container);
+         else if (tabId === 'barcode') renderBarcode(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -1517,6 +1520,169 @@ function lihatSejarahPelanggan(customerId) {
         <button class="btn btn-secondary mt-16" onclick="document.getElementById('pelangganHistoryContainer').classList.add('hidden')"><i class="fa-solid fa-xmark"></i> Tutup</button>
     `;
     container.scrollIntoView({ behavior: 'smooth' });
+}
+
+   // ==================== BARCODE ====================
+function renderBarcode(container) {
+    // Himpun semua invois, urutkan yang baru di atas
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, alamat });
+    });
+    // Isih supaya invois terbaru di atas (andaian format mengandungi tarikh atau nombor urut)
+    invList.sort((a, b) => b.inv.localeCompare(a.inv));
+    const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
+
+    container.innerHTML = `
+        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
+        <div class="card">
+            <div class="form-group">
+                <label>Pilih Invois</label>
+                <select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()">
+                    <option value="">-- Pilih --</option>
+                    ${invoiceOptions}
+                </select>
+            </div>
+            <div id="barcodePreviewContainer" class="mt-16">
+                <p class="muted">Sila pilih invois untuk lihat preview barcode.</p>
+            </div>
+        </div>
+    `;
+}
+
+function generateBarcodePreview() {
+    const inv = document.getElementById('barcodeInvoiceSelect').value;
+    const container = document.getElementById('barcodePreviewContainer');
+    if (!inv) {
+        container.innerHTML = '<p class="muted">Sila pilih invois.</p>';
+        return;
+    }
+
+    // Dapatkan senarai karpet untuk invois ini
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    if (!carpets.length) {
+        container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>';
+        return;
+    }
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const telefon = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    const nama = getField(cust, ['NAMA'], '');
+    const alamat = getField(cust, ['ALAMAT'], '');
+
+    // Bina grid barcode
+    let barcodesHTML = '';
+    carpets.forEach((k, idx) => {
+        const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
+        const kod = String(getField(k, ['KOD'], '')).trim(); // Kod dari sheet Karpet
+        const jenis = getField(k, ['JENIS','JENIS CARPET'], '');
+        // URL portal pelanggan (akan kita bina fungsi untuk terima phone parameter)
+        const portalUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
+        // Teks yang akan dikodkan dalam QR (URL portal)
+        const qrContent = portalUrl;
+        barcodesHTML += `
+            <div class="barcode-item" id="barcode-${idx}" style="width:40mm;height:30mm;border:1px solid #ccc;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-family:'Inter',sans-serif;padding:2mm;box-sizing:border-box;margin:2mm;">
+                <div id="qr-${idx}" style="width:22mm;height:22mm;"></div>
+                <div style="font-size:5pt;line-height:1.2;margin-top:1mm;">
+                    <strong>${escapeHtml(qrId)}</strong><br>
+                    ${escapeHtml(kod)}<br>
+                    TEL: ${escapeHtml(telefon)}
+                </div>
+            </div>
+        `;
+    });
+
+    const html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br>
+                <small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br>
+                <small>Jumlah karpet: ${carpets.length}</small>
+            </div>
+            <div>
+                <button class="btn btn-primary btn-sm" onclick="printBarcodes('${escapeHtml(inv)}')"><i class="fa-solid fa-print"></i> Cetak</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadBarcodesPDF('${escapeHtml(inv)}')"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadBarcodesImage('${escapeHtml(inv)}')"><i class="fa-solid fa-image"></i> Simpan Gambar</button>
+            </div>
+        </div>
+        <div id="barcodeGrid" style="display:flex;flex-wrap:wrap;gap:2mm;margin-top:5mm;">
+            ${barcodesHTML}
+        </div>
+        <div class="mt-16 muted" style="font-size:9px;">Saiz setiap barcode: 40mm x 30mm. Imbas QR untuk semak status.</div>
+    `;
+    container.innerHTML = html;
+
+    // Jana QR code untuk setiap karpet
+    carpets.forEach((k, idx) => {
+        const qrContent = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
+        new QRCode(document.getElementById(`qr-${idx}`), {
+            text: qrContent,
+            width: 80,
+            height: 80,
+            colorDark: "#000",
+            colorLight: "#fff",
+            correctLevel: QRCode.CorrectLevel.M
+        });
+    });
+}
+
+function printBarcodes(inv) {
+    // Buka tetingkap cetakan dengan hanya barcode grid
+    const grid = document.getElementById('barcodeGrid');
+    if (!grid) return toast('Tiada barcode untuk dicetak.');
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Cetak Barcode ${inv}</title>
+            <style>
+                @page { size: 40mm 30mm; margin: 0; }
+                body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; }
+                .barcode-item { width: 40mm; height: 30mm; border: 1px solid #ccc; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-family: 'Inter', sans-serif; padding: 2mm; box-sizing: border-box; margin: 1mm; }
+                img { width: 22mm; height: 22mm; }
+                .text { font-size: 5pt; line-height: 1.2; margin-top: 1mm; }
+            </style>
+        </head>
+        <body>
+            ${grid.innerHTML}
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+}
+
+function downloadBarcodesPDF(inv) {
+    // Guna html2pdf untuk jana PDF dengan saiz kustom
+    const grid = document.getElementById('barcodeGrid');
+    if (!grid) return toast('Tiada barcode.');
+    const opt = {
+        margin: 0,
+        filename: `Barcode_${inv}.pdf`,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: [40, 30 * grid.children.length], orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(grid).save();
+}
+
+function downloadBarcodesImage(inv) {
+    const grid = document.getElementById('barcodeGrid');
+    if (!grid) return toast('Tiada barcode.');
+    html2canvas(grid, { scale: 2 }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = `Barcode_${inv}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast('Gambar disimpan.');
+    });
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
