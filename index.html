@@ -1837,15 +1837,110 @@ async function tambahKomisen() {
 }
 
 // ---------- SUB TAB 3: RUNNER ----------
+// ---------- SUB TAB 3: RUNNER ----------
 function renderWorkerRunner(container) {
+    const workers = STATE.pekerja || [];
+    const tasks = STATE.runnerTugasan || [];
+
+    // Pilihan pekerja (hanya yang peranan "Runner")
+    let workerOptions = '<option value="">-- Pilih Runner --</option>';
+    workers.forEach(w => {
+        if (getField(w, ['PERANAN'], '') === 'Runner') {
+            const id = escapeHtml(getField(w, ['ID','WORKER_ID'], ''));
+            const nama = escapeHtml(getField(w, ['NAMA'], ''));
+            workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
+        }
+    });
+
+    // Senarai tugasan sedia ada
+    let tasksHtml = '';
+    if (tasks.length) {
+        tasksHtml = `<div class="table-wrap"><table class="data-table">
+            <thead><tr><th>ID Tugasan</th><th>Runner</th><th>Alamat</th><th>Tarikh</th><th>Status</th></tr></thead>
+            <tbody>`;
+        tasks.sort((a,b) => String(getField(b, ['ID TUGASAN'], '')).localeCompare(String(getField(a, ['ID TUGASAN'], ''))));
+        tasks.forEach(t => {
+            const id = escapeHtml(getField(t, ['ID TUGASAN'], '-'));
+            const nama = escapeHtml(getField(t, ['NAMA PEKERJA'], '-'));
+            const alamat = escapeHtml(getField(t, ['ALAMAT'], '-'));
+            const tarikh = escapeHtml(String(getField(t, ['TARIKH'], '')).split('T')[0]);
+            const status = normalize(getField(t, ['STATUS'], 'PENDING'));
+            const badge = status === 'DELIVERED' || status === 'PICKED_UP' ? 'badge-selesai' : 'badge-proses';
+            tasksHtml += `<tr>
+                <td><strong>${id}</strong></td>
+                <td>${nama}</td>
+                <td>${alamat}</td>
+                <td>${tarikh}</td>
+                <td><span class="badge ${badge}">${status}</span></td>
+            </tr>`;
+        });
+        tasksHtml += '</tbody></table></div>';
+    } else {
+        tasksHtml = '<p class="muted">Tiada tugasan.</p>';
+    }
+
     container.innerHTML = `
-        <h3 class="card-title">🚚 Tugasan Runner (Pick-up & Delivery)</h3>
-        <p class="muted">Senarai tugasan penghantaran dan pengambilan.</p>
-        <div id="runnerTaskList">
-            <!-- Akan datang: integrasi dengan data tugasan -->
-            <p class="muted text-center">Modul Runner akan datang.</p>
+        <h3 class="card-title">🚚 Tambah Tugasan Runner</h3>
+        <div class="row">
+            <div class="col form-group">
+                <label>Pilih Runner</label>
+                <select id="runnerSelect" class="form-control">${workerOptions}</select>
+            </div>
+            <div class="col form-group">
+                <label>Alamat (Pick‑up / Delivery)</label>
+                <input type="text" id="runnerAlamat" class="form-control" placeholder="No, Jalan, Taman...">
+            </div>
         </div>
+        <div class="row">
+            <div class="col form-group">
+                <label>Tarikh</label>
+                <input type="date" id="runnerTarikh" class="form-control" value="${getToday()}">
+            </div>
+            <div class="col form-group">
+                <label>Status</label>
+                <select id="runnerStatus" class="form-control">
+                    <option value="PENDING">PENDING</option>
+                    <option value="PICKED_UP">PICKED UP</option>
+                    <option value="DELIVERED">DELIVERED</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="tambahRunnerTask()"><i class="fa-solid fa-plus"></i> Simpan Tugasan</button>
+        <div id="runnerMsg" class="mt-16"></div>
+        <hr style="margin:20px 0;">
+        <h3 class="card-title">📋 Senarai Tugasan Runner</h3>
+        ${tasksHtml}
     `;
+}
+
+async function tambahRunnerTask() {
+    const workerId = document.getElementById('runnerSelect').value;
+    const alamat = document.getElementById('runnerAlamat').value.trim();
+    const tarikh = document.getElementById('runnerTarikh').value;
+    const status = document.getElementById('runnerStatus').value;
+
+    if (!workerId || !alamat) {
+        showPriceMsg('runnerMsg', '❌ Sila pilih Runner dan isi Alamat.', 'error');
+        return;
+    }
+
+    const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
+    const workerName = worker ? getField(worker, ['NAMA'], '') : '';
+
+    await postData({
+        action: 'addRunnerTask',
+        workerId: workerId,
+        workerName: workerName,
+        alamat: alamat,
+        tarikh: tarikh,
+        status: status
+    });
+
+    showPriceMsg('runnerMsg', '✅ Tugasan berjaya disimpan!', 'success');
+    fetchData(null, true);
+    setTimeout(() => {
+        renderWorkerRunner(document.getElementById('workerTabContent'));
+    }, 1500);
 }
 
 // ==================== PRICE MATRIX ====================
