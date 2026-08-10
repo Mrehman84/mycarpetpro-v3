@@ -1194,6 +1194,7 @@ async function shareInvoiceWithAttachment() {
             fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
         }
 
+        // Cuba Web Share API (telefon) dengan lampiran
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
             const file = new File([fileBlob], fileName, { type: mimeType });
             await navigator.share({
@@ -1205,10 +1206,10 @@ async function shareInvoiceWithAttachment() {
             return;
         }
     } catch (err) {
-        console.warn('Web Share gagal atau tidak disokong, guna fallback desktop:', err);
+        console.warn('Web Share gagal atau tidak disokong:', err);
     }
 
-    // Fallback desktop
+    // Fallback universal: muat turun fail
     try {
         if (fileBlob) {
             const url = URL.createObjectURL(fileBlob);
@@ -1226,11 +1227,29 @@ async function shareInvoiceWithAttachment() {
         toast('Gagal memuat turun fail.');
     }
 
+    // Buka WhatsApp mengikut peranti
     const tel = String(data.telefon).replace(/^0+/, '');
     const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
-    window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
-}
+    const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
+    let whatsappUrl;
+    if (isMobile) {
+        // Telefon: guna wa.me biasa
+        whatsappUrl = `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`;
+    } else {
+        // Desktop: cuba buka aplikasi WhatsApp dengan whatsapp:// protocol
+        whatsappUrl = `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
+    }
+
+    window.open(whatsappUrl, '_blank');
+
+    // Jika desktop dan aplikasi WhatsApp tidak dipasang, fallback ke WhatsApp Web
+    if (!isMobile) {
+        setTimeout(() => {
+            window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
+        }, 1500);
+    }
+}
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) {
