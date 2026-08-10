@@ -936,7 +936,6 @@ function hantarWhatsAppPembayaran() {
 
 // ==================== INVOIS & RESIT ====================
 function renderInvoiceTab(container) {
-    // Bina dropdown invois
     const invList = [];
     STATE.tempahan.forEach(t => {
         const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
@@ -947,7 +946,6 @@ function renderInvoiceTab(container) {
         const alamat = getField(cust, ['ALAMAT'], '');
         invList.push({ inv, status, nama, alamat });
     });
-    // Isih: terbaru dahulu
     invList.sort((a, b) => b.inv.localeCompare(a.inv));
     const invoiceOptions = invList.map(item => {
         const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
@@ -1032,7 +1030,6 @@ function renderInvoicePreview() {
 
     // Warna tema
     const brandColor = isPaid ? '#28a745' : '#ff6d00';
-    const bgColor = isPaid ? '#f0fff0' : '#fff4f0';
 
     // Bina jadual item
     let itemsHTML = items.map((item, i) => `
@@ -1058,10 +1055,14 @@ function renderInvoicePreview() {
     const html = `
         <div class="card print-area" id="invoicePrintArea">
             <div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
+                <!-- Logo diperbesarkan & simetri di atas -->
+                <div style="text-align:center;margin-bottom:6mm;">
+                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:25mm;" onerror="this.style.display='none'">
+                </div>
+
                 <!-- Header -->
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;">
                     <div>
-                        <img src="assets/logo.png" alt="Logo" style="height:20mm;margin-bottom:2mm;" onerror="this.style.display='none'">
                         <div style="font-size:10px;color:#555;line-height:1.4;">
                             <strong>WESTBERRY ENTERPRISE</strong><br>
                             LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>
@@ -1078,9 +1079,9 @@ function renderInvoicePreview() {
                     </div>
                 </div>
 
-                <!-- Status Badge -->
+                <!-- Status Badge (diperbesarkan, tiada LUNAS/BELUM LUNAS) -->
                 <div style="display:flex;justify-content:flex-end;margin-bottom:6mm;">
-                    <span style="display:inline-block;padding:3px 12px;border-radius:20px;font-weight:700;font-size:11px;color:#fff;background:${brandColor};">${isPaid ? '✅ PAID (LUNAS)' : '⏳ PENDING (BELUM LUNAS)'}</span>
+                    <span style="display:inline-block;padding:5px 20px;border-radius:20px;font-weight:700;font-size:16px;color:#fff;background:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span>
                 </div>
 
                 <!-- Maklumat Pelanggan -->
@@ -1126,7 +1127,7 @@ function renderInvoicePreview() {
                     </div>
                     <div style="text-align:center;">
                         <strong>DISEDIAKAN OLEH / COP:</strong><br>
-                        <div style="height:15mm;width:35mm;margin:3mm auto;border:1px dashed #ccc;"></div>
+                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'">
                         <div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div>
                     </div>
                 </div>
@@ -1146,9 +1147,12 @@ function renderInvoicePreview() {
         </div>
     `;
     container.innerHTML = html;
-    STATE.currentInvoiceData = { inv, nama, telefon, msg: '' };
-}
 
+    // Sediakan mesej WhatsApp baru
+    const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
+    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa };
+}
+    
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) return toast('Sila pilih invois dahulu.');
@@ -1163,21 +1167,19 @@ function downloadInvoicePDF() {
 }
 
 function copyInvoiceWhatsApp() {
-    const element = document.getElementById('invoicePrintArea');
-    if (!element) return toast('Sila pilih invois dahulu.');
-    const text = element.innerText;
-    navigator.clipboard.writeText(text).then(() => toast('Teks invois disalin.')).catch(() => toast('Gagal salin.'));
-    STATE.currentInvoiceData.msg = text;
+    const data = STATE.currentInvoiceData;
+    if (!data) return toast('Sila pilih invois dahulu.');
+    const text = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
+    navigator.clipboard.writeText(text).then(() => toast('Mesej WhatsApp disalin.')).catch(() => toast('Gagal salin.'));
 }
 
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
+    const tel = String(data.telefon).replace(/^0+/, '');
     const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
-    const tel = String(data.telefon).replace(/[- ]/g, '').replace(/^0+/, '');
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-
     
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
