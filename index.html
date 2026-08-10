@@ -411,7 +411,8 @@ function renderSidebar() {
         { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
         { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
         { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
-        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' }
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
+        { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' }
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
@@ -436,6 +437,9 @@ function switchTab(tabId) {
     else if (tabId === 'invoice') renderInvoiceTab(container);
     else if (tabId === 'pelanggan') renderPelanggan(container);
     else if (tabId === 'barcode') renderBarcode(container);
+    else if (tabId === 'pricematrix') renderPriceMatrix(container);
+        
+        
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -1675,6 +1679,251 @@ function simpanGambarStikers() {
         link.click();
         toast('Gambar disimpan.');
     });
+}
+
+    // ==================== PRICE MATRIX ====================
+function renderPriceMatrix(container) {
+    // UI dengan 3 tab
+    container.innerHTML = `
+        <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
+        <div class="card">
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="pricelist" onclick="switchPriceTab('pricelist', this)">🔍 Senarai Katalog</button>
+                <button class="tab-btn" data-tab="addprice" onclick="switchPriceTab('addprice', this)">➕ Tambah Kod Baru</button>
+                <button class="tab-btn" data-tab="bulkprice" onclick="switchPriceTab('bulkprice', this)">🧮 Formula Pukal</button>
+            </div>
+            <!-- Kontena untuk setiap tab -->
+            <div id="priceTabContent"></div>
+        </div>
+    `;
+    // Papar tab pertama
+    switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
+}
+
+// Gaya untuk butang tab
+const priceTabStyle = `
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        transition: .2s;
+    }
+    .tab-btn.active {
+        color: var(--primary-red);
+        border-bottom-color: var(--primary-red);
+    }
+`;
+// Suntik gaya jika belum wujud
+if (!document.getElementById('priceTabStyles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'priceTabStyles';
+    styleTag.textContent = priceTabStyle;
+    document.head.appendChild(styleTag);
+}
+
+function switchPriceTab(tabId, btn) {
+    // Tukar butang aktif
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const content = document.getElementById('priceTabContent');
+    
+    if (tabId === 'pricelist') renderPriceList(content);
+    else if (tabId === 'addprice') renderAddPriceForm(content);
+    else if (tabId === 'bulkprice') renderBulkPrice(content);
+}
+
+// ==================== TAB 1: SENARAI KATALOG ====================
+function renderPriceList(container) {
+    const data = STATE.senaraiHarga || [];
+    if (!data.length) {
+        container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>';
+        return;
+    }
+    let html = `<div class="table-wrap"><table class="data-table">
+        <thead><tr><th>KOD</th><th>JENIS CARPET</th><th>HARGA OPEN</th></tr></thead>
+        <tbody>`;
+    data.forEach(item => {
+        const kod = escapeHtml(getField(item, ['KOD'], ''));
+        const jenis = escapeHtml(getField(item, ['JENIS CARPET'], ''));
+        const harga = getNumber(getField(item, ['HARGA OPEN'], 0));
+        html += `<tr>
+            <td><strong>${kod}</strong></td>
+            <td>${jenis}</td>
+            <td>${formatMoney(harga)}</td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// ==================== TAB 2: TAMBAH KOD BARU ====================
+function renderAddPriceForm(container) {
+    container.innerHTML = `
+        <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
+        <div class="row">
+            <div class="col form-group">
+                <label>Kod Karpet Baru (Contoh: CK 5X7)</label>
+                <input type="text" id="newPriceKod" class="form-control" placeholder="CK 5X7" style="text-transform:uppercase;">
+            </div>
+            <div class="col form-group">
+                <label>Nama/Jenis Karpet (Contoh: Carpet Bulu Tebal)</label>
+                <input type="text" id="newPriceJenis" class="form-control" placeholder="CUCIAN CARPET...">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Harga Seunit (RM)</label>
+            <input type="number" id="newPriceHarga" class="form-control" min="0" step="0.50" value="15.00">
+        </div>
+        <button class="btn btn-primary" onclick="addNewPrice()"><i class="fa-solid fa-save"></i> Daftarkan Ke Dalam Katalog</button>
+        <div id="addPriceMsg" class="mt-16"></div>
+    `;
+}
+
+async function addNewPrice() {
+    const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
+    const jenis = document.getElementById('newPriceJenis').value.trim();
+    const harga = parseFloat(document.getElementById('newPriceHarga').value) || 0;
+
+    if (!kod || !jenis || harga <= 0) {
+        showPriceMsg('addPriceMsg', '❌ Sila lengkapkan semua ruangan.', 'error');
+        return;
+    }
+    // Semak kewujudan kod
+    const exists = STATE.senaraiHarga.some(item => normalize(getField(item, ['KOD'])) === normalize(kod));
+    if (exists) {
+        showPriceMsg('addPriceMsg', `❌ Kod \`${kod}\` sudah wujud! Guna tab Formula Pukal untuk ubah harga.`, 'error');
+        return;
+    }
+
+    // Hantar ke GAS (action: addHarga)
+    await postData({ action: 'addHarga', kod, jenis, harga: harga.toFixed(2) });
+    showPriceMsg('addPriceMsg', `🎉 Berjaya! Kod \`${kod}\` telah ditambah.`, 'success');
+    // Kosongkan borang
+    document.getElementById('newPriceKod').value = '';
+    document.getElementById('newPriceJenis').value = '';
+    document.getElementById('newPriceHarga').value = '15.00';
+    // Refresh data tempatan & papar senarai semula
+    fetchData(null, true);
+    setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
+}
+
+function showPriceMsg(containerId, msg, type) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+// ==================== TAB 3: FORMULA PUKAL ====================
+function renderBulkPrice(container) {
+    // Sediakan nilai darab (gandaan) lalai
+    const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
+    container.innerHTML = `
+        <h3 class="card-title">🧮 Formula Pengiraan Kos Per Sqft</h3>
+        <p class="muted">Masukkan harga darab (RM) bagi setiap kumpulan kod. Sistem akan mengira luas secara automatik.</p>
+        <div class="row" style="margin-bottom:20px;">
+            <div class="col form-group"><label>Prefix CK</label><input type="number" id="multCK" class="form-control" value="${mult.CK}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CN</label><input type="number" id="multCN" class="form-control" value="${mult.CN}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CS</label><input type="number" id="multCS" class="form-control" value="${mult.CS}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix HP</label><input type="number" id="multHP" class="form-control" value="${mult.HP}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix LP</label><input type="number" id="multLP" class="form-control" value="${mult.LP}" step="0.1" min="0"></div>
+            <div class="col form-group"><label>Prefix CSG</label><input type="number" id="multCSG" class="form-control" value="${mult.CSG}" step="0.1" min="0"></div>
+        </div>
+        <div id="bulkPreviewContainer">
+            <!-- Jadual preview akan diletakkan di sini -->
+        </div>
+        <button class="btn btn-success mt-16" onclick="saveBulkPrices()"><i class="fa-solid fa-cloud-upload-alt"></i> Sahkan & Kemas Kini Semua Harga</button>
+        <div id="bulkPriceMsg" class="mt-16"></div>
+    `;
+
+    // Fungsi untuk mengira luas daripada kod
+    const extractLuas = (kod) => {
+        const match = kod.match(/(\d+)\s*X\s*(\d+)/);
+        if (match) return parseFloat(match[1]) * parseFloat(match[2]);
+        if (kod === 'TEBAL') return 24.0;
+        return 0.0;
+    };
+
+    // Fungsi untuk mengemas kini jadual preview
+    const updatePreview = () => {
+        const mults = {
+            CK: parseFloat(document.getElementById('multCK').value) || 0,
+            CN: parseFloat(document.getElementById('multCN').value) || 0,
+            CS: parseFloat(document.getElementById('multCS').value) || 0,
+            HP: parseFloat(document.getElementById('multHP').value) || 0,
+            LP: parseFloat(document.getElementById('multLP').value) || 0,
+            CSG: parseFloat(document.getElementById('multCSG').value) || 0
+        };
+        const data = STATE.senaraiHarga || [];
+        const previewDiv = document.getElementById('bulkPreviewContainer');
+        let html = `<div class="table-wrap"><table class="data-table">
+            <thead><tr><th>KOD</th><th>JENIS</th><th>HARGA SEMASA</th><th>HARGA BARU (DIKIRA)</th></tr></thead>
+            <tbody>`;
+        data.forEach((item, idx) => {
+            const kod = String(getField(item, ['KOD'], '')).toUpperCase();
+            const jenis = getField(item, ['JENIS CARPET'], '');
+            const hargaSemasa = getNumber(getField(item, ['HARGA OPEN'], 0));
+            const luas = extractLuas(kod);
+            let multiplier = 1.0;
+            const prefixes = ['CSG', 'CK', 'CN', 'CS', 'HP', 'LP'];
+            for (const p of prefixes) {
+                if (kod.startsWith(p)) { multiplier = mults[p]; break; }
+            }
+            const hargaBaru = luas * multiplier;
+            html += `<tr>
+                <td><strong>${escapeHtml(kod)}</strong></td>
+                <td>${escapeHtml(jenis)}</td>
+                <td>${formatMoney(hargaSemasa)}</td>
+                <td><input type="number" step="0.01" value="${hargaBaru.toFixed(2)}" data-index="${idx}" class="form-control bulk-input" style="text-align:right;"></td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+        previewDiv.innerHTML = html;
+    };
+
+    // Pasang event pada semua input gandaan
+    document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => {
+        inp.addEventListener('input', updatePreview);
+    });
+    // Panggil kali pertama
+    updatePreview();
+}
+
+async function saveBulkPrices() {
+    const inputs = document.querySelectorAll('.bulk-input');
+    if (inputs.length === 0) return toast('Tiada data harga.');
+    const updates = [];
+    inputs.forEach(inp => {
+        const idx = parseInt(inp.getAttribute('data-index'));
+        const newPrice = parseFloat(inp.value);
+        if (!isNaN(newPrice) && idx >= 0 && STATE.senaraiHarga[idx]) {
+            updates.push({
+                kod: String(getField(STATE.senaraiHarga[idx], ['KOD'])),
+                harga: newPrice.toFixed(2)
+            });
+        }
+    });
+
+    if (updates.length === 0) {
+        showPriceMsg('bulkPriceMsg', '❌ Tiada perubahan harga.', 'error');
+        return;
+    }
+
+    // Hantar pukal ke GAS (action: batchUpdateHarga)
+    showLoading(true);
+    await postData({ action: 'batchUpdateHarga', updates: updates });
+    showLoading(false);
+    showPriceMsg('bulkPriceMsg', '🎉 Semua harga telah dikemas kini!', 'success');
+    // Refresh data
+    fetchData(null, true);
+    setTimeout(() => {
+        // Kembali ke paparan senarai (boleh kekal di tab ini)
+        renderBulkPrice(document.getElementById('priceTabContent'));
+    }, 1500);
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
