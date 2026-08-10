@@ -977,8 +977,8 @@ function renderInvoiceTab(container) {
             </div>
             <div class="flex">
                 <button class="btn btn-secondary" onclick="downloadInvoicePDF()"><i class="fa-solid fa-file-pdf"></i> Muat Turun PDF</button>
-                <button class="btn btn-success" onclick="copyInvoiceWhatsApp()"><i class="fa-regular fa-copy"></i> Salin WhatsApp</button>
-                <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button>
+                <button class="btn btn-warning" onclick="shareInvoiceWithAttachment()"><i class="fa-solid fa-paper-plane"></i> Hantar Invois (Gambar/PDF)</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar Mesej WhatsApp</button>
             </div>
         </div>
         <div id="invoicePreviewContainer"></div>
@@ -1035,24 +1035,24 @@ function renderInvoicePreview() {
     // Warna tema
     const brandColor = isPaid ? '#28a745' : '#ff6d00';
 
-    // Bina jadual item
+    // Bina jadual item dengan lebar baru: BIL 5%, KETERANGAN 50%, UNIT 5%, HARGA SEUNIT 18%, TOTAL 22%
     let itemsHTML = items.map((item, i) => `
-       <tr>
-    <td style="width:5%;">${i+1}</td>
-    <td style="width:52%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
-    <td style="width:5%;">${item.qty}</td>
-    <td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td>
-    <td style="width:20%;text-align:right;">${formatMoney(item.total)}</td>
-</tr>
+        <tr>
+            <td style="width:5%;">${i+1}</td>
+            <td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td>
+            <td style="width:5%;">${item.qty}</td>
+            <td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td>
+            <td style="width:22%;text-align:right;">${formatMoney(item.total)}</td>
+        </tr>
     `).join('');
     if (extraName && extraPrice > 0) {
         itemsHTML += `
         <tr>
-            <td>${items.length+1}</td>
-            <td>${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td>
-            <td>1</td>
-            <td style="text-align:right;">${formatMoney(extraPrice)}</td>
-            <td style="text-align:right;">${formatMoney(extraPrice)}</td>
+            <td style="width:5%;">${items.length+1}</td>
+            <td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td>
+            <td style="width:5%;">1</td>
+            <td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td>
+            <td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td>
         </tr>`;
     }
 
@@ -1103,10 +1103,10 @@ function renderInvoicePreview() {
                     <thead>
                         <tr style="background:${brandColor};color:#fff;">
                             <th style="padding:4px;text-align:center;width:5%;">BIL</th>
-                           <th style="padding:4px;width:52%;">KETERANGAN SERVIS / JENIS CARPET</th>
-                           <th style="padding:4px;text-align:center;width:5%;">UNIT</th>
-                           <th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th>
-                           <th style="padding:4px;text-align:right;width:20%;">TOTAL (RM)</th>
+                            <th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th>
+                            <th style="padding:4px;text-align:center;width:5%;">UNIT</th>
+                            <th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th>
+                            <th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1157,6 +1157,78 @@ function renderInvoicePreview() {
     // Sediakan mesej WhatsApp
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa };
+}
+
+async function shareInvoiceWithAttachment() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) {
+        toast('Sila pilih invois dahulu.');
+        return;
+    }
+
+    const isPaid = data.msg && data.msg.includes('PAID');
+    const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
+    const mimeType = isPaid ? 'application/pdf' : 'image/png';
+    
+    toast('Menyediakan lampiran...');
+
+    let fileBlob;
+    try {
+        if (isPaid) {
+            const pdfBlob = await html2pdf().set({
+                margin: [5, 5, 5, 5],
+                filename: fileName,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(element).outputPdf('blob');
+            fileBlob = pdfBlob;
+        } else {
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+        }
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            const file = new File([fileBlob], fileName, { type: mimeType });
+            await navigator.share({
+                title: `Invoice ${data.inv}`,
+                text: data.msg,
+                files: [file]
+            });
+            toast('Invois berjaya dikongsi!');
+            return;
+        }
+    } catch (err) {
+        console.warn('Web Share gagal atau tidak disokong, guna fallback desktop:', err);
+    }
+
+    // Fallback desktop
+    try {
+        if (fileBlob) {
+            const url = URL.createObjectURL(fileBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.');
+        }
+    } catch (e) {
+        console.error('Muat turun gagal:', e);
+        toast('Gagal memuat turun fail.');
+    }
+
+    const tel = String(data.telefon).replace(/^0+/, '');
+    const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`;
+    window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 function downloadInvoicePDF() {
@@ -1216,7 +1288,8 @@ function hantarWhatsAppInvoice() {
     const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
     window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
 }
-    
+
+   
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
