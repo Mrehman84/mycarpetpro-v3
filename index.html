@@ -931,7 +931,7 @@ function loadPaymentData() {
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
     const discount = getNumber(document.getElementById('payDiscount')?.value || 0);
-    const effectiveTotal = Math.max(0, total - discount);  // jumlah selepas diskaun
+    const effectiveTotal = Math.max(0, total - discount);
     let deposit = 0;
     let baki = effectiveTotal;
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
@@ -941,9 +941,9 @@ function loadPaymentData() {
         const lastBaki = getNumber(getField(lastPayment, ['BAKI']));
         if (!isNaN(lastBaki)) baki = lastBaki;
     } else {
-        baki = Math.max(0, total - deposit);
+        baki = Math.max(0, effectiveTotal - deposit);
     }
-        document.getElementById('payTotal').value = formatMoney(effectiveTotal);
+    document.getElementById('payTotal').value = formatMoney(effectiveTotal);
     document.getElementById('payDeposit').value = formatMoney(deposit);
     document.getElementById('payBalance').value = formatMoney(baki);
     const historyDiv = document.getElementById('paymentHistory');
