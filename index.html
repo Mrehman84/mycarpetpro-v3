@@ -1175,12 +1175,13 @@ async function shareInvoiceWithAttachment() {
     const isPaid = data.msg && data.msg.includes('PAID');
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
-    
+
     toast('Menyediakan lampiran...');
 
     let fileBlob;
     try {
         if (isPaid) {
+            // Jana PDF guna html2pdf
             const pdfBlob = await html2pdf().set({
                 margin: [5, 5, 5, 5],
                 filename: fileName,
@@ -1190,6 +1191,7 @@ async function shareInvoiceWithAttachment() {
             }).from(element).outputPdf('blob');
             fileBlob = pdfBlob;
         } else {
+            // Jana imej guna html2canvas
             const canvas = await html2canvas(element, { scale: 2, useCORS: true });
             fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
         }
@@ -1206,7 +1208,8 @@ async function shareInvoiceWithAttachment() {
             return;
         }
     } catch (err) {
-        console.warn('Web Share gagal atau tidak disokong:', err);
+        console.warn('Web Share atau penjanaan gagal:', err);
+        // Jika Web Share gagal, teruskan ke fallback tanpa menunjukkan ralat kepada pengguna
     }
 
     // Fallback universal: muat turun fail
@@ -1221,6 +1224,8 @@ async function shareInvoiceWithAttachment() {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.');
+        } else {
+            toast('Gagal menyediakan lampiran.');
         }
     } catch (e) {
         console.error('Muat turun gagal:', e);
@@ -1234,16 +1239,14 @@ async function shareInvoiceWithAttachment() {
 
     let whatsappUrl;
     if (isMobile) {
-        // Telefon: guna wa.me biasa
         whatsappUrl = `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`;
     } else {
-        // Desktop: cuba buka aplikasi WhatsApp dengan whatsapp:// protocol
         whatsappUrl = `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`;
     }
 
     window.open(whatsappUrl, '_blank');
 
-    // Jika desktop dan aplikasi WhatsApp tidak dipasang, fallback ke WhatsApp Web
+    // Jika desktop, fallback ke WhatsApp Web selepas 1.5 saat
     if (!isMobile) {
         setTimeout(() => {
             window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank');
