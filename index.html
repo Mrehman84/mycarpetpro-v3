@@ -253,7 +253,8 @@ const CONFIG = {
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
-    paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
+    paymentWhatsAppMsg: '', paymentWhatsAppTel: '',
+    pekerja: [], komisen: [], runnerTugasan: []
 };
 
 // ==================== HELPERS ====================
@@ -316,6 +317,10 @@ function fetchData(callback, skipRefresh = false) {
                 STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
                 STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
                 STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
+                STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
+                STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
+                STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
+                
                 if (callback) callback();
                 if (!skipRefresh) refreshAllUI();
             } else { toast('Data tidak sah.'); }
