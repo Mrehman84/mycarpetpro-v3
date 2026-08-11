@@ -343,6 +343,39 @@ function fetchData(callback, skipRefresh = false) {
     };
     document.body.appendChild(script);
 }
+    function postDataJSONP(params, callback) {
+    // Buang skrip lama jika ada
+    $$('script[data-jsonp-post]').forEach(el => el.remove());
+
+    const cbName = 'jsonp_post_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+    const timeout = setTimeout(() => {
+        cleanupJsonp(cbName);
+        if (callback) callback({ success: false, error: 'Masa tamat' });
+    }, 20000);
+
+    window[cbName] = function(resp) {
+        clearTimeout(timeout);
+        cleanupJsonp(cbName);
+        if (callback) callback(resp);
+    };
+
+    // Bina URL dengan parameter
+    const queryString = Object.keys(params)
+        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+        .join('&');
+    const url = CONFIG.GAS_API_URL + '?action=saveExpense&' + queryString + '&callback=' + cbName;
+
+    const script = document.createElement('script');
+    script.id = cbName;
+    script.dataset.jsonpPost = 'true';
+    script.src = url;
+    script.onerror = function() {
+        clearTimeout(timeout);
+        cleanupJsonp(cbName);
+        if (callback) callback({ success: false, error: 'Gagal muat skrip' });
+    };
+    document.body.appendChild(script);
+}
 
 async function postData(data) {
   try {
@@ -2043,10 +2076,7 @@ async function tambahExpense() {
     }
 
     const gabungan = bayar + bulanTahun;
-
-    showLoading(true);
-    const resp = await postData({
-        action: 'addOperationalExpense',
+    const params = {
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
         jenis: jenis,
@@ -2058,29 +2088,29 @@ async function tambahExpense() {
         catatan: catatan,
         amount: amount,
         gabungan: gabungan
-    });
-    showLoading(false);
+    };
 
-    if (resp && resp.success) {
-        showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-        // Kosongkan borang
-        document.getElementById('expJenis').value = '';
-        document.getElementById('expQty').value = '1';
-        document.getElementById('expPrice').value = '0.00';
-        document.getElementById('expAmount').value = '';
-        document.getElementById('expButiran').value = '';
-        document.getElementById('expPembekal').value = '';
-        document.getElementById('expCatatan').value = '';
-        kiraAmount();
-        // Muat semula data dan kemas kini jadual
-        fetchData(() => {
-            const tbody = document.getElementById('expenseTableBody');
-            if (tbody) tbody.innerHTML = buildExpenseRows();
-        }, true);
-    } else {
-        const errorMsg = resp ? (resp.error || 'Ralat tidak diketahui') : 'Tiada respons';
-        showPriceMsg('expenseMsg', '❌ Gagal: ' + errorMsg, 'error');
-    }
+    showLoading(true);
+    postDataJSONP(params, function(resp) {
+        showLoading(false);
+        if (resp && resp.success) {
+            showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+            document.getElementById('expJenis').value = '';
+            document.getElementById('expQty').value = '1';
+            document.getElementById('expPrice').value = '0.00';
+            document.getElementById('expAmount').value = '';
+            document.getElementById('expButiran').value = '';
+            document.getElementById('expPembekal').value = '';
+            document.getElementById('expCatatan').value = '';
+            kiraAmount();
+            fetchData(() => {
+                const tbody = document.getElementById('expenseTableBody');
+                if (tbody) tbody.innerHTML = buildExpenseRows();
+            }, true);
+        } else {
+            showPriceMsg('expenseMsg', '❌ Gagal: ' + (resp ? resp.error : 'Tiada respons'), 'error');
+        }
+    });
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
