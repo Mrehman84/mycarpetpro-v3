@@ -1902,8 +1902,9 @@ function renderExpenses(container) {
                 </div>
             </div>
             <div class="form-group">
-                <label>Jumlah (RM) <small>(dikira automatik)</small></label>
-                <input type="text" id="expAmount" class="form-control" readonly style="font-weight:700;">
+                <label class="form-label">Jumlah (RM) (dikira automatik)</label>
+<input type="text" id="expenseTotalAmount" class="form-control" value="0.00" readonly>
+
             </div>
             <div class="form-group">
                 <label>Butiran / No Resit</label>
@@ -1958,44 +1959,7 @@ function buildExpenseRows() {
     });
     return rows;
 }
-// ==================== GLOBAL EVENTS ====================
-function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.login-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            const role = this.dataset.role;
-            document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
-            document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
-            document.getElementById('loginError').classList.add('hidden');
-        });
-    });
-    const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
-    if (stored) {
-        try {
-            STATE.currentUser = JSON.parse(stored);
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('appContainer').classList.remove('hidden');
-            initApp();
-        } catch(e) {}
-    }
-});
-document.addEventListener('click', function(e) {
-    if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
-        document.body.classList.remove('sidebar-open');
-    }
-});
-</script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
-                    .then(reg => console.log('Service Worker berjaya didaftarkan'))
-                    .catch(err => console.log('Service Worker gagal: ', err));
-            });
-        }
-        // ==================== FUNGSI KEMASKINI JADUAL PERBELANJAAN ====================
+            // ==================== FUNGSI KEMASKINI JADUAL PERBELANJAAN ====================
 function renderExpensesTable() {
   // Mencari ruangan badan jadual (tbody) di dalam tab perbelanjaan
   const tBody = document.querySelector('#tabContainer tbody');
@@ -2074,29 +2038,87 @@ async function laksanaSimpanPerbelanjaan(event) {
 }
         // ==================== FUNGSI KIRA AMOUNT (UNTUK MENGELAKKAN RALAT UNCAUGHT REFERENCEERROR) ====================
 // ==================== FUNGSI KIRA AMOUNT (PENGIRAAN AUTOMATIK) ====================
+// ==================== FUNGSI KIRA AMOUNT (VERSI STABIL) ====================
 function kiraAmount() {
-  // 1. Mencari input Kuantiti (di dalam kad perbelanjaan)
   const qtyInput = document.querySelector('input[placeholder="Kuantiti"]') || document.querySelector('input[type="number"]');
-  
-  // 2. Mencari input Harga Seunit (id="expenseAmount")
-  const hargaInput = document.getElementById('expenseAmount');
-  
-  // 3. Mencari kotak Jumlah (RM) untuk memaparkan hasil kiraan
-  // Berdasarkan struktur HTML anda, ia adalah input yang berada betul-betul di bawah teks "Jumlah (RM)"
-  const jumlahInput = document.querySelector('input[readonly]') || document.getElementById('expenseAmount')?.parentElement?.nextElementSibling?.querySelector('input');
+  const hargaInput = document.getElementById('expenseAmount'); 
+  const totalInput = document.getElementById('expenseTotalAmount'); // Menggunakan ID baharu kita
 
-  // Mengambil nilai teks dan menukarkannya kepada nombor
+  // Mengambil nilai angka dari input
   const kuantiti = qtyInput ? parseFloat(qtyInput.value) || 0 : 1;
   const hargaSeunit = hargaInput ? parseFloat(hargaInput.value) || 0 : 0;
 
-  // Membuat pengiraan matematik
+  // Kira jumlah total keseluruhan
   const total = kuantiti * hargaSeunit;
 
-  // Memasukkan hasil kiraan ke dalam kotak Jumlah (RM) di skrin secara automatik
-  if (jumlahInput) {
-    jumlahInput.value = total.toFixed(2);
+  // Paparkan terus ke kotak Jumlah (RM) di skrin
+  if (totalInput) {
+    totalInput.value = total.toFixed(2);
   }
 }
+
+// ==================== FUNGSI BORANG SIMPAN PERBELANJAAN (VERSI STABIL) ====================
+async function laksanaSimpanPerbelanjaan(event) {
+  if (event) event.preventDefault();
+
+  // Membaca jenis pembekal/kategori barang
+  const jenisInput = document.querySelector('input[placeholder="cth: TESHEM TRADING"]') || document.querySelector('.form-control');
+  const jenis = jenisInput ? jenisInput.value.trim() : 'Perbelanjaan Am';
+  
+  // Membaca amaun muttamad daripada kotak Jumlah (RM)
+  const totalInput = document.getElementById('expenseTotalAmount');
+  const amaunMuttamad = totalInput ? parseFloat(totalInput.value) || 0 : 0;
+  
+  const butiran = document.querySelector('textarea[placeholder="Catatan tambahan"]')?.value || '';
+  const tarikhHariIni = getToday();
+
+  // Sekiranya amaun muttamad masih 0, cuba baca secara terus dari Harga Seunit sebagai sandaran
+  let amaunAkhir = amaunMuttamad;
+  if (amaunAkhir <= 0) {
+    const hargaInput = document.getElementById('expenseAmount');
+    amaunAkhir = hargaInput ? parseFloat(hargaInput.value) || 0 : 0;
+  }
+
+  // Sahkan nilai perbelanjaan adalah benar-benar sah sebelum dihantar
+  if (amaunAkhir <= 0) {
+    toast('Sila masukkan jumlah perbelanjaan yang sah.');
+    return;
+  }
+
+  showLoading(true);
+
+  const dataHantaran = {
+    action: 'addExpense',
+    TARIKH: tarikhHariIni,
+    JENIS_BARANG: jenis || 'Perbelanjaan Am',
+    AMOUNT: amaunAkhir,
+    BAYAR_MELALUI: 'TUNAI',
+    BUTIRAN: butiran,
+    KOD_PERBELANJAAN: 'EXP-' + Date.now().toString().slice(-4)
+  };
+
+  const respon = await postData(dataHantaran);
+  showLoading(false);
+
+  if (respon && respon.success) {
+    toast('Data perbelanjaan berjaya direkodkan!');
+    
+    if (!STATE.expenses) STATE.expenses = [];
+    STATE.expenses.unshift(dataHantaran);
+
+    // Kemaskini jadual di bawah secara automatik
+    renderExpensesTable();
+
+    // Set semula semua nilai borang kepada kosong
+    if (document.getElementById('expenseAmount')) document.getElementById('expenseAmount').value = '';
+    if (document.getElementById('expenseTotalAmount')) document.getElementById('expenseTotalAmount').value = '0.00';
+    if (jenisInput) jenisInput.value = '';
+    document.querySelectorAll('textarea').forEach(txt => txt.value = '');
+  } else {
+    toast('Gagal menyimpan ke Google Sheets. Sila semak sambungan Apps Script.');
+  }
+}
+
 
 
 // ==================== FUNGSI AUTO KOD PERBELANJAAN (MENGELAKKAN RALAT NOT DEFINED) ====================
@@ -2105,6 +2127,44 @@ function autoKodPerbelanjaan() {
   // Kita biarkan ia aktif tanpa ralat supaya aliran kod JavaScript yang lain boleh berjalan lancar.
   console.log("Fungsi autoKodPerbelanjaan dipanggil dengan selamat.");
 }
+// ==================== GLOBAL EVENTS ====================
+function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.login-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            const role = this.dataset.role;
+            document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
+            document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
+            document.getElementById('loginError').classList.add('hidden');
+        });
+    });
+    const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
+    if (stored) {
+        try {
+            STATE.currentUser = JSON.parse(stored);
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('appContainer').classList.remove('hidden');
+            initApp();
+        } catch(e) {}
+    }
+});
+document.addEventListener('click', function(e) {
+    if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
+        document.body.classList.remove('sidebar-open');
+    }
+});
+</script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
+                    .then(reg => console.log('Service Worker berjaya didaftarkan'))
+                    .catch(err => console.log('Service Worker gagal: ', err));
+            });
+        }
+
 
     </script>
 </body>
