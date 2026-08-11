@@ -1852,110 +1852,20 @@ function simpanGambarStikers() {
 }
 
     // ==================== PERBELANJAAN ====================
-// ==================== PERBELANJAAN ====================
-function renderExpenses(container) {
-    container.innerHTML = `
-        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
-        <div class="card">
-            <h3 class="card-title">Tambah Perbelanjaan Baru</h3>
-            <!-- ... borang yang sedia ada (tarikh, bayar, jenis, dll.) tidak berubah ... -->
-            <button class="btn btn-primary" onclick="tambahExpense()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
-            <div id="expenseMsg" class="mt-16"></div>
-        </div>
-        <div class="card">
-            <h3 class="card-title">Senarai Perbelanjaan</h3>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead><tr><th>Tarikh</th><th>Bayar</th><th>Jenis</th><th>Jumlah</th></tr></thead>
-                    <tbody id="expenseTableBody">
-                        ${buildExpenseRows()}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    kiraAmount();
-}
-
-function buildExpenseRows() {
-    const data = STATE.rawExpenses || [];
-    if (!data.length) return '<tr><td colspan="4" class="text-center muted">Tiada rekod.</td></tr>';
-
-    // Susun ikut tarikh menurun (format DD/MM/YYYY)
-    data.sort((a, b) => (b.TARIKH || '').localeCompare(a.TARIKH || ''));
-
-    let rows = '';
-    data.forEach(item => {
-        const tgl = escapeHtml(item.TARIKH || '-');
-        const bayar = escapeHtml(item.BAYAR_MELALUI || '-');
-        const jenis = escapeHtml(item['JENIS BARANG'] || '-');
-        const jumlah = formatMoney(item.AMOUNT || 0);
-        rows += `<tr><td>${tgl}</td><td>${bayar}</td><td>${jenis}</td><td>${jumlah}</td></tr>`;
-    });
-    return rows;
-}
-
-function kiraAmount() {
-    const qty = parseInt(document.getElementById('expQty')?.value) || 0;
-    const price = getNumber(document.getElementById('expPrice')?.value);
-    const amount = qty * price;
-    const el = document.getElementById('expAmount');
-    if (el) el.value = formatMoney(amount);
-}
-
-function autoKodPerbelanjaan() {
-    const jenis = (document.getElementById('expJenis')?.value || '').toUpperCase();
-    const mapping = {
-        'SABUN': '5-1000 SABUN DAN PEWANGI',
-        'PEWANGI': '5-1000 SABUN DAN PEWANGI',
-        'PEMBUNGKUS': '5-2000 BAHAN PEMBUNGKUSAN',
-        'PLASTIK': '5-2000 BAHAN PEMBUNGKUSAN',
-        'PETROL': '5-3000 PETROL DAN TOL OPERASI',
-        'TOL': '5-3000 PETROL DAN TOL OPERASI',
-        'UPAH': '5-4000 UPAH DAN KOMISEN KRU',
-        'KOMISEN KRU': '5-4000 UPAH DAN KOMISEN KRU',
-        'SUB-KONTRAK': '5-5000 KOS SUB-KONTRAK',
-        'PROMOSI': '6-1100 PROMOSI DAN IKLAN',
-        'IKLAN': '6-1100 PROMOSI DAN IKLAN',
-        'AGEN JUALAN': '6-1200 KOMISEN AGEN JUALAN',
-        'KENDERAAN': '6-2100 PENYELENGGARAAN KENDERAAN',
-        'INSURANS': '6-2200 INSURANS DAN CUKAI JALAN',
-        'CUKAI JALAN': '6-2200 INSURANS DAN CUKAI JALAN',
-        'SEWA PREMIS': '6-3100 SEWA PREMIS DAN STOR',
-        'SEWA STOR': '6-3100 SEWA PREMIS DAN STOR',
-        'ELEKTRIK': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
-        'AIR': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
-        'UTILITI': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
-        'INTERNET': '6-3300 INTERNET DAN TELEFON',
-        'TELEFON': '6-3300 INTERNET DAN TELEFON',
-        'GAJI TETAP': '6-3400 GAJI TETAP PENTADBIRAN',
-        'GAJI': '6-3400 GAJI TETAP PENTADBIRAN',
-        'ALAT TULIS': '6-3500 ALAT TULIS DAN PEJABAT',
-        'PEJABAT': '6-3500 ALAT TULIS DAN PEJABAT',
-        'PERALATAN': '6-3600 PERALATAN DAN ALAT GANTI KECIL',
-        'ALAT GANTI': '6-3600 PERALATAN DAN ALAT GANTI KECIL',
-        'LESEN': '6-4100 LESEN DAN PERUNDANGAN',
-        'PERUNDANGAN': '6-4100 LESEN DAN PERUNDANGAN',
-        'YURAN': '6-4200 YURAN GERBANG KAWALAN',
-        'GERBANG': '6-4200 YURAN GERBANG KAWALAN',
-        'GANTI RUGI': '6-5100 GANTI RUGI PELANGGAN',
-        'LAIN-LAIN': '6-5200 LAIN-LAIN / BELANJA RENCAM',
-        'RENCAM': '6-5200 LAIN-LAIN / BELANJA RENCAM'
-    };
-    for (let key in mapping) {
-        if (jenis.includes(key)) {
-            document.getElementById('expKod').value = mapping[key];
-            return;
-        }
-    }
-}
-
 async function tambahExpense() {
+    console.log('1. Fungsi tambahExpense dipanggil');
+
     const tarikhISO = document.getElementById('expDate').value;
-    if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
+    console.log('2. Tarikh ISO:', tarikhISO);
+    if (!tarikhISO) {
+        console.log('2a. Tarikh kosong, keluar');
+        showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error');
+        return;
+    }
 
     const [tahun, bulan, hari] = tarikhISO.split('-');
     const tarikhDDMMYYYY = `${hari}/${bulan}/${tahun}`;
+    console.log('3. Tarikh DD/MM/YYYY:', tarikhDDMMYYYY);
 
     const namaBulan = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const idxBulan = parseInt(bulan, 10) - 1;
@@ -1971,15 +1881,16 @@ async function tambahExpense() {
     const pembekal = document.getElementById('expPembekal').value.trim();
     const catatan = document.getElementById('expCatatan').value.trim();
 
+    console.log('4. Data borang:', { bayar, jenis, kod, qty, price, amount, butiran, pembekal, catatan });
+
     if (!jenis || amount <= 0) {
+        console.log('4a. Jenis kosong atau amount <= 0');
         showPriceMsg('expenseMsg', '❌ Sila isi Jenis Barang dan pastikan Jumlah > 0.', 'error');
         return;
     }
 
     const gabungan = bayar + bulanTahun;
-
-    showLoading(true);
-    const resp = await postData({
+    const payload = {
         action: 'addOperationalExpense',
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
@@ -1992,12 +1903,18 @@ async function tambahExpense() {
         catatan: catatan,
         amount: amount,
         gabungan: gabungan
-    });
+    };
+    console.log('5. Payload ke GAS:', payload);
+
+    showLoading(true);
+    console.log('6. Menghantar ke GAS...');
+    const resp = await postData(payload);
     showLoading(false);
+    console.log('7. Respons dari GAS:', resp);
 
     if (resp && resp.success) {
+        console.log('8. BERJAYA!');
         showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-
         // Kosongkan borang
         document.getElementById('expJenis').value = '';
         document.getElementById('expQty').value = '1';
@@ -2007,14 +1924,20 @@ async function tambahExpense() {
         document.getElementById('expPembekal').value = '';
         document.getElementById('expCatatan').value = '';
         kiraAmount();
-
-        // Muat semula data dari GAS
+        // Muat semula data
+        console.log('9. Memuat semula data...');
         fetchData(() => {
-            // Selepas data baru tiba, kemas kini jadual
+            console.log('10. Data selesai dimuat semula');
             const tbody = document.getElementById('expenseTableBody');
-            if (tbody) tbody.innerHTML = buildExpenseRows();
+            if (tbody) {
+                tbody.innerHTML = buildExpenseRows();
+                console.log('11. Jadual dikemas kini');
+            } else {
+                console.log('11. ERROR: elemen expenseTableBody tidak dijumpai');
+            }
         }, true);
     } else {
+        console.log('8. GAGAL. Respons:', resp);
         const errorMsg = resp ? (resp.error || 'Ralat tidak diketahui') : 'Tiada respons';
         showPriceMsg('expenseMsg', '❌ Gagal: ' + errorMsg, 'error');
     }
