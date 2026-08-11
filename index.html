@@ -2066,6 +2066,17 @@ async function laksanaSimpanPerbelanjaan(event) {
     toast('Gagal menyimpan ke Google Sheets. Sila semak Apps Script.');
   }
 }
+        // ==================== FUNGSI KIRA AMOUNT (UNTUK MENGELAKKAN RALAT UNCAUGHT REFERENCEERROR) ====================
+function kiraAmount() {
+  // Fungsi ini dipanggil secara automatik oleh input kuantiti atau harga seunit dalam tab perbelanjaan
+  const qtyInput = document.querySelector('input[placeholder="Kuantiti"]') || document.querySelector('input[type="number"]');
+  const hargaInput = document.getElementById('expenseAmount'); // Mengambil input amaun harga perbelanjaan
+  
+  // Jika anda mempunyai sistem pengiraan (Kuantiti x Harga Seunit) pada masa akan datang, anda boleh meletakkan formulanya di sini.
+  // Buat masa ini, kita biarkan ia aktif supaya pelayar web tidak lagi mengeluarkan amaran ralat "not defined".
+  console.log("Fungsi kiraAmount dipanggil dengan selamat.");
+}
+
 
     </script>
 </body>
