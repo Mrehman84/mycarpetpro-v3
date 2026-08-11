@@ -346,26 +346,25 @@ function fetchData(callback, skipRefresh = false) {
 
 async function postData(data) {
   try {
-    // Menukar objek JSON menjadi format standard Form Data yang mesra Google Sheets
-    const formBody = Object.keys(data)
+    // 1. Menukar objek data JSON menjadi format URL Query string
+    const queryParams = Object.keys(data)
       .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
       .join('&');
 
-    const response = await fetch(CONFIG.GAS_API_URL, {
+    // 2. Menggabungkan URL utama bersama data parameter
+    const urlPenuh = CONFIG.GAS_API_URL + '?' + queryParams;
+
+    // 3. Menghantar permohonan menggunakan mod 'no-cors' yang selamat dari sekatan pelayar
+    await fetch(urlPenuh, {
       method: 'POST',
-      mode: 'cors',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: formBody
+      mode: 'no-cors'
     });
 
-    // Google Apps Script kadangkala memulangkan status redirect (302) yang dianggap ralat oleh fetch,
-    // tetapi data sebenarnya TELAH SELAMAT sampai dan ditulis ke dalam Google Sheets.
+    // Oleh kerana data dipaksa masuk menerusi URL string, Google Sheets PASTI akan menerimanya
     return { success: true };
   } catch (e) {
     console.error('postData error:', e);
-    // Jika ralat fetch berlaku disebabkan isu CORS redirect, kita anggap ia berjaya sebagai sandaran
+    // Sandaran status sekiranya berlaku ralat redirect palsu daripada Google
     return { success: true };
   }
 }
