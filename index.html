@@ -1892,37 +1892,43 @@ function renderExpenses(container) {
                 </div>
             </div>
             <div class="row">
-                <div class="col form-group">
-                    <label>Kuantiti</label>
-                    <input type="number" id="expQty" class="form-control" min="1" value="1" oninput="kiraAmount()">
-                </div>
-                <div class="col form-group">
-                    <label>Harga Seunit (RM)</label>
-                    <input type="number" id="expPrice" class="form-control" min="0" step="0.01" value="0.00" oninput="kiraAmount()">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Jumlah (RM) (dikira automatik)</label>
-<input type="text" id="expenseTotalAmount" class="form-control" value="0.00" readonly>
+               // GANTIKAN BLOK INPUT DI DALAM RENDEREXPENSES DENGAN STRUKTUR INI:
+`
+<div class="mb-3">
+  <label class="form-label">Kuantiti</label>
+  <input type="number" id="expenseQty" class="form-control" value="1" oninput="kiraAmount()">
+</div>
 
-            </div>
-            <div class="form-group">
-                <label>Butiran / No Resit</label>
-                <input type="text" id="expButiran" class="form-control" placeholder="No Resit: 54747">
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Pembekal</label>
-                    <input type="text" id="expPembekal" class="form-control" placeholder="cth: TESHEM TRADING">
-                </div>
-                <div class="col form-group">
-                    <label>Catatan</label>
-                    <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
-                </div>
-            </div>
-            <button type="button" class="btn btn-primary" onclick="laksanaSimpanPerbelanjaan(event)">
+<div class="mb-3">
+  <label class="form-label">Harga Seunit (RM)</label>
+  <input type="number" step="0.01" id="expenseAmount" class="form-control" placeholder="0.00" oninput="kiraAmount()">
+</div>
+
+<div class="mb-3">
+  <label class="form-label">Jumlah (RM) (dikira automatik)</label>
+  <input type="text" id="expenseTotalAmount" class="form-control" value="0.00" readonly>
+</div>
+
+<div class="mb-3">
+  <label class="form-label">Butiran / No Resit</label>
+  <input type="text" id="expenseDetails" class="form-control" placeholder="No Resit: 54747">
+</div>
+
+<div class="mb-3">
+  <label class="form-label">Pembekal</label>
+  <input type="text" id="expenseSupplier" class="form-control" placeholder="cth: TESHEM TRADING">
+</div>
+
+<div class="mb-3">
+  <label class="form-label">Catatan</label>
+  <textarea id="expenseNotes" class="form-control" rows="2" placeholder="Catatan tambahan"></textarea>
+</div>
+
+<button type="button" class="btn btn-primary w-100" onclick="laksanaSimpanPerbelanjaan(event)">
   <i class="fa-solid fa-save"></i> Simpan Perbelanjaan
 </button>
+`
+
 
             <div id="expenseMsg" class="mt-16"></div>
         </div>
@@ -2037,49 +2043,39 @@ async function laksanaSimpanPerbelanjaan(event) {
   }
 }
         // ==================== FUNGSI KIRA AMOUNT (UNTUK MENGELAKKAN RALAT UNCAUGHT REFERENCEERROR) ====================
-// ==================== FUNGSI KIRA AMOUNT (PENGIRAAN AUTOMATIK) ====================
-// ==================== FUNGSI KIRA AMOUNT (VERSI STABIL) ====================
+// ==================== FUNGSI KIRA AMOUNT (ID TETAP) ====================
 function kiraAmount() {
-  const qtyInput = document.querySelector('input[placeholder="Kuantiti"]') || document.querySelector('input[type="number"]');
+  const qtyInput = document.getElementById('expenseQty');
   const hargaInput = document.getElementById('expenseAmount'); 
-  const totalInput = document.getElementById('expenseTotalAmount'); // Menggunakan ID baharu kita
+  const totalInput = document.getElementById('expenseTotalAmount');
 
-  // Mengambil nilai angka dari input
   const kuantiti = qtyInput ? parseFloat(qtyInput.value) || 0 : 1;
   const hargaSeunit = hargaInput ? parseFloat(hargaInput.value) || 0 : 0;
 
-  // Kira jumlah total keseluruhan
   const total = kuantiti * hargaSeunit;
 
-  // Paparkan terus ke kotak Jumlah (RM) di skrin
   if (totalInput) {
     totalInput.value = total.toFixed(2);
   }
 }
 
-// ==================== FUNGSI BORANG SIMPAN PERBELANJAAN (VERSI STABIL) ====================
+// ==================== FUNGSI BORANG SIMPAN PERBELANJAAN (ID TETAP) ====================
 async function laksanaSimpanPerbelanjaan(event) {
   if (event) event.preventDefault();
 
-  // Membaca jenis pembekal/kategori barang
-  const jenisInput = document.querySelector('input[placeholder="cth: TESHEM TRADING"]') || document.querySelector('.form-control');
-  const jenis = jenisInput ? jenisInput.value.trim() : 'Perbelanjaan Am';
-  
-  // Membaca amaun muttamad daripada kotak Jumlah (RM)
   const totalInput = document.getElementById('expenseTotalAmount');
-  const amaunMuttamad = totalInput ? parseFloat(totalInput.value) || 0 : 0;
-  
-  const butiran = document.querySelector('textarea[placeholder="Catatan tambahan"]')?.value || '';
-  const tarikhHariIni = getToday();
+  const hargaInput = document.getElementById('expenseAmount');
+  const supplierInput = document.getElementById('expenseSupplier');
+  const detailsInput = document.getElementById('expenseDetails');
+  const notesInput = document.getElementById('expenseNotes');
 
-  // Sekiranya amaun muttamad masih 0, cuba baca secara terus dari Harga Seunit sebagai sandaran
-  let amaunAkhir = amaunMuttamad;
-  if (amaunAkhir <= 0) {
-    const hargaInput = document.getElementById('expenseAmount');
-    amaunAkhir = hargaInput ? parseFloat(hargaInput.value) || 0 : 0;
+  // Ambil nilai amaun secara terus
+  let amaunAkhir = totalInput ? parseFloat(totalInput.value) || 0 : 0;
+  if (amaunAkhir <= 0 && hargaInput) {
+    amaunAkhir = parseFloat(hargaInput.value) || 0;
   }
 
-  // Sahkan nilai perbelanjaan adalah benar-benar sah sebelum dihantar
+  // Jika nilai masih 0 atau kosong, keluarkan amaran
   if (amaunAkhir <= 0) {
     toast('Sila masukkan jumlah perbelanjaan yang sah.');
     return;
@@ -2089,11 +2085,12 @@ async function laksanaSimpanPerbelanjaan(event) {
 
   const dataHantaran = {
     action: 'addExpense',
-    TARIKH: tarikhHariIni,
-    JENIS_BARANG: jenis || 'Perbelanjaan Am',
+    TARIKH: getToday(),
+    JENIS_BARANG: supplierInput ? supplierInput.value.trim() || 'Perbelanjaan Am' : 'Perbelanjaan Am',
     AMOUNT: amaunAkhir,
     BAYAR_MELALUI: 'TUNAI',
-    BUTIRAN: butiran,
+    BUTIRAN: detailsInput ? detailsInput.value.trim() : '',
+    CATATAN: notesInput ? notesInput.value.trim() : '',
     KOD_PERBELANJAAN: 'EXP-' + Date.now().toString().slice(-4)
   };
 
@@ -2106,16 +2103,19 @@ async function laksanaSimpanPerbelanjaan(event) {
     if (!STATE.expenses) STATE.expenses = [];
     STATE.expenses.unshift(dataHantaran);
 
-    // Kemaskini jadual di bawah secara automatik
+    // Lukis semula jadual bawah
     renderExpensesTable();
 
-    // Set semula semua nilai borang kepada kosong
-    if (document.getElementById('expenseAmount')) document.getElementById('expenseAmount').value = '';
-    if (document.getElementById('expenseTotalAmount')) document.getElementById('expenseTotalAmount').value = '0.00';
-    if (jenisInput) jenisInput.value = '';
-    document.querySelectorAll('textarea').forEach(txt => txt.value = '');
+    // Set semula borang kepada kosong
+    if (hargaInput) hargaInput.value = '';
+    if (totalInput) totalInput.value = '0.00';
+    if (supplierInput) supplierInput.value = '';
+    if (detailsInput) detailsInput.value = '';
+    if (notesInput) notesInput.value = '';
+    const qtyInput = document.getElementById('expenseQty');
+    if (qtyInput) qtyInput.value = '1';
   } else {
-    toast('Gagal menyimpan ke Google Sheets. Sila semak sambungan Apps Script.');
+    toast('Gagal menyimpan ke Google Sheets. Sila semak Apps Script.');
   }
 }
 
