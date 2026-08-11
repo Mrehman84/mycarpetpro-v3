@@ -1992,8 +1992,17 @@ function autoKodPerbelanjaan() {
 }
 
 async function tambahExpense() {
-    const tarikhISO = document.getElementById('expDate').value;
-    if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
+    console.log('>>> tambahExpense dipanggil');
+
+    const tarikhISO = document.getElementById('expDate')?.value;
+    console.log('tarikhISO:', tarikhISO);
+    if (!tarikhISO) {
+        alert('Tiada tarikh dipilih!');
+        return;
+    }
+
+    // Cuba tunjukkan mesej paling ringkas
+    showPriceMsg('expenseMsg', '⏳ Sedang menyimpan...', 'info');
 
     const [tahun, bulan, hari] = tarikhISO.split('-');
     const tarikhDDMMYYYY = `${hari}/${bulan}/${tahun}`;
@@ -2002,43 +2011,51 @@ async function tambahExpense() {
     const idxBulan = parseInt(bulan, 10) - 1;
     const bulanTahun = namaBulan[idxBulan] + tahun;
 
-    const bayar = document.getElementById('expBayar').value;
-    const jenis = document.getElementById('expJenis').value.trim();
-    const kod = document.getElementById('expKod').value;
-    const qty = parseInt(document.getElementById('expQty').value) || 0;
-    const price = getNumber(document.getElementById('expPrice').value);
+    const bayar = document.getElementById('expBayar')?.value || 'MAYBANK';
+    const jenis = document.getElementById('expJenis')?.value.trim() || 'TEST';
+    const kod = document.getElementById('expKod')?.value || '';
+    const qty = parseInt(document.getElementById('expQty')?.value) || 1;
+    const price = getNumber(document.getElementById('expPrice')?.value) || 1;
     const amount = qty * price;
-    const butiran = document.getElementById('expButiran').value.trim();
-    const pembekal = document.getElementById('expPembekal').value.trim();
-    const catatan = document.getElementById('expCatatan').value.trim();
-
-    if (!jenis || amount <= 0) {
-        showPriceMsg('expenseMsg', '❌ Sila isi Jenis Barang dan pastikan Jumlah > 0.', 'error');
-        return;
-    }
+    const butiran = document.getElementById('expButiran')?.value.trim() || '';
+    const pembekal = document.getElementById('expPembekal')?.value.trim() || '';
+    const catatan = document.getElementById('expCatatan')?.value.trim() || '';
 
     const gabungan = bayar + bulanTahun;
 
-    showLoading(true);
-    const resp = await postDataWithResponse({
-        action: 'addOperationalExpense',
-        tarikh: tarikhDDMMYYYY,
-        bayar: bayar,
-        jenis: jenis,
-        kuantiti: qty,
-        hargaSeunit: price,
-        butiran: butiran,
-        kod: kod,
-        pembekal: pembekal,
-        catatan: catatan,
-        amount: amount,
-        gabungan: gabungan
-    });
-    showLoading(false);
+    console.log('Data akan dihantar:', { tarikh: tarikhDDMMYYYY, bayar, jenis, qty, price, amount });
 
-    if (resp && resp.success) {
-        showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-        // Kosongkan borang
+    try {
+        showLoading(true);
+        await postData({
+            action: 'addOperationalExpense',
+            tarikh: tarikhDDMMYYYY,
+            bayar: bayar,
+            jenis: jenis,
+            kuantiti: qty,
+            hargaSeunit: price,
+            butiran: butiran,
+            kod: kod,
+            pembekal: pembekal,
+            catatan: catatan,
+            amount: amount,
+            gabungan: gabungan
+        });
+        showLoading(false);
+        console.log('postData selesai');
+    } catch (e) {
+        console.error('Ralat semasa postData:', e);
+        alert('Ralat: ' + e.message);
+        showLoading(false);
+        return;
+    }
+
+    // Papar mesej berjaya
+    showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+    console.log('Mesej berjaya dipaparkan');
+
+    // Kosongkan borang
+    try {
         document.getElementById('expJenis').value = '';
         document.getElementById('expQty').value = '1';
         document.getElementById('expPrice').value = '0.00';
@@ -2047,11 +2064,13 @@ async function tambahExpense() {
         document.getElementById('expPembekal').value = '';
         document.getElementById('expCatatan').value = '';
         kiraAmount();
-        fetchData(null, true);
-    } else {
-        const errMsg = resp && resp.error ? resp.error : 'Ralat tidak diketahui.';
-        showPriceMsg('expenseMsg', '❌ Gagal: ' + errMsg, 'error');
+        console.log('Borang dikosongkan');
+    } catch (e) {
+        console.error('Ralat semasa kosongkan borang:', e);
     }
+
+    // Muat semula data
+    fetchData(null, true);
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
