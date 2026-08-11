@@ -353,6 +353,7 @@ async function postData(data) {
         return { success: false };
     }
 }
+    
  async function postFinanceData(data) {
     try {
         const response = await fetch(CONFIG.FINANCE_GAS_URL, {
@@ -1990,12 +1991,36 @@ function autoKodPerbelanjaan() {
     }
 }
 
-aasync function tambahExpense() {
-    // ... (semua kod untuk dapatkan nilai borang sehingga ke showLoading(true) adalah sama)
+async function tambahExpense() {
+    const tarikhISO = document.getElementById('expDate').value;
+    if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
+
+    const [tahun, bulan, hari] = tarikhISO.split('-');
+    const tarikhDDMMYYYY = `${hari}/${bulan}/${tahun}`;
+
+    const namaBulan = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const idxBulan = parseInt(bulan, 10) - 1;
+    const bulanTahun = namaBulan[idxBulan] + tahun;
+
+    const bayar = document.getElementById('expBayar').value;
+    const jenis = document.getElementById('expJenis').value.trim();
+    const kod = document.getElementById('expKod').value;
+    const qty = parseInt(document.getElementById('expQty').value) || 0;
+    const price = getNumber(document.getElementById('expPrice').value);
+    const amount = qty * price;
+    const butiran = document.getElementById('expButiran').value.trim();
+    const pembekal = document.getElementById('expPembekal').value.trim();
+    const catatan = document.getElementById('expCatatan').value.trim();
+
+    if (!jenis || amount <= 0) {
+        showPriceMsg('expenseMsg', '❌ Sila isi Jenis Barang dan pastikan Jumlah > 0.', 'error');
+        return;
+    }
+
+    const gabungan = bayar + bulanTahun;
 
     showLoading(true);
-    // Hantar data ke GAS
-    await postData({
+    const resp = await postDataWithResponse({
         action: 'addOperationalExpense',
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
@@ -2011,21 +2036,22 @@ aasync function tambahExpense() {
     });
     showLoading(false);
 
-    // Anggap operasi berjaya dan beri maklum balas segera
-    showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-
-    // Kosongkan borang
-    document.getElementById('expJenis').value = '';
-    document.getElementById('expQty').value = '1';
-    document.getElementById('expPrice').value = '0.00';
-    document.getElementById('expAmount').value = '';
-    document.getElementById('expButiran').value = '';
-    document.getElementById('expPembekal').value = '';
-    document.getElementById('expCatatan').value = '';
-    kiraAmount();
-
-    // Muat semula data untuk kemas kini senarai
-    fetchData(null, true);
+    if (resp && resp.success) {
+        showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+        // Kosongkan borang
+        document.getElementById('expJenis').value = '';
+        document.getElementById('expQty').value = '1';
+        document.getElementById('expPrice').value = '0.00';
+        document.getElementById('expAmount').value = '';
+        document.getElementById('expButiran').value = '';
+        document.getElementById('expPembekal').value = '';
+        document.getElementById('expCatatan').value = '';
+        kiraAmount();
+        fetchData(null, true);
+    } else {
+        const errMsg = resp && resp.error ? resp.error : 'Ralat tidak diketahui.';
+        showPriceMsg('expenseMsg', '❌ Gagal: ' + errMsg, 'error');
+    }
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
