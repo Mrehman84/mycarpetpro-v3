@@ -1887,13 +1887,27 @@ function renderExpenses(container) {
                 <div class="col form-group">
                     <label>Kod Perbelanjaan</label>
                     <select id="expKod" class="form-control">
-                        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
-                        <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
-                        <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
-                        <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
-                        <option value="1-1000 KELENGKAPAN PEJABAT">1-1000 KELENGKAPAN PEJABAT</option>
-                        <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
-                        <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
+                        <select id="expKod" class="form-control">
+    <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
+    <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
+    <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
+    <option value="5-4000 UPAH DAN KOMISEN KRU">5-4000 UPAH DAN KOMISEN KRU</option>
+    <option value="5-5000 KOS SUB-KONTRAK">5-5000 KOS SUB-KONTRAK</option>
+    <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
+    <option value="6-1200 KOMISEN AGEN JUALAN">6-1200 KOMISEN AGEN JUALAN</option>
+    <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
+    <option value="6-2200 INSURANS DAN CUKAI JALAN">6-2200 INSURANS DAN CUKAI JALAN</option>
+    <option value="6-3100 SEWA PREMIS DAN STOR">6-3100 SEWA PREMIS DAN STOR</option>
+    <option value="6-3200 ELEKTRIK DAN AIR (UTILITI)">6-3200 ELEKTRIK DAN AIR (UTILITI)</option>
+    <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
+    <option value="6-3400 GAJI TETAP PENTADBIRAN">6-3400 GAJI TETAP PENTADBIRAN</option>
+    <option value="6-3500 ALAT TULIS DAN PEJABAT">6-3500 ALAT TULIS DAN PEJABAT</option>
+    <option value="6-3600 PERALATAN DAN ALAT GANTI KECIL">6-3600 PERALATAN DAN ALAT GANTI KECIL</option>
+    <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
+    <option value="6-4200 YURAN GERBANG KAWALAN">6-4200 YURAN GERBANG KAWALAN</option>
+    <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
+    <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
+</select>
                     </select>
                 </div>
             </div>
@@ -1953,15 +1967,41 @@ function autoKodPerbelanjaan() {
     const mapping = {
         'SABUN': '5-1000 SABUN DAN PEWANGI',
         'PEWANGI': '5-1000 SABUN DAN PEWANGI',
-        'INTERNET': '6-3300 INTERNET DAN TELEFON',
-        'TELEFON': '6-3300 INTERNET DAN TELEFON',
+        'PEMBUNGKUS': '5-2000 BAHAN PEMBUNGKUSAN',
+        'PLASTIK': '5-2000 BAHAN PEMBUNGKUSAN',
         'PETROL': '5-3000 PETROL DAN TOL OPERASI',
         'TOL': '5-3000 PETROL DAN TOL OPERASI',
-        'KENDERAAN': '6-2100 PENYELENGGARAAN KENDERAAN',
-        'PEJABAT': '1-1000 KELENGKAPAN PEJABAT',
+        'UPAH': '5-4000 UPAH DAN KOMISEN KRU',
+        'KOMISEN KRU': '5-4000 UPAH DAN KOMISEN KRU',
+        'SUB-KONTRAK': '5-5000 KOS SUB-KONTRAK',
+        'SUB KONTRAK': '5-5000 KOS SUB-KONTRAK',
         'PROMOSI': '6-1100 PROMOSI DAN IKLAN',
         'IKLAN': '6-1100 PROMOSI DAN IKLAN',
-        'LESEN': '6-4100 LESEN DAN PERUNDANGAN'
+        'AGEN JUALAN': '6-1200 KOMISEN AGEN JUALAN',
+        'KOMISEN AGEN': '6-1200 KOMISEN AGEN JUALAN',
+        'KENDERAAN': '6-2100 PENYELENGGARAAN KENDERAAN',
+        'INSURANS': '6-2200 INSURANS DAN CUKAI JALAN',
+        'CUKAI JALAN': '6-2200 INSURANS DAN CUKAI JALAN',
+        'SEWA PREMIS': '6-3100 SEWA PREMIS DAN STOR',
+        'SEWA STOR': '6-3100 SEWA PREMIS DAN STOR',
+        'ELEKTRIK': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
+        'AIR': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
+        'UTILITI': '6-3200 ELEKTRIK DAN AIR (UTILITI)',
+        'INTERNET': '6-3300 INTERNET DAN TELEFON',
+        'TELEFON': '6-3300 INTERNET DAN TELEFON',
+        'GAJI TETAP': '6-3400 GAJI TETAP PENTADBIRAN',
+        'GAJI': '6-3400 GAJI TETAP PENTADBIRAN',
+        'ALAT TULIS': '6-3500 ALAT TULIS DAN PEJABAT',
+        'PEJABAT': '6-3500 ALAT TULIS DAN PEJABAT',
+        'PERALATAN': '6-3600 PERALATAN DAN ALAT GANTI KECIL',
+        'ALAT GANTI': '6-3600 PERALATAN DAN ALAT GANTI KECIL',
+        'LESEN': '6-4100 LESEN DAN PERUNDANGAN',
+        'PERUNDANGAN': '6-4100 LESEN DAN PERUNDANGAN',
+        'YURAN': '6-4200 YURAN GERBANG KAWALAN',
+        'GERBANG': '6-4200 YURAN GERBANG KAWALAN',
+        'GANTI RUGI': '6-5100 GANTI RUGI PELANGGAN',
+        'LAIN-LAIN': '6-5200 LAIN-LAIN / BELANJA RENCAM',
+        'RENCAM': '6-5200 LAIN-LAIN / BELANJA RENCAM'
     };
     for (let key in mapping) {
         if (jenis.includes(key)) {
