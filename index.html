@@ -253,7 +253,7 @@ const CONFIG = {
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
-    pekerja: [], komisen: [], runnerTugasan: [],expenses: [],
+    pekerja: [], komisen: [], runnerTugasan: [],expenses: [],rawExpenses: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
     paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
 };
@@ -322,6 +322,7 @@ function fetchData(callback, skipRefresh = false) {
                 STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
                 STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
                 STATE.expenses = Array.isArray(resp.expenses) ? resp.expenses : [];
+                STATE.rawExpenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
                 if (callback) callback();
                 if (!skipRefresh) refreshAllUI();
             } else { toast('Data tidak sah.'); }
@@ -354,20 +355,20 @@ async function postData(data) {
     }
 }
     
- async function postFinanceData(data) {
+async function postData(data) {
     try {
-        const response = await fetch(CONFIG.FINANCE_GAS_URL, {
+        const response = await fetch(CONFIG.GAS_API_URL, {
             method: 'POST',
-            mode: 'cors',               // ← tukar ke cors
+            mode: 'cors',               // ← kini guna cors
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        const result = await response.json();
-        return result;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();   // baca respons
     } catch (e) {
-        console.error(e);
-        toast('Gagal menghantar data kewangan.');
-        return { success: false };
+        console.error('postData error:', e);
+        toast('Gagal menghantar data: ' + e.message);
+        return { success: false, error: e.message };
     }
 }
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
