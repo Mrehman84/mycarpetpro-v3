@@ -1886,7 +1886,7 @@ function renderExpenses(container) {
                 </div>
                 <div class="col form-group">
                     <label>Kod Perbelanjaan</label>
-                    <select id="expKod" class="form-control">
+                
                         <select id="expKod" class="form-control">
     <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
     <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
@@ -1908,7 +1908,7 @@ function renderExpenses(container) {
     <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
     <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
 </select>
-                    </select>
+                    
                 </div>
             </div>
             <div class="row">
@@ -2010,7 +2010,6 @@ function autoKodPerbelanjaan() {
         }
     }
 }
-
 async function tambahExpense() {
     const tarikhISO = document.getElementById('expDate').value;
     if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
