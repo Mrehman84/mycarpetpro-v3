@@ -322,8 +322,9 @@ function fetchData(callback, skipRefresh = false) {
                 STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
                 STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
                 STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
-                STATE.expenses = Array.isArray(resp.expenses) ? resp.expenses : [];
-                STATE.rawExpenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
+                STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
+                STATE.rawExpenses = STATE.expenses;
+
                 if (callback) callback();
                 if (!skipRefresh) refreshAllUI();
             } else { toast('Data tidak sah.'); }
@@ -341,21 +342,22 @@ function fetchData(callback, skipRefresh = false) {
 }
 
 async function postData(data) {
-    try {
-        const response = await fetch(CONFIG.GAS_API_URL, {
-            method: 'POST',
-            mode: 'cors',               // ← kini guna cors
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return await response.json();   // baca respons
-    } catch (e) {
-        console.error('postData error:', e);
-        toast('Gagal menghantar data: ' + e.message);
-        return { success: false, error: e.message };
-    }
+  try {
+    const response = await fetch(CONFIG.GAS_API_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+  } catch (e) {
+    console.error('postData error:', e);
+    toast('Gagal menghantar data: ' + e.message);
+    return { success: false, error: e.message };
+  }
 }
+
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
 // ==================== AUTH ====================
@@ -1987,6 +1989,84 @@ document.addEventListener('click', function(e) {
                     .catch(err => console.log('Service Worker gagal: ', err));
             });
         }
+        // ==================== FUNGSI KEMASKINI JADUAL PERBELANJAAN ====================
+function renderExpensesTable() {
+  // Mencari ruangan badan jadual (tbody) di dalam tab perbelanjaan
+  const tBody = document.querySelector('#tabContainer tbody');
+  if (!tBody) return;
+
+  // Mengambil data terkini daripada memori aplikasi yang telah dibetulkan
+  const senarai = STATE.expenses || [];
+  
+  // Jika tiada data, paparkan tulisan "Tiada rekod."
+  if (senarai.length === 0) {
+    tBody.innerHTML = `<tr><td colspan="4" class="text-center" style="padding: 20px; color: var(--text-muted);">Tiada rekod.</td></tr>`;
+    return;
+  }
+
+  // Melukis baris demi baris data ke dalam jadual HTML
+  tBody.innerHTML = senarai.map(item => `
+    <tr>
+      <td>${escapeHtml(getField(item, ['TARIKH', 'DATE'], '-'))}</td>
+      <td>${escapeHtml(getField(item, ['BAYAR_MELALUI', 'METHOD'], '-'))}</td>
+      <td>${escapeHtml(getField(item, ['JENIS BARANG', 'JENIS'], '-'))}</td>
+      <td>${formatMoney(getField(item, ['AMOUNT', 'HARGA', 'HARGA_SEUNIT'], 0))}</td>
+    </tr>
+  `).join('');
+}
+
+// ==================== FUNGSI BORANG SIMPAN PERBELANJAAN ====================
+async function laksanaSimpanPerbelanjaan(event) {
+  if (event) event.preventDefault(); // Mengelakkan halaman daripada ter-refresh secara automatik
+
+  // Mengambil nilai input dari borang aplikasi anda
+  const jenis = document.querySelector('input[placeholder="cth: TESHEM TRADING"]')?.parentElement?.previousElementSibling?.previousElementSibling?.querySelector('input')?.value || '';
+  const amaun = document.getElementById('expenseAmount')?.value || '0';
+  const butiran = document.querySelector('textarea[placeholder="Catatan tambahan"]')?.value || '';
+  const tarikhHariIni = getToday();
+
+  if (!amaun || parseFloat(amaun) <= 0) {
+    toast('Sila masukkan jumlah perbelanjaan yang sah.');
+    return;
+  }
+
+  showLoading(true);
+
+  // Menyusun data untuk dihantar ke Google Sheets
+  const dataHantaran = {
+    action: 'addExpense',
+    TARIKH: tarikhHariIni,
+    JENIS_BARANG: jenis || 'Perbelanjaan Am',
+    AMOUNT: parseFloat(amaun),
+    BAYAR_MELALUI: 'TUNAI',
+    BUTIRAN: butiran,
+    KOD_PERBELANJAAN: 'EXP-' + Date.now().toString().slice(-4)
+  };
+
+  // Memanggil fungsi postData yang telah dibetulkan di Langkah 1
+  const respon = await postData(dataHantaran);
+
+  showLoading(false);
+
+  if (respon && respon.success) {
+    toast('Data perbelanjaan berjaya direkodkan!');
+    
+    // Masukkan data baru ke dalam memori aplikasi (STATE) di baris paling atas
+    if (!STATE.expenses) STATE.expenses = [];
+    STATE.expenses.unshift(dataHantaran);
+
+    // Panggil fungsi jadual untuk terus melukis data baru di bawah borang tanpa refresh
+    renderExpensesTable();
+
+    // Kosongkan semula ruangan input borang
+    if (document.getElementById('expenseAmount')) document.getElementById('expenseAmount').value = '';
+    document.querySelectorAll('input').forEach(inp => { if(inp.placeholder.includes('TESHEM')) inp.value = ''; });
+    document.querySelectorAll('textarea').forEach(txt => txt.value = '');
+  } else {
+    toast('Gagal menyimpan ke Google Sheets. Sila semak Apps Script.');
+  }
+}
+
     </script>
 </body>
 </html>
