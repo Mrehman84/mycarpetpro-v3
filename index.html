@@ -248,11 +248,12 @@
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
     GAS_API_URL: "https://script.google.com/macros/s/AKfycbw5V0IfDAXqaFN-vlvbViCfyMh8SX6Pym9xAI4FgoOIdvDd3gcFJdmtRnO8XaS7VLPt/exec",
+    FINANCE_GAS_URL: "https://script.google.com/macros/s/AKfycbwZ6ZXEEbDBPo9h89UtZwsKloFIQM1PYNELa0s4zXbsVwgHlLIFfZopfmmWK12LXNzTxg/exec",
     ACTIVE_STATUSES: ["DALAM PROSES", "PENGERINGAN", "READY TO DELIVER", "SELESAI DIHANTAR"]
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
-    pekerja: [], komisen: [], runnerTugasan: [],
+    pekerja: [], komisen: [], runnerTugasan: [],expenses: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
     paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
 };
@@ -320,6 +321,7 @@ function fetchData(callback, skipRefresh = false) {
                 STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
                 STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
                 STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
+                STATE.expenses = Array.isArray(resp.expenses) ? resp.expenses : [];
                 if (callback) callback();
                 if (!skipRefresh) refreshAllUI();
             } else { toast('Data tidak sah.'); }
@@ -348,6 +350,21 @@ async function postData(data) {
     } catch (e) {
         console.error(e);
         toast('Gagal menghantar data.');
+        return { success: false };
+    }
+}
+    async function postFinanceData(data) {
+    try {
+        await fetch(CONFIG.FINANCE_GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        toast('Gagal menghantar data kewangan.');
         return { success: false };
     }
 }
@@ -416,7 +433,8 @@ function renderSidebar() {
         { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
         { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja' },
         { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' },
-        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' }
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
+        { id: 'expenses', icon: 'fa-receipt', label: 'Perbelanjaan' }
     ] : [
         { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
     ];
@@ -443,6 +461,7 @@ function switchTab(tabId) {
     else if (tabId === 'pekerja') renderPekerja(container);
     else if (tabId === 'pricematrix') renderPriceMatrix(container);
     else if (tabId === 'barcode') renderBarcode(container);
+    else if (tabId === 'expenses') renderExpenses(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
@@ -1829,6 +1848,198 @@ function simpanGambarStikers() {
     });
 }
 
+    // ==================== PERBELANJAAN ====================
+function renderExpenses(container) {
+    const expenses = STATE.expenses || [];
+    let rows = '';
+    expenses.sort((a, b) => String(getField(b, ['TARIKH'], '')).localeCompare(String(getField(a, ['TARIKH'], ''))));
+    expenses.forEach(e => {
+        const tgl = escapeHtml(String(getField(e, ['TARIKH'], '')).split('T')[0]);
+        const bayar = escapeHtml(getField(e, ['BAYAR_MELALUI'], '-'));
+        const jenis = escapeHtml(getField(e, ['JENIS BARANG'], '-'));
+        const jumlah = formatMoney(getField(e, ['AMOUNT'], 0));
+        rows += `<tr><td>${tgl}</td><td>${bayar}</td><td>${jenis}</td><td>${jumlah}</td></tr>`;
+    });
+
+    container.innerHTML = `
+        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
+        <div class="card">
+            <h3 class="card-title">Tambah Perbelanjaan Baru</h3>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Tarikh</label>
+                    <input type="date" id="expDate" class="form-control" value="${getToday()}">
+                </div>
+                <div class="col form-group">
+                    <label>Bayar Melalui</label>
+                    <select id="expBayar" class="form-control">
+                        <option value="MAYBANK">MAYBANK</option>
+                        <option value="TUNAI">TUNAI</option>
+                        <option value="HONG LEONG">HONG LEONG</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Jenis Barang</label>
+                    <input type="text" id="expJenis" class="form-control" placeholder="cth: BIL INTERNET" onchange="autoKodPerbelanjaan()">
+                </div>
+                <div class="col form-group">
+                    <label>Kod Perbelanjaan</label>
+                    <select id="expKod" class="form-control">
+                        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
+                        <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
+                        <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
+                        <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
+                        <option value="1-1000 KELENGKAPAN PEJABAT">1-1000 KELENGKAPAN PEJABAT</option>
+                        <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
+                        <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Kuantiti</label>
+                    <input type="number" id="expQty" class="form-control" min="1" value="1" oninput="kiraAmount()">
+                </div>
+                <div class="col form-group">
+                    <label>Harga Seunit (RM)</label>
+                    <input type="number" id="expPrice" class="form-control" min="0" step="0.01" value="0.00" oninput="kiraAmount()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Jumlah (RM) <small>(dikira automatik)</small></label>
+                <input type="text" id="expAmount" class="form-control" readonly style="font-weight:700;">
+            </div>
+            <div class="form-group">
+                <label>Butiran / No Resit</label>
+                <input type="text" id="expButiran" class="form-control" placeholder="No Resit: 54747">
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Pembekal</label>
+                    <input type="text" id="expPembekal" class="form-control" placeholder="cth: TESHEM TRADING">
+                </div>
+                <div class="col form-group">
+                    <label>Catatan</label>
+                    <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="tambahExpense()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
+            <div id="expenseMsg" class="mt-16"></div>
+        </div>
+        <div class="card">
+            <h3 class="card-title">Senarai Perbelanjaan</h3>
+            <div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Tarikh</th><th>Bayar</th><th>Jenis</th><th>Jumlah</th></tr></thead>
+                <tbody>${rows || '<tr><td colspan="4" class="text-center muted">Tiada rekod.</td></tr>'}</tbody>
+            </table></div>
+        </div>
+    `;
+    // Jalankan pengiraan jumlah awal
+    kiraAmount();
+}
+
+function kiraAmount() {
+    const qty = parseInt(document.getElementById('expQty')?.value) || 0;
+    const price = getNumber(document.getElementById('expPrice')?.value);
+    const amount = qty * price;
+    document.getElementById('expAmount').value = formatMoney(amount);
+}
+
+// Auto-padan kod perbelanjaan berdasarkan kata kunci dalam Jenis Barang
+function autoKodPerbelanjaan() {
+    const jenis = document.getElementById('expJenis')?.value.toUpperCase() || '';
+    const mapping = {
+        'SABUN': '5-1000 SABUN DAN PEWANGI',
+        'PEWANGI': '5-1000 SABUN DAN PEWANGI',
+        'INTERNET': '6-3300 INTERNET DAN TELEFON',
+        'TELEFON': '6-3300 INTERNET DAN TELEFON',
+        'PETROL': '5-3000 PETROL DAN TOL OPERASI',
+        'TOL': '5-3000 PETROL DAN TOL OPERASI',
+        'KENDERAAN': '6-2100 PENYELENGGARAAN KENDERAAN',
+        'PEJABAT': '1-1000 KELENGKAPAN PEJABAT',
+        'PROMOSI': '6-1100 PROMOSI DAN IKLAN',
+        'IKLAN': '6-1100 PROMOSI DAN IKLAN',
+        'LESEN': '6-4100 LESEN DAN PERUNDANGAN'
+    };
+    for (let key in mapping) {
+        if (jenis.includes(key)) {
+            document.getElementById('expKod').value = mapping[key];
+            return;
+        }
+    }
+}
+
+async function tambahExpense() {
+    const tarikhISO = document.getElementById('expDate').value;
+    if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
+
+    // Tukar format tarikh ke DD/MM/YYYY
+    const [tahun, bulan, hari] = tarikhISO.split('-');
+    const tarikhDDMMYYYY = `${hari}/${bulan}/${tahun}`;
+
+    // Jana kod bulan untuk GABUNGAN (cth: JUL2026)
+    const namaBulan = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const idxBulan = parseInt(bulan, 10) - 1;
+    const bulanTahun = namaBulan[idxBulan] + tahun;
+
+    const bayar = document.getElementById('expBayar').value;
+    const jenis = document.getElementById('expJenis').value.trim();
+    const kod = document.getElementById('expKod').value;
+    const qty = parseInt(document.getElementById('expQty').value) || 0;
+    const price = getNumber(document.getElementById('expPrice').value);
+    const amount = qty * price;
+    const butiran = document.getElementById('expButiran').value.trim();
+    const pembekal = document.getElementById('expPembekal').value.trim();
+    const catatan = document.getElementById('expCatatan').value.trim();
+
+    if (!jenis || amount <= 0) {
+        showPriceMsg('expenseMsg', '❌ Sila isi Jenis Barang dan pastikan Jumlah > 0.', 'error');
+        return;
+    }
+
+    const gabungan = bayar + bulanTahun;  // contoh: MAYBANKJUL2026
+
+    const payload = {
+        action: 'addExpense',
+        tarikh: tarikhDDMMYYYY,
+        bayar: bayar,
+        jenis: jenis,
+        kuantiti: qty,
+        hargaSeunit: price,
+        butiran: butiran,
+        kod: kod,
+        pembekal: pembekal,
+        catatan: catatan,
+        amount: amount,
+        gabungan: gabungan
+    };
+
+    showLoading(true);
+    const resp = await postFinanceData(payload);
+    showLoading(false);
+
+    if (resp && resp.success) {
+        showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+        // Kosongkan borang
+        document.getElementById('expJenis').value = '';
+        document.getElementById('expQty').value = '1';
+        document.getElementById('expPrice').value = '0.00';
+        document.getElementById('expAmount').value = '';
+        document.getElementById('expButiran').value = '';
+        document.getElementById('expPembekal').value = '';
+        document.getElementById('expCatatan').value = '';
+        kiraAmount();
+        // Muat semula data
+        fetchData(null, true);
+        setTimeout(() => {
+            renderExpenses(document.getElementById('tabContainer'));
+        }, 1500);
+    } else {
+        showPriceMsg('expenseMsg', '❌ Gagal menyimpan perbelanjaan.', 'error');
+    }
+}
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
