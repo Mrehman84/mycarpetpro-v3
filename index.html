@@ -1850,18 +1850,8 @@ function simpanGambarStikers() {
 }
 
     // ==================== PERBELANJAAN ====================
+// ==================== PERBELANJAAN ====================
 function renderExpenses(container) {
-    const expenses = STATE.expenses || [];
-    let rows = '';
-    expenses.sort((a, b) => String(getField(b, ['TARIKH'], '')).localeCompare(String(getField(a, ['TARIKH'], ''))));
-    expenses.forEach(e => {
-        const tgl = escapeHtml(String(getField(e, ['TARIKH'], '')).split('T')[0]);
-        const bayar = escapeHtml(getField(e, ['BAYAR_MELALUI'], '-'));
-        const jenis = escapeHtml(getField(e, ['JENIS BARANG'], '-'));
-        const jumlah = formatMoney(getField(e, ['AMOUNT'], 0));
-        rows += `<tr><td>${tgl}</td><td>${bayar}</td><td>${jenis}</td><td>${jumlah}</td></tr>`;
-    });
-
     container.innerHTML = `
         <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
         <div class="card">
@@ -1887,29 +1877,27 @@ function renderExpenses(container) {
                 </div>
                 <div class="col form-group">
                     <label>Kod Perbelanjaan</label>
-                
-                        <select id="expKod" class="form-control">
-    <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
-    <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
-    <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
-    <option value="5-4000 UPAH DAN KOMISEN KRU">5-4000 UPAH DAN KOMISEN KRU</option>
-    <option value="5-5000 KOS SUB-KONTRAK">5-5000 KOS SUB-KONTRAK</option>
-    <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
-    <option value="6-1200 KOMISEN AGEN JUALAN">6-1200 KOMISEN AGEN JUALAN</option>
-    <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
-    <option value="6-2200 INSURANS DAN CUKAI JALAN">6-2200 INSURANS DAN CUKAI JALAN</option>
-    <option value="6-3100 SEWA PREMIS DAN STOR">6-3100 SEWA PREMIS DAN STOR</option>
-    <option value="6-3200 ELEKTRIK DAN AIR (UTILITI)">6-3200 ELEKTRIK DAN AIR (UTILITI)</option>
-    <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
-    <option value="6-3400 GAJI TETAP PENTADBIRAN">6-3400 GAJI TETAP PENTADBIRAN</option>
-    <option value="6-3500 ALAT TULIS DAN PEJABAT">6-3500 ALAT TULIS DAN PEJABAT</option>
-    <option value="6-3600 PERALATAN DAN ALAT GANTI KECIL">6-3600 PERALATAN DAN ALAT GANTI KECIL</option>
-    <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
-    <option value="6-4200 YURAN GERBANG KAWALAN">6-4200 YURAN GERBANG KAWALAN</option>
-    <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
-    <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
-</select>
-                    
+                    <select id="expKod" class="form-control">
+                        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
+                        <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
+                        <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
+                        <option value="5-4000 UPAH DAN KOMISEN KRU">5-4000 UPAH DAN KOMISEN KRU</option>
+                        <option value="5-5000 KOS SUB-KONTRAK">5-5000 KOS SUB-KONTRAK</option>
+                        <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
+                        <option value="6-1200 KOMISEN AGEN JUALAN">6-1200 KOMISEN AGEN JUALAN</option>
+                        <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
+                        <option value="6-2200 INSURANS DAN CUKAI JALAN">6-2200 INSURANS DAN CUKAI JALAN</option>
+                        <option value="6-3100 SEWA PREMIS DAN STOR">6-3100 SEWA PREMIS DAN STOR</option>
+                        <option value="6-3200 ELEKTRIK DAN AIR (UTILITI)">6-3200 ELEKTRIK DAN AIR (UTILITI)</option>
+                        <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
+                        <option value="6-3400 GAJI TETAP PENTADBIRAN">6-3400 GAJI TETAP PENTADBIRAN</option>
+                        <option value="6-3500 ALAT TULIS DAN PEJABAT">6-3500 ALAT TULIS DAN PEJABAT</option>
+                        <option value="6-3600 PERALATAN DAN ALAT GANTI KECIL">6-3600 PERALATAN DAN ALAT GANTI KECIL</option>
+                        <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
+                        <option value="6-4200 YURAN GERBANG KAWALAN">6-4200 YURAN GERBANG KAWALAN</option>
+                        <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
+                        <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
+                    </select>
                 </div>
             </div>
             <div class="row">
@@ -1943,15 +1931,7 @@ function renderExpenses(container) {
             <button class="btn btn-primary" onclick="tambahExpense()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
             <div id="expenseMsg" class="mt-16"></div>
         </div>
-        <div class="card">
-            <h3 class="card-title">Senarai Perbelanjaan</h3>
-            <div class="table-wrap"><table class="data-table">
-                <thead><tr><th>Tarikh</th><th>Bayar</th><th>Jenis</th><th>Jumlah</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="4" class="text-center muted">Tiada rekod.</td></tr>'}</tbody>
-            </table></div>
-        </div>
     `;
-    // Jalankan pengiraan jumlah awal
     kiraAmount();
 }
 
@@ -1959,12 +1939,12 @@ function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
     const amount = qty * price;
-    document.getElementById('expAmount').value = formatMoney(amount);
+    const el = document.getElementById('expAmount');
+    if (el) el.value = formatMoney(amount);
 }
 
-// Auto-padan kod perbelanjaan berdasarkan kata kunci dalam Jenis Barang
 function autoKodPerbelanjaan() {
-    const jenis = document.getElementById('expJenis')?.value.toUpperCase() || '';
+    const jenis = (document.getElementById('expJenis')?.value || '').toUpperCase();
     const mapping = {
         'SABUN': '5-1000 SABUN DAN PEWANGI',
         'PEWANGI': '5-1000 SABUN DAN PEWANGI',
@@ -1975,11 +1955,9 @@ function autoKodPerbelanjaan() {
         'UPAH': '5-4000 UPAH DAN KOMISEN KRU',
         'KOMISEN KRU': '5-4000 UPAH DAN KOMISEN KRU',
         'SUB-KONTRAK': '5-5000 KOS SUB-KONTRAK',
-        'SUB KONTRAK': '5-5000 KOS SUB-KONTRAK',
         'PROMOSI': '6-1100 PROMOSI DAN IKLAN',
         'IKLAN': '6-1100 PROMOSI DAN IKLAN',
         'AGEN JUALAN': '6-1200 KOMISEN AGEN JUALAN',
-        'KOMISEN AGEN': '6-1200 KOMISEN AGEN JUALAN',
         'KENDERAAN': '6-2100 PENYELENGGARAAN KENDERAAN',
         'INSURANS': '6-2200 INSURANS DAN CUKAI JALAN',
         'CUKAI JALAN': '6-2200 INSURANS DAN CUKAI JALAN',
@@ -2011,15 +1989,14 @@ function autoKodPerbelanjaan() {
         }
     }
 }
+
 async function tambahExpense() {
     const tarikhISO = document.getElementById('expDate').value;
     if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
 
-    // Tukar format tarikh ke DD/MM/YYYY
     const [tahun, bulan, hari] = tarikhISO.split('-');
     const tarikhDDMMYYYY = `${hari}/${bulan}/${tahun}`;
 
-    // Jana kod bulan untuk GABUNGAN (cth: JUL2026)
     const namaBulan = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
     const idxBulan = parseInt(bulan, 10) - 1;
     const bulanTahun = namaBulan[idxBulan] + tahun;
@@ -2039,10 +2016,11 @@ async function tambahExpense() {
         return;
     }
 
-    const gabungan = bayar + bulanTahun;  // contoh: MAYBANKJUL2026
+    const gabungan = bayar + bulanTahun;
 
-    const payload = {
-        action: 'addExpense',
+    showLoading(true);
+    await postData({
+        action: 'addOperationalExpense',
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
         jenis: jenis,
@@ -2054,31 +2032,23 @@ async function tambahExpense() {
         catatan: catatan,
         amount: amount,
         gabungan: gabungan
-    };
-
-    showLoading(true);
-    const resp = await postFinanceData(payload);
+    });
     showLoading(false);
 
-    if (resp && resp.success) {
-        showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-        // Kosongkan borang
-        document.getElementById('expJenis').value = '';
-        document.getElementById('expQty').value = '1';
-        document.getElementById('expPrice').value = '0.00';
-        document.getElementById('expAmount').value = '';
-        document.getElementById('expButiran').value = '';
-        document.getElementById('expPembekal').value = '';
-        document.getElementById('expCatatan').value = '';
-        kiraAmount();
-        // Muat semula data
-        fetchData(null, true);
-        setTimeout(() => {
-            renderExpenses(document.getElementById('tabContainer'));
-        }, 1500);
-    } else {
-        showPriceMsg('expenseMsg', '❌ Gagal menyimpan perbelanjaan.', 'error');
-    }
+    showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+
+    // Kosongkan borang
+    document.getElementById('expJenis').value = '';
+    document.getElementById('expQty').value = '1';
+    document.getElementById('expPrice').value = '0.00';
+    document.getElementById('expAmount').value = '';
+    document.getElementById('expButiran').value = '';
+    document.getElementById('expPembekal').value = '';
+    document.getElementById('expCatatan').value = '';
+    kiraAmount();
+
+    // Refresh senarai
+    fetchData(null, true);
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
