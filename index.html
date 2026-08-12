@@ -343,39 +343,7 @@ function fetchData(callback, skipRefresh = false) {
     };
     document.body.appendChild(script);
 }
-    function postDataJSONP(params, callback) {
-    // Buang skrip lama jika ada
-    $$('script[data-jsonp-post]').forEach(el => el.remove());
 
-    const cbName = 'jsonp_post_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
-    const timeout = setTimeout(() => {
-        cleanupJsonp(cbName);
-        if (callback) callback({ success: false, error: 'Masa tamat' });
-    }, 20000);
-
-    window[cbName] = function(resp) {
-        clearTimeout(timeout);
-        cleanupJsonp(cbName);
-        if (callback) callback(resp);
-    };
-
-    // Bina URL dengan parameter
-    const queryString = Object.keys(params)
-        .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
-        .join('&');
-    const url = CONFIG.GAS_API_URL + '?action=saveExpense&' + queryString + '&callback=' + cbName;
-
-    const script = document.createElement('script');
-    script.id = cbName;
-    script.dataset.jsonpPost = 'true';
-    script.src = url;
-    script.onerror = function() {
-        clearTimeout(timeout);
-        cleanupJsonp(cbName);
-        if (callback) callback({ success: false, error: 'Gagal muat skrip' });
-    };
-    document.body.appendChild(script);
-}
 
 async function postData(data) {
   try {
@@ -2078,7 +2046,6 @@ async function tambahExpense() {
     const gabungan = bayar + bulanTahun;
 
     showLoading(true);
-    // Hantar melalui postData (seperti modul lain)
     await postData({
         action: 'addOperationalExpense',
         tarikh: tarikhDDMMYYYY,
@@ -2095,7 +2062,7 @@ async function tambahExpense() {
     });
     showLoading(false);
 
-    // Anggap berjaya (kerana no-cors, kita tak dapat baca respons)
+    // Anggap berjaya
     showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
 
     // Kosongkan borang
@@ -2114,6 +2081,9 @@ async function tambahExpense() {
         if (tbody) tbody.innerHTML = buildExpenseRows();
     }, true);
 }
+
+
+    
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
