@@ -1939,10 +1939,24 @@ function renderExpenses(container) {
 
 function buildExpenseRows() {
     const data = STATE.rawExpenses || [];
-    if (!data.length) return '<tr><td colspan="4" class="text-center muted">Tiada rekod.</td></tr>';
-    data.sort((a, b) => (b.TARIKH || '').localeCompare(a.TARIKH || ''));
+    // Dapatkan bulan semasa dalam format DD/MM/YYYY -> bulan = MM, tahun = YYYY
+    const now = new Date();
+    const currentMM = String(now.getMonth() + 1).padStart(2, '0'); // "08"
+    const currentYYYY = now.getFullYear(); // 2026
+
+    // Tapis hanya data bulan ini
+    const filtered = data.filter(item => {
+        if (!item.TARIKH) return false;
+        const parts = item.TARIKH.split('/'); // DD/MM/YYYY
+        if (parts.length !== 3) return false;
+        return parts[1] === currentMM && parts[2] == currentYYYY;
+    });
+
+    if (!filtered.length) return '<tr><td colspan="4" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
+
+    filtered.sort((a, b) => (b.TARIKH || '').localeCompare(a.TARIKH || ''));
     let rows = '';
-    data.forEach(item => {
+    filtered.forEach(item => {
         const tgl = escapeHtml(item.TARIKH || '-');
         const bayar = escapeHtml(item.BAYAR_MELALUI || '-');
         const jenis = escapeHtml(item['JENIS BARANG'] || '-');
@@ -1951,7 +1965,6 @@ function buildExpenseRows() {
     });
     return rows;
 }
-
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
@@ -2035,6 +2048,18 @@ async function tambahExpense() {
 
     const gabungan = bayar + bulanTahun;
 
+    // Bina objek untuk STATE
+    const newRecord = {
+        TARIKH: tarikhDDMMYYYY,
+        BAYAR_MELALUI: bayar,
+        'JENIS BARANG': jenis,
+        AMOUNT: amount,
+        BUTIRAN: butiran,
+        KOD_PERBELANJAAN: kod,
+        PEMBEKAL: pembekal,
+        CATATAN: catatan
+    };
+
     showLoading(true);
     await postData({
         action: 'addOperationalExpense',
@@ -2052,7 +2077,11 @@ async function tambahExpense() {
     });
     showLoading(false);
 
-    // Anggap berjaya
+    // Terus masukkan rekod ke STATE & segarkan jadual (tanpa fetchData)
+    if (!STATE.rawExpenses) STATE.rawExpenses = [];
+    STATE.rawExpenses.unshift(newRecord);
+    document.getElementById('expenseTableBody').innerHTML = buildExpenseRows();
+
     showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
 
     // Kosongkan borang
@@ -2064,14 +2093,7 @@ async function tambahExpense() {
     document.getElementById('expPembekal').value = '';
     document.getElementById('expCatatan').value = '';
     kiraAmount();
-
-    // Muat semula data untuk kemas kini jadual
-    fetchData(() => {
-        const tbody = document.getElementById('expenseTableBody');
-        if (tbody) tbody.innerHTML = buildExpenseRows();
-    }, true);
 }
-
 
     
 // ==================== GLOBAL EVENTS ====================
