@@ -1852,6 +1852,60 @@ function simpanGambarStikers() {
 
 // ==================== PERBELANJAAN ====================
 // ==================== PERBELANJAAN ====================
+
+// === JSONP Helper (diguna untuk simpan & muat data) ===
+function jsonp(url, callback) {
+    var cbName = 'jsonp_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    window[cbName] = function(data) {
+        callback(data);
+        document.head.removeChild(script);
+        delete window[cbName];
+    };
+    var script = document.createElement('script');
+    script.src = url + '&callback=' + cbName;
+    script.onerror = function() {
+        callback({ success: false, error: 'Network error' });
+        document.head.removeChild(script);
+        delete window[cbName];
+    };
+    document.head.appendChild(script);
+}
+
+// Simpan perbelanjaan guna JSONP (elak CORS)
+function simpanExpenseJSONP(data, callback) {
+    var params = [
+        'action=saveExpense',
+        'tarikh=' + encodeURIComponent(data.tarikh || ''),
+        'bayar=' + encodeURIComponent(data.bayar || ''),
+        'jenis=' + encodeURIComponent(data.jenis || ''),
+        'kuantiti=' + encodeURIComponent(data.kuantiti || 1),
+        'hargaSeunit=' + encodeURIComponent(data.hargaSeunit || 0),
+        'butiran=' + encodeURIComponent(data.butiran || ''),
+        'kod=' + encodeURIComponent(data.kod || ''),
+        'pembekal=' + encodeURIComponent(data.pembekal || ''),
+        'catatan=' + encodeURIComponent(data.catatan || ''),
+        'amount=' + encodeURIComponent(data.amount || 0),
+        'gabungan=' + encodeURIComponent(data.gabungan || '')
+    ];
+    var url = CONFIG.GAS_API_URL + '?' + params.join('&');
+    jsonp(url, callback);
+}
+
+// Muat data dari Apps Script (JSONP)
+function muatExpensesDariSheet() {
+    var now = new Date();
+    var bulan = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    var url = CONFIG.GAS_API_URL + '?action=readAll&month=' + encodeURIComponent(bulan);
+    jsonp(url, function(resp) {
+        if (resp && resp.Raw_Expenses) {
+            STATE.rawExpenses = resp.Raw_Expenses;
+            var tbody = document.getElementById('expenseTableBody');
+            if (tbody) tbody.innerHTML = buildExpenseRows();
+        }
+    });
+}
+
+// === FUNGSI RENDER & UI (sedia ada, dikekalkan) ===
 function renderExpenses(container) {
     container.innerHTML = `
         <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
@@ -1945,6 +1999,7 @@ function renderExpenses(container) {
         </div>
     `;
     kiraAmount();
+    muatExpensesDariSheet(); // Muat data dari server bila halaman dibuka
 }
 
 function buildExpenseRows() {
@@ -2029,6 +2084,7 @@ function autoKodPerbelanjaan() {
     }
 }
 
+// === FUNGSI SIMPAN (DIKEMASKINI – GUNA JSONP) ===
 async function tambahExpense() {
     const tarikhISO = document.getElementById('expDate').value;
     if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
@@ -2057,7 +2113,6 @@ async function tambahExpense() {
 
     const gabungan = bayar + bulanTahun;
 
-    // Objek untuk STATE
     const newRecord = {
         TARIKH: tarikhDDMMYYYY,
         BAYAR_MELALUI: bayar,
@@ -2070,8 +2125,7 @@ async function tambahExpense() {
     };
 
     showLoading(true);
-    await postData({
-        action: 'addOperationalExpense',
+    simpanExpenseJSONP({
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
         jenis: jenis,
@@ -2083,192 +2137,29 @@ async function tambahExpense() {
         catatan: catatan,
         amount: amount,
         gabungan: gabungan
-    });
-    showLoading(false);
+    }, function(result) {
+        showLoading(false);
+        if (result.success) {
+            // Kemaskini STATE & paparan
+            if (!STATE.rawExpenses) STATE.rawExpenses = [];
+            STATE.rawExpenses.unshift(newRecord);
+            document.getElementById('expenseTableBody').innerHTML = buildExpenseRows();
+            showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
 
-    // Terus masukkan ke STATE & segarkan jadual
-    if (!STATE.rawExpenses) STATE.rawExpenses = [];
-    STATE.rawExpenses.unshift(newRecord);
-    document.getElementById('expenseTableBody').innerHTML = buildExpenseRows();
-
-    showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-
-    // Kosongkan borang
-    document.getElementById('expJenis').value = '';
-    document.getElementById('expQty').value = '1';
-    document.getElementById('expPrice').value = '0.00';
-    document.getElementById('expAmount').value = '';
-    document.getElementById('expButiran').value = '';
-    document.getElementById('expPembekal').value = '';
-    document.getElementById('expCatatan').value = '';
-    kiraAmount();
-}
-
-// ========== GANTI DENGAN INI (JSONP – TIADA CORS ERROR) ==========
-const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxwVCPXKwUz647g6oGlCQRtM2sgMGKvB2fBEp-E8niCHzAHJjJm-L_7XoQS97BuMyJ3/exec';
-
-// Fungsi simpan guna JSONP (GET)
-function simpanPerbelanjaanJSONP(formData, callback) {
-  // Bina parameter
-  var params = [
-    'action=saveExpense',
-    'tarikh=' + encodeURIComponent(formData.tarikh || ''),
-    'bayar=' + encodeURIComponent(formData.bayar || 'TUNAI'),
-    'jenis=' + encodeURIComponent(formData.jenis || ''),
-    'kuantiti=1',
-    'hargaSeunit=' + encodeURIComponent(formData.amount || '0'),
-    'butiran=' + encodeURIComponent(formData.butiran || ''),
-    'kod=' + encodeURIComponent(formData.kod || ''),
-    'pembekal=' + encodeURIComponent(formData.jenis || ''),
-    'catatan=' + encodeURIComponent(formData.catatan || ''),
-    'amount=' + encodeURIComponent(formData.amount || '0'),
-    'gabungan=' + encodeURIComponent('')
-  ];
-  var queryString = params.join('&');
-  var callbackName = 'saveCb_' + Date.now();
-  
-  window[callbackName] = function(resp) {
-    callback(resp);
-    delete window[callbackName];
-  };
-  
-  var script = document.createElement('script');
-  script.src = GAS_API_URL + '?' + queryString + '&callback=' + callbackName;
-  script.onerror = function() {
-    callback({ success: false, error: 'Gagal sambung ke server' });
-  };
-  document.body.appendChild(script);
-}
-
-// Muat data bulan semasa (guna JSONP, sama seperti sebelum ini)
-function muatExpensesBulanIni() {
-  var now = new Date();
-  var bulan = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-  var callbackName = 'jsonp_cb_' + Date.now();
-  
-  window[callbackName] = function(resp) {
-    var data = resp.Raw_Expenses || [];
-    renderJadual(data);
-    delete window[callbackName];
-  };
-  
-  var script = document.createElement('script');
-  script.src = GAS_API_URL + '?action=readAll&month=' + encodeURIComponent(bulan) + '&callback=' + callbackName;
-  script.onerror = function() {
-    console.error('Gagal muat data');
-  };
-  document.body.appendChild(script);
-}
-
-// Papar ke jadual
-function renderJadual(items) {
-  var tbody = document.querySelector('#expenseTable tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  if (items.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8">Tiada data bulan ini.</td></tr>';
-    return;
-  }
-
-  items.forEach(function(row) {
-    var tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${row.NO || ''}</td>
-      <td>${row.TARIKH || ''}</td>
-      <td>${row.JENIS_BARANG || ''}</td>
-      <td>${row.BUTIRAN || ''}</td>
-      <td>${row.AMOUNT || ''}</td>
-      <td>${row.BAYAR_MELALUI || ''}</td>
-      <td>${row.KOD_PERBELANJAAN || ''}</td>
-      <td>${row.CATATAN || ''}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-}
-
-// Bila halaman siap
-document.addEventListener('DOMContentLoaded', function() {
-  muatExpensesBulanIni();
-
-  var borang = document.getElementById('formPerbelanjaan');
-  if (borang) {
-    borang.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      // kumpul data
-      var form = {
-        tarikh: document.getElementById('tarikh').value,
-        bayar: document.getElementById('bayar').value,
-        jenis: document.getElementById('jenis').value,
-        amount: document.getElementById('amount').value,
-        butiran: document.getElementById('butiran').value,
-        kod: document.getElementById('kod').value,
-        catatan: document.getElementById('catatan').value
-      };
-      
-      var btn = borang.querySelector('button[type="submit"]');
-      if (btn) btn.disabled = true;
-      
-      // Hantar guna JSONP
-      simpanPerbelanjaanJSONP(form, function(hasil) {
-        if (hasil.success) {
-          muatExpensesBulanIni();
-          borang.reset();
+            // Kosongkan borang
+            document.getElementById('expJenis').value = '';
+            document.getElementById('expQty').value = '1';
+            document.getElementById('expPrice').value = '0.00';
+            document.getElementById('expAmount').value = '';
+            document.getElementById('expButiran').value = '';
+            document.getElementById('expPembekal').value = '';
+            document.getElementById('expCatatan').value = '';
+            kiraAmount();
         } else {
-          alert('Gagal menyimpan: ' + (hasil.error || ''));
+            showPriceMsg('expenseMsg', '❌ Gagal simpan: ' + (result.error || ''), 'error');
         }
-        if (btn) btn.disabled = false;
-      });
     });
-  } else {
-    console.warn('Borang #formPerbelanjaan tidak dijumpai – pastikan HTML sudah ditambah');
-  }
-});
-
-    <!-- ========== MODUL PERBELANJAAN (TAMBAH DI SINI) ========== -->
-<div style="margin:20px; padding:15px; border:1px solid #ccc; border-radius:8px; background:#fafafa;">
-  <h2>➕ Tambah Perbelanjaan</h2>
-  <form id="formPerbelanjaan">
-    <label>Tarikh:<br><input type="date" id="tarikh" required></label><br><br>
-    <label>Bayar Melalui:<br>
-      <select id="bayar">
-        <option value="TUNAI">TUNAI</option>
-        <option value="BANK">BANK</option>
-        <option value="QR PAY">QR PAY</option>
-      </select>
-    </label><br><br>
-    <label>Jenis Barang:<br><input type="text" id="jenis" placeholder="contoh: Alat Tulis"></label><br><br>
-    <label>Jumlah (RM):<br><input type="number" id="amount" step="0.01" required></label><br><br>
-    <label>Butiran:<br><input type="text" id="butiran"></label><br><br>
-    <label>Kod Perbelanjaan:<br>
-      <select id="kod">
-        <option value="">-- Pilih --</option>
-        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
-        <option value="5-2000 ALAT TULIS">5-2000 ALAT TULIS</option>
-        <option value="5-3000 BAHAN BERSIH">5-3000 BAHAN BERSIH</option>
-      </select>
-    </label><br><br>
-    <label>Catatan:<br><input type="text" id="catatan"></label><br><br>
-    <button type="submit" style="padding:8px 20px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer;">
-      💾 Simpan Perbelanjaan
-    </button>
-  </form>
-</div>
-
-<div style="margin:20px;">
-  <h2>📋 Perbelanjaan Bulan Ini</h2>
-  <table id="expenseTable" border="1" cellpadding="8" style="border-collapse:collapse; width:100%; background:#fff;">
-    <thead style="background:#e9ecef;">
-      <tr>
-        <th>NO</th> <th>TARIKH</th> <th>JENIS BARANG</th> <th>BUTIRAN</th>
-        <th>AMOUNT (RM)</th> <th>BAYAR MELALUI</th> <th>KOD PERBELANJAAN</th> <th>CATATAN</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-</div>
-<!-- ========== TAMAT MODUL PERBELANJAAN ========== -->
+}
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
