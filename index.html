@@ -2048,7 +2048,7 @@ async function tambahExpense() {
 
     const gabungan = bayar + bulanTahun;
 
-    // Bina objek untuk STATE
+    // Objek untuk STATE
     const newRecord = {
         TARIKH: tarikhDDMMYYYY,
         BAYAR_MELALUI: bayar,
@@ -2077,7 +2077,7 @@ async function tambahExpense() {
     });
     showLoading(false);
 
-    // Terus masukkan rekod ke STATE & segarkan jadual (tanpa fetchData)
+    // Terus masukkan ke STATE & segarkan jadual
     if (!STATE.rawExpenses) STATE.rawExpenses = [];
     STATE.rawExpenses.unshift(newRecord);
     document.getElementById('expenseTableBody').innerHTML = buildExpenseRows();
@@ -2094,7 +2094,6 @@ async function tambahExpense() {
     document.getElementById('expCatatan').value = '';
     kiraAmount();
 }
-
     
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
