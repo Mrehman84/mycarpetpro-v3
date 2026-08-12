@@ -2224,6 +2224,50 @@ document.addEventListener('DOMContentLoaded', function() {
     console.warn('Borang #formPerbelanjaan tidak dijumpai');
   }
 });
+
+    <!-- ========== MODUL PERBELANJAAN (TAMBAH DI SINI) ========== -->
+<div style="margin:20px; padding:15px; border:1px solid #ccc; border-radius:8px; background:#fafafa;">
+  <h2>➕ Tambah Perbelanjaan</h2>
+  <form id="formPerbelanjaan">
+    <label>Tarikh:<br><input type="date" id="tarikh" required></label><br><br>
+    <label>Bayar Melalui:<br>
+      <select id="bayar">
+        <option value="TUNAI">TUNAI</option>
+        <option value="BANK">BANK</option>
+        <option value="QR PAY">QR PAY</option>
+      </select>
+    </label><br><br>
+    <label>Jenis Barang:<br><input type="text" id="jenis" placeholder="contoh: Alat Tulis"></label><br><br>
+    <label>Jumlah (RM):<br><input type="number" id="amount" step="0.01" required></label><br><br>
+    <label>Butiran:<br><input type="text" id="butiran"></label><br><br>
+    <label>Kod Perbelanjaan:<br>
+      <select id="kod">
+        <option value="">-- Pilih --</option>
+        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
+        <option value="5-2000 ALAT TULIS">5-2000 ALAT TULIS</option>
+        <option value="5-3000 BAHAN BERSIH">5-3000 BAHAN BERSIH</option>
+      </select>
+    </label><br><br>
+    <label>Catatan:<br><input type="text" id="catatan"></label><br><br>
+    <button type="submit" style="padding:8px 20px; background:#007bff; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+      💾 Simpan Perbelanjaan
+    </button>
+  </form>
+</div>
+
+<div style="margin:20px;">
+  <h2>📋 Perbelanjaan Bulan Ini</h2>
+  <table id="expenseTable" border="1" cellpadding="8" style="border-collapse:collapse; width:100%; background:#fff;">
+    <thead style="background:#e9ecef;">
+      <tr>
+        <th>NO</th> <th>TARIKH</th> <th>JENIS BARANG</th> <th>BUTIRAN</th>
+        <th>AMOUNT (RM)</th> <th>BAYAR MELALUI</th> <th>KOD PERBELANJAAN</th> <th>CATATAN</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<!-- ========== TAMAT MODUL PERBELANJAAN ========== -->
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
