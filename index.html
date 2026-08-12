@@ -346,30 +346,20 @@ function fetchData(callback, skipRefresh = false) {
 
 
 async function postData(data) {
-  try {
-    // 1. Menukar objek data JSON menjadi format URL Query string
-    const queryParams = Object.keys(data)
-      .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(data[key]))
-      .join('&');
-
-    // 2. Menggabungkan URL utama bersama data parameter
-    const urlPenuh = CONFIG.GAS_API_URL + '?' + queryParams;
-
-    // 3. Menghantar permohonan menggunakan mod 'no-cors' yang selamat dari sekatan pelayar
-    await fetch(urlPenuh, {
-      method: 'POST',
-      mode: 'no-cors'
-    });
-
-    // Oleh kerana data dipaksa masuk menerusi URL string, Google Sheets PASTI akan menerimanya
-    return { success: true };
-  } catch (e) {
-    console.error('postData error:', e);
-    // Sandaran status sekiranya berlaku ralat redirect palsu daripada Google
-    return { success: true };
-  }
+    try {
+        await fetch(CONFIG.GAS_API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)       // ← WAJIB JSON body
+        });
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        toast('Gagal menghantar data.');
+        return { success: false };
+    }
 }
-
 
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
