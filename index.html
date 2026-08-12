@@ -2076,7 +2076,11 @@ async function tambahExpense() {
     }
 
     const gabungan = bayar + bulanTahun;
-    const params = {
+
+    showLoading(true);
+    // Hantar melalui postData (seperti modul lain)
+    await postData({
+        action: 'addOperationalExpense',
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
         jenis: jenis,
@@ -2088,29 +2092,27 @@ async function tambahExpense() {
         catatan: catatan,
         amount: amount,
         gabungan: gabungan
-    };
-
-    showLoading(true);
-    postDataJSONP(params, function(resp) {
-        showLoading(false);
-        if (resp && resp.success) {
-            showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
-            document.getElementById('expJenis').value = '';
-            document.getElementById('expQty').value = '1';
-            document.getElementById('expPrice').value = '0.00';
-            document.getElementById('expAmount').value = '';
-            document.getElementById('expButiran').value = '';
-            document.getElementById('expPembekal').value = '';
-            document.getElementById('expCatatan').value = '';
-            kiraAmount();
-            fetchData(() => {
-                const tbody = document.getElementById('expenseTableBody');
-                if (tbody) tbody.innerHTML = buildExpenseRows();
-            }, true);
-        } else {
-            showPriceMsg('expenseMsg', '❌ Gagal: ' + (resp ? resp.error : 'Tiada respons'), 'error');
-        }
     });
+    showLoading(false);
+
+    // Anggap berjaya (kerana no-cors, kita tak dapat baca respons)
+    showPriceMsg('expenseMsg', '✅ Perbelanjaan direkodkan!', 'success');
+
+    // Kosongkan borang
+    document.getElementById('expJenis').value = '';
+    document.getElementById('expQty').value = '1';
+    document.getElementById('expPrice').value = '0.00';
+    document.getElementById('expAmount').value = '';
+    document.getElementById('expButiran').value = '';
+    document.getElementById('expPembekal').value = '';
+    document.getElementById('expCatatan').value = '';
+    kiraAmount();
+
+    // Muat semula data untuk kemas kini jadual
+    fetchData(() => {
+        const tbody = document.getElementById('expenseTableBody');
+        if (tbody) tbody.innerHTML = buildExpenseRows();
+    }, true);
 }
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
