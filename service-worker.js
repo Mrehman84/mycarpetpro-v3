@@ -3,8 +3,7 @@ const CACHE_NAME = 'mycarpet-v3';
 const urlsToCache = [
   '/mycarpetpro-v3/',
   '/mycarpetpro-v3/index.html',
-  '/mycarpetpro-v3/assets/icon-192.png',
-  '/mycarpetpro-v3/assets/icon-512.png'
+    '/mycarpetpro-v3/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
