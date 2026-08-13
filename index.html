@@ -2216,15 +2216,15 @@ document.addEventListener('click', function(e) {
         document.body.classList.remove('sidebar-open');
     }
 });
+
+// Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
+            .then(reg => console.log('Service Worker berjaya didaftarkan'))
+            .catch(err => console.log('Service Worker gagal: ', err));
+    });
+}
 </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
-                    .then(reg => console.log('Service Worker berjaya didaftarkan'))
-                    .catch(err => console.log('Service Worker gagal: ', err));
-            });
-        }
-    </script>
 </body>
 </html>
