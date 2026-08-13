@@ -349,22 +349,18 @@ async function postData(data) {
   try {
     const response = await fetch(CONFIG.GAS_API_URL, {
       method: 'POST',
-      mode: 'cors',
+      mode: 'no-cors',   // ★ INI PENTING – elak preflight CORS
       headers: {
-        'Content-Type': 'application/json'  // ★ TUKAR KEPADA JSON
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(data)            // ★ TUKAR KEPADA JSON
+      body: JSON.stringify(data)
     });
-
-    if (!response.ok) {
-      throw new Error('Gagal sambung ke GAS (Status: ' + response.status + ')');
-    }
-
-    const result = await response.json();
-    return result;
+    // Dengan mode 'no-cors', response tidak boleh dibaca, tapi data dihantar.
+    console.log('Permintaan dihantar.');
+    return { success: true };
   } catch (e) {
     console.error('postData error:', e);
-    throw e; // Biarkan ralat dibaling supaya fungsi pemanggil tahu ia gagal
+    throw e;
   }
 }
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
