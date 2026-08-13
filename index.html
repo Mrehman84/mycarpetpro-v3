@@ -2001,22 +2001,23 @@ function buildExpenseRows() {
     const currentYYYY = now.getFullYear();
 
     const filtered = data.filter(item => {
-        if (!item.TARIKH) return false;
-        const parts = item.TARIKH.split('/');
+        const t = getField(item, ['TARIKH']);
+        if (!t) return false;
+        const parts = t.split('/');
         if (parts.length !== 3) return false;
         return parts[1] === currentMM && parts[2] == currentYYYY;
     });
 
     if (!filtered.length) return '<tr><td colspan="5" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
 
-    filtered.sort((a, b) => (b.TARIKH || '').localeCompare(a.TARIKH || ''));
+    filtered.sort((a, b) => (getField(b, ['TARIKH']) || '').localeCompare(getField(a, ['TARIKH']) || ''));
     let rows = '';
     filtered.forEach(item => {
-        const id = escapeHtml(item.ID || '');
-        const tgl = escapeHtml(item.TARIKH || '-');
-        const bayar = escapeHtml(item.BAYAR_MELALUI || '-');
-        const jenis = escapeHtml(item['JENIS BARANG'] || '-');
-        const jumlah = formatMoney(item.AMOUNT || 0);
+        const id = escapeHtml(getField(item, ['ID'], ''));
+        const tgl = escapeHtml(getField(item, ['TARIKH'], '-'));
+        const bayar = escapeHtml(getField(item, ['BAYAR_MELALUI'], '-'));
+        const jenis = escapeHtml(getField(item, ['JENIS BARANG','JENIS_BARANG','JENIS'], '-'));
+        const jumlah = formatMoney(getField(item, ['AMOUNT','JUMLAH'], 0));
         rows += `<tr>
             <td>${tgl}</td>
             <td>${bayar}</td>
