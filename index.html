@@ -345,70 +345,78 @@ function fetchData(callback, skipRefresh = false) {
 }
 
 
-// ==================== API (JSON sahaja) ====================
-async function callGAS(action, payload = {}) {
+// ==================== API ====================
+
+// 1. Fungsi untuk BACA data (JSONP – tidak terjejas CORS)
+function fetchData(callback, skipRefresh = false) {
+    if (STATE.isLoading) return;
+    STATE.isLoading = true;
+    showLoading(true);
+    $$('script[data-jsonp]').forEach(el => el.remove());
+    const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+    const timeout = setTimeout(() => {
+        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
+        toast('Masa muat turun tamat.');
+    }, 25000);
+    window[cbName] = function(resp) {
+        clearTimeout(timeout);
+        STATE.isLoading = false;
+        showLoading(false);
+        try {
+            if (resp && typeof resp === 'object') {
+                STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
+                STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
+                STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
+                STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
+                STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
+                STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
+                STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
+                STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
+                STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
+                STATE.rawExpenses = STATE.expenses;
+
+                if (callback) callback();
+                if (!skipRefresh) refreshAllUI();
+            } else { toast('Data tidak sah.'); }
+        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
+        finally { cleanupJsonp(cbName); }
+    };
+    const script = document.createElement('script');
+    script.id = cbName; script.dataset.jsonp = 'true';
+    script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
+    script.onerror = function() {
+        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
+        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
+    };
+    document.body.appendChild(script);
+}
+
+// 2. Fungsi untuk TULIS data (POST dengan no-cors – elak CORS)
+async function postData(data) {
   try {
     const response = await fetch(CONFIG.GAS_API_URL, {
       method: 'POST',
-      mode: 'no-cors',  // ★ Elakkan preflight CORS
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, ...payload })
+      mode: 'no-cors',   // ★ KRUSIAL – elak preflight CORS
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
     });
-    // Dengan 'no-cors', kita tidak dapat baca respons, tapi kita anggap berjaya.
-    console.log('✅ Permintaan dihantar ke GAS:', action);
+    // Dengan 'no-cors', kita tidak dapat baca respons, tapi data tetap dihantar.
+    console.log('✅ Data dihantar ke GAS');
     return { success: true };
   } catch (e) {
-    console.error('❌ callGAS error:', e);
+    console.error('❌ postData error:', e);
     throw e;
   }
 }
 
-// Gantikan fetchData lama dengan yang baharu ini
-function fetchData(callback, skipRefresh = false) {
-  if (STATE.isLoading) return;
-  STATE.isLoading = true;
-  showLoading(true);
-
-  callGAS('readAll', {})
-    .then(() => {
-      // Kita perlu muat semula data dari STATE? 
-      // Sebenarnya kita perlu dapatkan data balik. Tapi dengan no-cors, kita tak dapat.
-      // Jadi kita perlu buat panggilan GET untuk baca data? 
-      // Kita boleh tukar readAll kepada POST yang return JSON, tapi no-cors tidak boleh baca.
-      // Alternatif: gunakan mode 'cors' untuk readAll supaya boleh baca respons.
-      // Tetapi kita ada masalah CORS. Jadi kita perlu buat satu pendekatan baru:
-      // Kita akan gunakan JSONP untuk readAll (kerna ia GET) dan POST untuk tulis.
-      // Tetapi itu akan kembali kepada masalah lama.
-      // Sebenarnya, kita boleh kekalkan JSONP untuk readAll, dan POST untuk tulis.
-      // Tapi ralat 404 mungkin sebab URL tidak support JSONP.
-      // Mungkin kita perlu deploy semula dengan doGet yang handle JSONP.
-      // Saya cadangkan: kita kekalkan JSONP untuk readAll, dan POST untuk tulis.
-      // Tetapi kita perlu pastikan doGet di GAS masih wujud.
-      // Jadi saya akan berikan versi yang menggunakan JSONP untuk baca, dan POST untuk tulis.
-    })
-    .catch(err => {
-      toast('Gagal memuat data: ' + err.message);
-    })
-    .finally(() => {
-      STATE.isLoading = false;
-      showLoading(false);
-    });
+// 3. Fungsi helper untuk bersihkan JSONP
+function cleanupJsonp(name) {
+    const el = document.getElementById(name);
+    if (el) el.remove();
+    try { delete window[name]; } catch(e) {}
 }
-
-// Sebenarnya, pendekatan yang lebih selamat adalah:
-// 1. Untuk baca data, gunakan GET dengan JSONP (kerana ia tidak kena CORS).
-// 2. Untuk tulis data, gunakan POST dengan mode 'no-cors'.
-// Jadi kita perlu pastikan doGet di GAS masih ada dan handle callback.
-
-// Oleh itu, saya akan berikan kod yang mengekalkan JSONP untuk readAll,
-// tetapi menukar postData kepada mode 'no-cors' (yang anda sudah lakukan).
-// Ini adalah penyelesaian paling praktikal.
-
-// Jadi, gantikan fetchData dengan kod asal (JSONP) yang sudah ada,
-// tetapi pastikan URL yang digunakan adalah URL web app yang betul.
-// Dan gantikan postData dengan mode 'no-cors' seperti yang saya berikan sebelum ini.
-
-// Saya akan berikan semula kod lengkap untuk fetchData dan postData di bawah.
 function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
 // ==================== AUTH ====================
