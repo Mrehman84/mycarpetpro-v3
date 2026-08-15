@@ -818,7 +818,7 @@ function hantarWhatsAppTempahan() {
 }
     // ==================== TRACKING (dengan Lokasi Rak) ====================
 // ===================================================================
-// MODUL TRACKING QR v3.3 (DISUSUN SEMULA)
+// MODUL TRACKING QR v3.3 (KEMASKINI: DROP-DOWN STATUS TUNGGAL + ANTI-BUG WHATSAPP)
 // ===================================================================
 
 function renderTracking(container) {
@@ -890,6 +890,7 @@ function executeTrackingSearch() {
             const cleanPhone = rawPhone.replace(/^0+/, '');
             
             if (cleanPhone) {
+                const waNumber = cleanPhone.startsWith('60') ? cleanPhone : '60' + cleanPhone;
                 const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
                             `Assalamualaikum / Salam sejahtera!\n` +
                             `Kami ingin maklumkan bahawa karpet anda dengan No. Invois *${inv}* sudah siap dan *READY TO DELIVER*!\n\n` +
@@ -897,7 +898,7 @@ function executeTrackingSearch() {
                             `📞 Talian: 017-4050336\n\n` +
                             `Terima kasih kerana mempercayai perkhidmatan kami! 🙏`;
                             
-                waButtonHtml = `<br><a href="https://whatsapp.com${cleanPhone}&text=${encodeURIComponent(msg)}" 
+                waButtonHtml = `<br><a href="https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}" 
                                   target="_blank" 
                                   class="btn btn-success" 
                                   style="margin-top:5px; display:inline-block; padding:2px 6px; font-size:11px; border-radius:4px; color:#fff; text-decoration:none; background-color:#28a745; border:none;">
