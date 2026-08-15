@@ -2,7 +2,6 @@
 <html lang="ms">
 <head>
     <link rel="icon" type="image/png" href="icon-512.png">
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MYCARPET PRO v3.0</title>
@@ -247,7 +246,6 @@
     </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
-
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
@@ -300,54 +298,17 @@ function toast(msg) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// ==================== API ====================
-function fetchData(callback, skipRefresh = false) {
-    if (STATE.isLoading) return;
-    STATE.isLoading = true;
-    showLoading(true);
-    $$('script[data-jsonp]').forEach(el => el.remove());
-    const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
-    const timeout = setTimeout(() => {
-        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
-        toast('Masa muat turun tamat.');
-    }, 25000);
-    window[cbName] = function(resp) {
-        clearTimeout(timeout);
-        STATE.isLoading = false;
-        showLoading(false);
-        try {
-            if (resp && typeof resp === 'object') {
-                STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
-                STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
-                STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
-                STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
-                STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
-                STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
-                STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
-                STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
-                STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
-                STATE.rawExpenses = STATE.expenses;
-
-                if (callback) callback();
-                if (!skipRefresh) refreshAllUI();
-            } else { toast('Data tidak sah.'); }
-        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
-        finally { cleanupJsonp(cbName); }
-    };
-    const script = document.createElement('script');
-    script.id = cbName; script.dataset.jsonp = 'true';
-    script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
-    script.onerror = function() {
-        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
-        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
-    };
-    document.body.appendChild(script);
+// === FUNGSI UMUM UNTUK BUKA WHATSAPP (elak ralat emoji) ===
+function bukaWhatsApp(phone, message) {
+    if (!phone) return;
+    // Bersihkan nombor: buang aksara selain digit, hilangkan leading 0, tambah 60 jika perlu
+    const clean = String(phone).replace(/\D/g, '').replace(/^0+/, '');
+    const waNumber = clean.startsWith('60') ? clean : '60' + clean;
+    const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
 }
 
-
 // ==================== API ====================
-
-// 1. Fungsi untuk BACA data (JSONP – tidak terjejas CORS)
 function fetchData(callback, skipRefresh = false) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
@@ -417,7 +378,6 @@ function cleanupJsonp(name) {
     if (el) el.remove();
     try { delete window[name]; } catch(e) {}
 }
-function cleanupJsonp(name) { const el = document.getElementById(name); if (el) el.remove(); try { delete window[name]; } catch(e) {} }
 
 // ==================== AUTH ====================
 const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
@@ -583,9 +543,11 @@ function hantarWhatsAppJanji() {
     if (!telefon) { toast('Sila masukkan nombor telefon.'); return; }
     const preview = document.getElementById('mesejPreviewJanji');
     let msg = preview.textContent;
-    if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
-    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
-
+    if (!msg || preview.classList.contains('hidden')) {
+        janaMesejJanji();
+        msg = preview.textContent;
+    }
+    bukaWhatsApp(telefon, msg);
 }
 
 // ==================== PENJANA INVOIS ====================
@@ -625,7 +587,6 @@ function renderTempahan(container) {
             <div id="carpetItemsContainer"></div>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
         </div>
-        <!-- QC Pra-Basuhan Card -->
         <div class="card" id="qcCard" style="margin-top:16px;">
             <h3 class="card-title">🔍 QC Pra-Basuhan (Kerosakan Sedia Ada)</h3>
             <div class="row">
@@ -681,8 +642,7 @@ function hantarQcWhatsApp() {
     if (kerosakan.length) msg += kerosakan.map(k => `• ${k}`).join('\n') + '\n';
     if (nota) msg += `Nota: ${nota}\n`;
     msg += `\nSila sahkan sama ada kami teruskan basuhan. Terima kasih.`;
-    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
-
+    bukaWhatsApp(tel, msg);
 }
 function toggleCustType() {
     const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
@@ -813,14 +773,10 @@ function hantarWhatsAppTempahan() {
     if (!tel) { toast('Nombor telefon tiada.'); return; }
     const msg = STATE.lastOrderMsg;
     if (!msg) { toast('Tiada mesej.'); return; }
-    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
-;
+    bukaWhatsApp(tel, msg);
 }
-    // ==================== TRACKING (dengan Lokasi Rak) ====================
-// ===================================================================
-// MODUL TRACKING QR v3.3 (KEMASKINI: DROP-DOWN STATUS TUNGGAL + ANTI-BUG WHATSAPP)
-// ===================================================================
 
+// ==================== TRACKING (dengan Lokasi Rak) ====================
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -997,7 +953,7 @@ async function updateStatuses(qrIds, status) {
     if (master) master.checked = false;
     fetchData(() => executeTrackingSearch(), true);
 }
-// ==================== PEMBAYARAN (dengan Diskaun) ====================
+    // ==================== PEMBAYARAN ====================
 function renderPayment(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1100,8 +1056,7 @@ function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
     if (!tel) return toast('Nombor telefon tidak dijumpai.');
     if (!msg) return toast('Tiada mesej.');
-    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
-
+    bukaWhatsApp(tel, msg);
 }
 
 // ==================== INVOIS & RESIT ====================
@@ -1199,16 +1154,12 @@ async function shareInvoiceWithAttachment() {
             const file = new File([fileBlob], fileName, { type: mimeType });
             await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
             toast('Invois berjaya dikongsi!');
-            setTimeout(() => { const tel = String(data.telefon).replace(/^0+/, ''); const msg = data.msg; const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent); const whatsappUrl = isMobile ? `https://wa.me/60${tel}?text=${encodeURIComponent(msg)}` : `whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`; window.open(whatsappUrl, '_blank'); }, 800);
+            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
             return;
         }
     } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
     try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
-    const tel = String(data.telefon).replace(/^0+/, ''); const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`; const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
-    if (isMobile) { window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
- }
-    else { window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
- setTimeout(() => { window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); }, 2000); }
+    bukaWhatsApp(data.telefon, data.msg);
 }
 
 function downloadInvoicePDF() {
@@ -1223,10 +1174,7 @@ function downloadInvoicePDF() {
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
-    const tel = String(data.telefon).replace(/^0+/, '');
-    const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
-    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
-
+    bukaWhatsApp(data.telefon, data.msg);
 }
 
 // ==================== PELANGGAN (dengan Loyalty) ====================
@@ -1264,7 +1212,6 @@ function renderPelangganList(searchTerm = '') {
         container.innerHTML = '<p class="muted text-center">Tiada pelanggan.</p>';
         return;
     }
-    // Kira mata kesetiaan untuk setiap pelanggan
     const loyaltyMap = {};
     STATE.tempahan.forEach(t => {
         const cid = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
@@ -1420,7 +1367,8 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-    // ==================== PEKERJA (Senarai, Komisen, Runner) ====================
+
+// ==================== PEKERJA ====================
 function renderPekerja(container) {
     container.innerHTML = `
         <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
@@ -1436,7 +1384,6 @@ function renderPekerja(container) {
     switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
 }
 
-// Gaya butang tab pekerja
 const workerTabStyle = `
     .tab-btn {
         padding: 10px 20px;
@@ -1572,7 +1519,6 @@ function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
     
-    // Pilihan pekerja
     let workerOptions = '<option value="">-- Pilih Pekerja --</option>';
     workers.forEach(w => {
         const id = escapeHtml(getField(w, ['ID','WORKER_ID'], ''));
@@ -1580,7 +1526,6 @@ function renderWorkerCommission(container) {
         workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
     });
 
-    // Pilihan QR ID (karpet DALAM PROSES sahaja)
     let qrOptions = '<option value="">-- Pilih QR ID --</option>';
     STATE.karpet.forEach(k => {
         const st = normalize(getField(k, ['STATUS']));
@@ -1590,7 +1535,6 @@ function renderWorkerCommission(container) {
         }
     });
 
-    // Kira komisen bulan semasa
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
     const monthlyKomisen = {};
@@ -1647,7 +1591,6 @@ function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
 
-    // Pilihan pekerja (hanya yang peranan "Runner")
     let workerOptions = '<option value="">-- Pilih Runner --</option>';
     workers.forEach(w => {
         if (getField(w, ['PERANAN'], '') === 'Runner') {
@@ -1657,7 +1600,6 @@ function renderWorkerRunner(container) {
         }
     });
 
-    // Senarai tugasan sedia ada
     let tasksHtml = '';
     if (tasks.length) {
         tasksHtml = `<div class="table-wrap"><table class="data-table">
@@ -1969,8 +1911,8 @@ function simpanGambarStikers() {
         toast('Gambar disimpan.');
     });
 }
-    // ==================== PERBELANJAAN (VERSI BAHARU: CRUD + 2 SHEET) ====================
 
+// ==================== PERBELANJAAN ====================
 function renderExpenses(container) {
     container.innerHTML = `
         <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
@@ -2237,7 +2179,6 @@ function simpanPerbelanjaan() {
         showLoading(false);
         toast(editId ? '✅ Perbelanjaan dikemaskini!' : '✅ Perbelanjaan direkodkan!');
         
-        // Kosongkan borang
         document.getElementById('expenseEditId').value = '';
         document.getElementById('expJenis').value = '';
         document.getElementById('expQty').value = '1';
@@ -2249,7 +2190,6 @@ function simpanPerbelanjaan() {
         document.getElementById('expenseMsg').innerHTML = '';
         kiraAmount();
 
-        // Paksa muat semula data dari GAS dan refresh jadual
         fetchData(function() {
             renderExpenses(document.getElementById('tabContainer'));
         }, false);
@@ -2257,7 +2197,7 @@ function simpanPerbelanjaan() {
         showLoading(false);
         showPriceMsg('expenseMsg', '❌ Gagal simpan.', 'error');
     });
-} // <-- TUTUP FUNGSI DI SINI
+}
 
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
