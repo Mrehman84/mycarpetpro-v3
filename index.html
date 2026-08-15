@@ -584,7 +584,8 @@ function hantarWhatsAppJanji() {
     const preview = document.getElementById('mesejPreviewJanji');
     let msg = preview.textContent;
     if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
-    window.open(`https://wa.me/60${telefon.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+
 }
 
 // ==================== PENJANA INVOIS ====================
@@ -680,7 +681,8 @@ function hantarQcWhatsApp() {
     if (kerosakan.length) msg += kerosakan.map(k => `• ${k}`).join('\n') + '\n';
     if (nota) msg += `Nota: ${nota}\n`;
     msg += `\nSila sahkan sama ada kami teruskan basuhan. Terima kasih.`;
-    window.open(`https://wa.me/60${tel.replace(/[- ]/g,'').replace(/^0+/,'')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+
 }
 function toggleCustType() {
     const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
@@ -731,7 +733,7 @@ function addCarpetRow() {
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
     col4.innerHTML = '<label>Harga (RM)</label>';
     const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
-    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = false; col4.appendChild(price);
     const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
     del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
@@ -811,9 +813,14 @@ function hantarWhatsAppTempahan() {
     if (!tel) { toast('Nombor telefon tiada.'); return; }
     const msg = STATE.lastOrderMsg;
     if (!msg) { toast('Tiada mesej.'); return; }
-    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+;
 }
     // ==================== TRACKING (dengan Lokasi Rak) ====================
+// ===================================================================
+// MODUL TRACKING QR v3.3 (DISUSUN SEMULA)
+// ===================================================================
+
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -842,11 +849,13 @@ function renderTracking(container) {
     document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
     executeTrackingSearch();
 }
+
 function executeTrackingSearch() {
     const tbody = document.getElementById('trackingTableBody');
     tbody.innerHTML = '';
     const selInv = document.getElementById('trackingInvoiceSelect').value;
     const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
+    
     let filtered = STATE.karpet.filter(k => {
         if (!k) return false;
         const st = normalize(getField(k, ['STATUS']));
@@ -857,8 +866,15 @@ function executeTrackingSearch() {
         if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
         return true;
     });
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
+    
+    if (!filtered.length) { 
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; 
+        updateTrackingCheckedCount(); 
+        return; 
+    }
+    
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
+    
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
@@ -867,6 +883,29 @@ function executeTrackingSearch() {
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
         const rak = getField(k, ['RAK'], '');
+        
+        let waButtonHtml = '';
+        if (st === 'READY TO DELIVER') {
+            const rawPhone = String(getField(cust, ['TELEFON'], '')).replace(/[- ]/g, '');
+            const cleanPhone = rawPhone.replace(/^0+/, '');
+            
+            if (cleanPhone) {
+                const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+                            `Assalamualaikum / Salam sejahtera!\n` +
+                            `Kami ingin maklumkan bahawa karpet anda dengan No. Invois *${inv}* sudah siap dan *READY TO DELIVER*!\n\n` +
+                            `📍 Sila hubungi/chat kami untuk menetapkan slot penghantaran.\n` +
+                            `📞 Talian: 017-4050336\n\n` +
+                            `Terima kasih kerana mempercayai perkhidmatan kami! 🙏`;
+                            
+                waButtonHtml = `<br><a href="https://whatsapp.com${cleanPhone}&text=${encodeURIComponent(msg)}" 
+                                  target="_blank" 
+                                  class="btn btn-success" 
+                                  style="margin-top:5px; display:inline-block; padding:2px 6px; font-size:11px; border-radius:4px; color:#fff; text-decoration:none; background-color:#28a745; border:none;">
+                                  💬 Hubungi WA
+                                </a>`;
+            }
+        }
+
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
@@ -874,7 +913,7 @@ function executeTrackingSearch() {
             <td><strong>${escapeHtml(String(getField(cust, ['NAMA'], 'TIADA')))}</strong><br><small>${escapeHtml(String(getField(cust, ['ALAMAT'], '')))}</small></td>
             <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
             <td>${formatMoney(getField(k, ['HARGA']))}</td>
-            <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
+            <td><span class="badge ${badge}">${escapeHtml(st)}</span>${waButtonHtml}</td>
             <td>${escapeHtml(rak) || '-'}</td>
             <td>
                 <button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button>
@@ -884,6 +923,7 @@ function executeTrackingSearch() {
     });
     updateTrackingCheckedCount();
 }
+
 function assignRak(qrId) {
     const rak = prompt('Masukkan kod rak (contoh: RAK-A1):');
     if (!rak) return;
@@ -894,23 +934,51 @@ function assignRak(qrId) {
         executeTrackingSearch();
     });
 }
+
 function toggleSelectAll(masterCheckbox) {
     document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
     updateTrackingCheckedCount();
 }
+
 function updateTrackingCheckedCount() {
     document.getElementById('trackingCheckedCount').textContent = `${document.querySelectorAll('.tracking-row-checkbox:checked').length} item dipilih`;
 }
+
 function updateSingleStatus(qrId) {
     const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
     if (!k) return toast('Karpet tidak dijumpai.');
     const cur = normalize(getField(k, ['STATUS']));
-    const baru = prompt(`Status semasa: ${cur}\nMasukkan status baru:\nDALAM PROSES\nPENGERINGAN\nREADY TO DELIVER\nSELESAI DIHANTAR`, cur);
-    if (!baru) return;
-    const norm = normalize(baru);
-    if (!CONFIG.ACTIVE_STATUSES.includes(norm)) return toast('Status tidak sah.');
-    updateStatuses([qrId], norm);
+
+    const overlay = document.createElement('div');
+    overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;";
+    
+    overlay.innerHTML = `
+        <div class="card" style="width:320px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+            <h3 style="margin-top:0;font-size:16px;margin-bottom:15px;">Kemas Kini Status Tunggal</h3>
+            <p style="font-size:13px;" class="muted">QR ID: <strong>${escapeHtml(qrId)}</strong></p>
+            <div class="form-group">
+                <label>Pilih Status Baharu</label>
+                <select id="singleStatusSelect" class="form-control">
+                    <option value="DALAM PROSES" ${cur === 'DALAM PROSES' ? 'selected' : ''}>DALAM PROSES</option>
+                    <option value="PENGERINGAN" ${cur === 'PENGERINGAN' ? 'selected' : ''}>PENGERINGAN</option>
+                    <option value="READY TO DELIVER" ${cur === 'READY TO DELIVER' ? 'selected' : ''}>READY TO DELIVER</option>
+                    <option value="SELESAI DIHANTAR" ${cur === 'SELESAI DIHANTAR' ? 'selected' : ''}>SELESAI DIHANTAR</option>
+                </select>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+                <button class="btn btn-secondary btn-sm" id="cancelSingleStatusBtn">Batal</button>
+                <button class="btn btn-primary btn-sm" id="saveSingleStatusBtn">Simpan</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('cancelSingleStatusBtn').onclick = () => overlay.remove();
+    document.getElementById('saveSingleStatusBtn').onclick = () => {
+        const selectedStatus = document.getElementById('singleStatusSelect').value;
+        overlay.remove();
+        updateStatuses([qrId], selectedStatus);
+    };
 }
+
 async function submitBatchUpdate() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
@@ -918,6 +986,7 @@ async function submitBatchUpdate() {
     const status = document.getElementById('batchStatusOpt').value;
     await updateStatuses(ids, status);
 }
+
 async function updateStatuses(qrIds, status) {
     showLoading(true);
     await postData({ action: 'updateBatchStatus', qrIds, status });
@@ -927,14 +996,6 @@ async function updateStatuses(qrIds, status) {
     if (master) master.checked = false;
     fetchData(() => executeTrackingSearch(), true);
 }
-
-    <!-- Masukkan kod butiran butang ini di dalam gelung baris jadual index.html anda -->
-<a href="https://whatsapp.com{item.TELEFON || item.telefon}&text=${encodeURIComponent('🧺 *MyCarpetPro*\n\nInvois *' + item.INV_NO + '* READY TO DELIVER!')}" 
-   target="_blank" 
-   class="btn btn-success btn-sm">
-   💬 Hubungi WhatsApp
-</a>
-
 // ==================== PEMBAYARAN (dengan Diskaun) ====================
 function renderPayment(container) {
     const invList = [];
@@ -1038,7 +1099,8 @@ function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
     if (!tel) return toast('Nombor telefon tidak dijumpai.');
     if (!msg) return toast('Tiada mesej.');
-    window.open(`https://wa.me/60${tel.replace(/^0+/, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+
 }
 
 // ==================== INVOIS & RESIT ====================
@@ -1142,8 +1204,10 @@ async function shareInvoiceWithAttachment() {
     } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
     try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
     const tel = String(data.telefon).replace(/^0+/, ''); const msg = data.msg || `Salam ${data.nama}, berikut invois ${data.inv}...`; const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
-    if (isMobile) { window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank'); }
-    else { window.open(`whatsapp://send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); setTimeout(() => { window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); }, 2000); }
+    if (isMobile) { window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+ }
+    else { window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+ setTimeout(() => { window.open(`https://web.whatsapp.com/send?phone=60${tel}&text=${encodeURIComponent(msg)}`, '_blank'); }, 2000); }
 }
 
 function downloadInvoicePDF() {
@@ -1160,7 +1224,8 @@ function hantarWhatsAppInvoice() {
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
     const tel = String(data.telefon).replace(/^0+/, '');
     const msg = data.msg || document.getElementById('invoicePrintArea')?.innerText || '';
-    window.open(`https://wa.me/60${tel}?text=${encodeURIComponent(msg)}`, '_blank');
+    window.open(`https://whatsapp.com{telefon.replace(/^0+/, '')}&text=${encodeURIComponent(msg)}`, '_blank');
+
 }
 
 // ==================== PELANGGAN (dengan Loyalty) ====================
