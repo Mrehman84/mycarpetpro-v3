@@ -1171,7 +1171,8 @@ function removeCarpetRow(rowId) {
     if (document.getElementById('carpetItemsContainer').querySelectorAll('.card-item-row').length <= 1) { toast('Perlu sekurang-kurangnya satu item.'); return; }
     document.getElementById(rowId)?.remove(); calculateGrandTotal();
 }
-async function simpanTempahan() {
+
+    async function simpanTempahan() {
     const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
     let custId, custNama, custTel, custAlamat, custDaerah;
     if (isBaru) {
@@ -1239,8 +1240,9 @@ async function simpanTempahan() {
     document.getElementById('tempahanPreview').classList.remove('hidden');
     document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
-    fetchData(null, true); // refresh UI
+    fetchData(null, true);
 }
+    
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
@@ -1249,34 +1251,77 @@ function hantarWhatsAppTempahan() {
     if (!msg) { toast('Tiada mesej.'); return; }
     bukaWhatsApp(tel, msg);
 }
-
+// Tambah event listener untuk semak telefon pelanggan baru
+const telBaruInput = document.getElementById('custTelBaru');
+if (telBaruInput) {
+    telBaruInput.addEventListener('blur', function() {
+        const phone = this.value.trim().replace(/[- ]/g, '');
+        if (!phone) return;
+        // Cari pelanggan dengan nombor telefon ini
+        const existingCust = STATE.pelanggan.find(c => {
+            const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
+            return normalize(dbPhone) === normalize(phone);
+        });
+        if (existingCust) {
+            const custId = getField(existingCust, ['CUSTOMER ID','CUSTOMER_ID']);
+            const nama = getField(existingCust, ['NAMA'], '-');
+            if (confirm(`Nombor telefon ini telah didaftarkan sebagai ${custId} – ${nama}. Adakah anda mahu guna ID ini? (Klik OK untuk guna, Batal untuk teruskan baru)`)) {
+                // Tukar kepada mod pelanggan sedia ada
+                document.querySelector('input[name="custType"][value="lama"]').checked = true;
+                toggleCustType();
+                // Pilih ID pelanggan dalam dropdown
+                const optPelanggan = document.getElementById('optPelanggan');
+                if (optPelanggan) {
+                    // Cari option dengan ID tersebut
+                    const options = optPelanggan.options;
+                    for (let i = 0; i < options.length; i++) {
+                        if (options[i].value === custId) {
+                            optPelanggan.selectedIndex = i;
+                            loadCustomerDetails();
+                            break;
+                        }
+                    }
+                }
+                toast(`Menggunakan ID ${custId} – ${nama}`);
+                // Kosongkan input pelanggan baru supaya tidak keliru
+                document.getElementById('custNamaBaru').value = '';
+                document.getElementById('custTelBaru').value = '';
+                document.getElementById('custAlamatBaru').value = '';
+                document.getElementById('custDaerahBaru').value = '';
+            } else {
+                toast('Teruskan dengan pendaftaran pelanggan baru.');
+            }
+        }
+    });
+}
 // ==================== PENJANA INVOIS (YYMMDD + SIRI BERMULA 500) ====================
-// ⚠️ INI ADALAH FUNGSI YANG TERTINGGAL – TAMBAH INI DI SINI
-// ==================== PENJANA INVOIS (SIRI GLOBAL BERMULA 500) ====================
+// ==================== PENJANA INVOIS (MENYOKONG FORMAT LAMA & BARU) ====================
 function generateInvoiceNumber() {
     const now = new Date();
-    const yy = String(now.getFullYear()).slice(-2);          // 26
-    const mm = ('0' + (now.getMonth() + 1)).slice(-2);       // 08
-    const dd = ('0' + now.getDate()).slice(-2);              // 20
-    const prefix = yy + mm + dd;                             // "260820"
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = ('0' + (now.getMonth() + 1)).slice(-2);
+    const dd = ('0' + now.getDate()).slice(-2);
+    const prefix = yy + mm + dd; // Contoh: "260820" untuk invois baru
 
-    // Cari siri tertinggi di seluruh sistem (bukan hanya hari ini)
-    let maxSeq = 499; // bermula dari 499 supaya siri pertama 500
+    // Cari siri tertinggi di seluruh sistem
+    let maxSeq = 499; // supaya siri pertama menjadi 500
+
     STATE.tempahan.forEach(t => {
         const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-        // Semak jika invois bermula dengan "INV" dan mempunyai 4 digit siri di hujung
-        // Panjang minimum: INV + 6 digit tarikh + 4 digit siri = 13
-        if (inv.length >= 13 && inv.startsWith('INV')) {
-            // Ambil 4 digit terakhir (siri)
+        // Semak jika invois bermula dengan "INV" - ambil 4 digit terakhir sebagai siri
+        if (inv.startsWith('INV')) {
+            // Ambil 4 digit terakhir (selagi ia berakhir dengan nombor)
             const suffix = parseInt(inv.slice(-4), 10);
             if (!isNaN(suffix) && suffix > maxSeq) {
                 maxSeq = suffix;
             }
         }
     });
+
     const nextSeq = maxSeq + 1;
     return 'INV' + prefix + nextSeq; // Contoh: INV2608200500, INV2608210501...
 }
+
 // ==================== TRACKING (DENGAN KAMERA QR + MANUAL + TORCH + BEEP + OFFLINE QUEUE) ====================
 function renderTracking(container) {
     const invSet = new Set();
