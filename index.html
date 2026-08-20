@@ -320,45 +320,59 @@ function bukaWhatsApp(phone, message) {
 }
 
 // ==================== API (Baharu – Kini menggunakan fetch) ====================
+// === KOD BARU FETCH DATA (ANTI-SANGKUT ANDROID) ===
 async function fetchData(callback, skipRefresh = false) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
     showLoading(true);
+    
+    // TEMPAT MASUKKAN LINK API: Pastikan CONFIG.GAS_API_URL mengandungi url Google Script yang betul
+    // Contoh format url: https://google.com
+    const apiUrl = CONFIG.GAS_API_URL; 
 
     try {
-        // Gantikan JSONP dengan fetch standard – GAS mesti kembalikan JSON tulen
-        const response = await fetch(CONFIG.GAS_API_URL + '?action=readAll', {
+        // Tambah parameter action=readAll secara dinamik
+        const response = await fetch(`${apiUrl}?action=readAll`, {
             method: 'GET',
-            headers: { 'Accept': 'application/json' }
+            mode: 'cors', // Wajib untuk bypass sekatan pelayar Android
+            headers: {
+                'Content-Type': 'application/json'
+            }
         });
-        if (!response.ok) throw new Error('HTTP ' + response.status);
-        const resp = await response.json();
 
+        if (!response.ok) {
+            throw new Error(`Respons pelayan tidak okay: ${response.status}`);
+        }
+
+        const resp = await response.json();
+        
         if (resp && typeof resp === 'object') {
+            // Pemetaan data ke dalam sistem STATE MyCarpet
             STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
             STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
             STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
             STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
-            STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
-            STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
-            STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
-            STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
-            STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
-            STATE.rawExpenses = STATE.expenses;
-
+            STATE.perbelanjaan = Array.isArray(resp.perbelanjaan) ? resp.perbelanjaan : [];
+            STATE.pembayaran = Array.isArray(resp.pembayaran) ? resp.pembayaran : [];
+            STATE.kodPerbelanjaan = Array.isArray(resp.kodPerbelanjaan) ? resp.kodPerbelanjaan : [];
+            STATE.tetapanbank = Array.isArray(resp.tetapanbank) ? resp.tetapanbank : [];
+            
             if (callback) callback();
             if (!skipRefresh) refreshAllUI();
+            console.log("Data berjaya dikemaskini dari Android/Laptop!");
         } else {
-            toast('Data tidak sah.');
+            throw new Error("Format JSON yang diterima tidak sah atau kosong.");
         }
     } catch (e) {
-        console.error("Ralat API pada telefon:", e);
-        toast('Gagal memuatkan data. Sila semak sambungan internet.');
+        console.error("Ralat penuh sistem:", e);
+        // Jika ralat fetch JSON berlaku, sistem akan hantar amaran paparan ke skrin
+        toast(`Ralat Sistem: Gagal memproses data. (${e.message})`);
     } finally {
         showLoading(false);
         STATE.isLoading = false;
     }
 }
+
 
 // Fungsi untuk TULIS data (POST dengan no-cors – elak CORS)
 async function postData(data) {
