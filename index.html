@@ -1202,7 +1202,7 @@ async function simpanTempahan() {
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
-    const invNo = generateInvoiceNumber();
+    const invNo = generateInvoiceNumber(); // ⚠️ FUNGSI INI PERLU ADA
     showLoading(true);
     await postData({ action: 'createOrder', invNo, isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
     showLoading(false);
@@ -1224,6 +1224,29 @@ function hantarWhatsAppTempahan() {
     bukaWhatsApp(tel, msg);
 }
 
+// ==================== PENJANA INVOIS (YYMMDD + SIRI BERMULA 500) ====================
+// ⚠️ INI ADALAH FUNGSI YANG TERTINGGAL – TAMBAH INI DI SINI
+function generateInvoiceNumber() {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);          // 26
+    const mm = ('0' + (now.getMonth() + 1)).slice(-2);       // 08
+    const dd = ('0' + now.getDate()).slice(-2);              // 20
+    const prefix = yy + mm + dd;                             // "260820"
+
+    let maxSeq = 499; // supaya siri pertama jadi 500
+    STATE.tempahan.forEach(t => {
+        const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
+        // Semak invois hari ini: panjang 13 (INV + 6 digit + 4 digit siri)
+        if (inv.length === 13 && inv.startsWith('INV' + prefix)) {
+            const suffix = parseInt(inv.substring(9), 10);   // ambil 4 digit terakhir
+            if (!isNaN(suffix) && suffix > maxSeq) {
+                maxSeq = suffix;
+            }
+        }
+    });
+    const nextSeq = maxSeq + 1;
+    return 'INV' + prefix + nextSeq;  // contoh: INV2608200500, INV2608200501...
+}
 // ==================== TRACKING (DENGAN KAMERA QR + MANUAL + TORCH + BEEP + OFFLINE QUEUE) ====================
 function renderTracking(container) {
     const invSet = new Set();
