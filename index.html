@@ -2261,30 +2261,50 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.log('Service Worker gagal: ', err));
     });
 }
-    // ==================== FUNGSI NAVIGASI MENU GRID ====================
+ // ==================== FUNGSI PEMBETULAN NAVIGASI GRID MENU ====================
+
 function tukarHalamanSistem(pilihanMenu) {
-    // 1. Sembunyikan menu utama
-    document.getElementById('halaman-menu-utama').style.display = 'none';
-    // 2. Panggil switchTab untuk memaparkan modul yang dipilih
-    switchTab(pilihanMenu);
-    // 3. Tutup sidebar jika terbuka di mobile
+    // 1. Sembunyikan panel grid menu utama di hadapan
+    const menuUtama = document.getElementById('halaman-menu-utama');
+    if (menuUtama) menuUtama.style.display = 'none';
+    
+    // 2. Gunakan fungsi asal sistem untuk mengaktifkan modul dan tab yang betul
+    if (typeof switchTab === 'function') {
+        switchTab(pilihanMenu);
+    } else {
+        console.error("Fungsi switchTab tidak ditemui.");
+    }
+    
+    // 3. Tutup menu tepi secara automatik jika peranti berskrin kecil/Android
+    if (typeof toggleSidebar === 'function' && document.body.classList.contains('sidebar-open')) {
+        toggleSidebar(); 
+    }
+}
+
+function kembaliKeMenuUtama() {
+    // 1. Sembunyikan tabContainer atau modul aktif yang sedang dipaparkan
+    const container = document.getElementById('tabContainer');
+    if (container) container.innerHTML = '';
+    
+    // 2. Buang status 'active' pada mana-mana ikon menu tepi supaya tiada kekeliruan
+    if (typeof $$ === 'function') {
+        $$('.menu-item').forEach(el => el.classList.remove('active'));
+    }
+    
+    // 3. Paparkan semula panel Grid Menu Utama di hadapan
+    const menuUtama = document.getElementById('halaman-menu-utama');
+    if (menuUtama) {
+        menuUtama.style.display = 'block';
+    } else {
+        console.error("Elemen halaman-menu-utama tidak dijumpai.");
+    }
+    
+    // 4. Pastikan jika di Android, sidebar tertutup dengan kemas
     if (window.innerWidth <= 992) {
         document.body.classList.remove('sidebar-open');
     }
 }
 
-function kembaliKeMenuUtama() {
-    // Paparkan menu utama, sembunyikan tab
-    document.getElementById('halaman-menu-utama').style.display = 'block';
-    // Kosongkan tabContainer supaya tiada modul kelihatan
-    document.getElementById('tabContainer').innerHTML = '';
-    // Nyahaktifkan menu-item active di sidebar
-    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    // Pastikan sidebar tertutup di mobile
-    if (window.innerWidth <= 992) {
-        document.body.classList.remove('sidebar-open');
-    }
-}
 </script>
 </body>
 </html>
