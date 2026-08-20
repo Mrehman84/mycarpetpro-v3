@@ -743,6 +743,9 @@ function tukarHalamanSistem(pilihanMenu) {
     }
 }
 
+function switchTab(tabId) {
+    console.log('switchTab dipanggil dengan:', tabId);
+    
 function kembaliKeMenuUtama() {
     document.getElementById('halaman-menu-utama').style.display = 'block';
     document.getElementById('tabContainer').innerHTML = '';
@@ -2375,14 +2378,28 @@ function generateBarcodePreview() {
         <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
+   setTimeout(() => {
     carpets.forEach((k, idx) => {
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
-            qrContainer.innerHTML = '';
-            new QRCode(qrContainer, { text: trackingUrl, width: 40, height: 40, colorDark: "#000", colorLight: "#fff", correctLevel: QRCode.CorrectLevel.M });
+            qrContainer.innerHTML = ''; // kosongkan
+            try {
+                new QRCode(qrContainer, {
+                    text: trackingUrl,
+                    width: 40,
+                    height: 40,
+                    colorDark: "#000",
+                    colorLight: "#fff",
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } catch (e) {
+                console.error('Gagal jana QR untuk stiker', idx, e);
+            }
+        } else {
+            console.warn('qr-stiker-' + idx + ' tidak dijumpai');
         }
     });
-}
+}, 50); // delay 50ms
 
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
