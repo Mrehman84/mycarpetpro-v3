@@ -664,7 +664,39 @@ document.getElementById('adminUser').addEventListener('input', function() {
 document.getElementById('adminPass').addEventListener('input', function() {
     this.value = this.value.trim();
 });
-
+// =======================================================================
+document.addEventListener("DOMContentLoaded", function() {
+    const butangTabs = document.querySelectorAll('.login-tab');
+    
+    butangTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            butangTabs.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            document.querySelectorAll('.login-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            const peranan = this.getAttribute('data-role');
+            
+            if (peranan === 'admin') {
+                const borangAdmin = document.getElementById('loginFormAdmin');
+                if (borangAdmin) borangAdmin.classList.add('active');
+            } else if (peranan === 'customer') {
+                const borangCust = document.getElementById('loginFormCustomer');
+                if (borangCust) borangCust.classList.add('active');
+            } else if (peranan === 'appointment') {
+                const borangAppt = document.getElementById('loginFormAppointment');
+                if (borangAppt) {
+                    borangAppt.classList.add('active');
+                    if (typeof renderAppointmentForm === 'function') {
+                        renderAppointmentForm();
+                    }
+                }
+            }
+        });
+    });
+});
 // ==================== APP INIT & SIDEBAR ====================
 function initApp() {
     renderSidebar();
