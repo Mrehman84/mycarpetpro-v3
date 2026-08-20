@@ -1190,9 +1190,12 @@ async function simpanTempahan() {
         STATE.lastCustomer = cust;
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
     }
+
+    // Kumpul item karpet
     const items = []; let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        const sel = row.querySelector('.select-kod-karpet'); if (!sel || !sel.value) { valid = false; return; }
+        const sel = row.querySelector('.select-kod-karpet');
+        if (!sel || !sel.value) { valid = false; return; }
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
         const harga = parseFloat(opt.dataset.harga) || 0;
@@ -1202,10 +1205,33 @@ async function simpanTempahan() {
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
-    const invNo = generateInvoiceNumber(); // ⚠️ FUNGSI INI PERLU ADA
+
+    // ★ PENTING: Muat data terkini dari GAS sebelum menjana invois
     showLoading(true);
-    await postData({ action: 'createOrder', invNo, isNewCustomer: isBaru, customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah }, items, total, tarikhAmbil: today, tarikhSiap });
+    await new Promise((resolve) => {
+        fetchData(() => {
+            resolve();
+        }, true);
+    });
     showLoading(false);
+
+    // Sekarang STATE.tempahan sudah dikemaskini, jana invois
+    const invNo = generateInvoiceNumber();
+
+    // Hantar tempahan ke GAS
+    showLoading(true);
+    await postData({
+        action: 'createOrder',
+        invNo,
+        isNewCustomer: isBaru,
+        customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
+        items,
+        total,
+        tarikhAmbil: today,
+        tarikhSiap
+    });
+    showLoading(false);
+
     toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
     const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
     const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 *No Invoice:* ${invNo}\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n💰 *Jumlah Harga:* *${formatMoney(total)}*\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
@@ -1213,7 +1239,7 @@ async function simpanTempahan() {
     document.getElementById('tempahanPreview').classList.remove('hidden');
     document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
-    fetchData(null, true);
+    fetchData(null, true); // refresh UI
 }
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
