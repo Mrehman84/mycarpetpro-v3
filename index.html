@@ -2347,11 +2347,14 @@ function generateBarcodePreview() {
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
 
+    // ★ Takrifkan trackingUrl di sini, di luar gelung
+    const trackingUrl = `https://mycarpetpro-v3.onrender.com/?phone=${encodeURIComponent(telefon)}`;
+
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
         const kod = String(getField(k, ['KOD'], '')).trim();
-       const trackingUrl = `https://mycarpetpro-v3.onrender.com/?phone=${encodeURIComponent(telefon)}`;
+        // BUANG baris const trackingUrl = ... dari sini
         stikersHTML += `
             <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
                 <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
@@ -2374,29 +2377,28 @@ function generateBarcodePreview() {
         <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
-   setTimeout(() => {
-    carpets.forEach((k, idx) => {
-        const qrContainer = document.getElementById(`qr-stiker-${idx}`);
-        if (qrContainer) {
-            qrContainer.innerHTML = ''; // kosongkan
-            try {
-                new QRCode(qrContainer, {
-                    text: trackingUrl,
-                    width: 40,
-                    height: 40,
-                    colorDark: "#000",
-                    colorLight: "#fff",
-                    correctLevel: QRCode.CorrectLevel.M
-                });
-            } catch (e) {
-                console.error('Gagal jana QR untuk stiker', idx, e);
+    setTimeout(() => {
+        carpets.forEach((k, idx) => {
+            const qrContainer = document.getElementById(`qr-stiker-${idx}`);
+            if (qrContainer) {
+                qrContainer.innerHTML = '';
+                try {
+                    new QRCode(qrContainer, {
+                        text: trackingUrl, // ✅ trackingUrl kini wujud
+                        width: 40,
+                        height: 40,
+                        colorDark: "#000",
+                        colorLight: "#fff",
+                        correctLevel: QRCode.CorrectLevel.M
+                    });
+                } catch (e) {
+                    console.error('Gagal jana QR untuk stiker', idx, e);
+                }
+            } else {
+                console.warn('qr-stiker-' + idx + ' tidak dijumpai');
             }
-        } else {
-            console.warn('qr-stiker-' + idx + ' tidak dijumpai');
-        }
-    });
-}, 50); // delay 50ms
-
+        });
+    }, 50);
 }
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
