@@ -736,15 +736,11 @@ function switchTab(tabId) {
 
 // ==================== NAVIGASI MENU GRID ====================
 function tukarHalamanSistem(pilihanMenu) {
+    console.log('📌 tukarHalamanSistem dipanggil dengan:', pilihanMenu);
     document.getElementById('halaman-menu-utama').style.display = 'none';
     switchTab(pilihanMenu);
-    if (window.innerWidth <= 992) {
-        document.body.classList.remove('sidebar-open');
-    }
+    if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-
-function switchTab(tabId) {
-    console.log('switchTab dipanggil dengan:', tabId);
     
 function kembaliKeMenuUtama() {
     document.getElementById('halaman-menu-utama').style.display = 'block';
