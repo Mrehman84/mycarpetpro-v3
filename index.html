@@ -14,6 +14,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Tambahan pustaka OCR & QR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -268,6 +271,58 @@
             display: inline-block;
             margin-bottom: 15px;
         }
+
+        /* ★ GAYA UNTUK KAMERA / OCR ★ */
+        .camera-preview {
+            width: 100%;
+            max-width: 480px;
+            background: #000;
+            border-radius: var(--radius);
+            margin-top: 10px;
+            display: none;
+        }
+        .camera-preview video, .camera-preview canvas {
+            width: 100%;
+            border-radius: var(--radius);
+        }
+        .ocr-camera-box {
+            margin: 10px 0;
+        }
+        .btn-scan-resit {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #2196F3;
+            color: #fff;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .btn-scan-resit:hover { background: #1976D2; }
+        .torch-btn {
+            margin-left: 8px;
+        }
+        .scan-status {
+            margin-top: 8px;
+            font-weight: 600;
+            color: #2196F3;
+        }
+        .manual-delivery-btn {
+            background: #ff9800;
+            color: #fff;
+        }
+        .manual-delivery-btn:hover { background: #f57c00; }
+        .watermark-preview {
+            max-width: 100%;
+            border-radius: var(--radius);
+            margin-top: 10px;
+            display: none;
+        }
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -370,7 +425,7 @@
 
 <!-- =============== MULA SCRIPT =============== -->
 <script>
-    // ==================== CONFIG & STATE ====================
+// ==================== CONFIG & STATE ====================
 const CONFIG = {
     GAS_API_URL: "https://script.google.com/macros/s/AKfycbxB8-ENhS_pe4I1Uw5ulQZA-fiXJ2hBbIIKI_yOel_5OwG1YGEof6k1TILpVP0OOlMd/exec",
     FINANCE_GAS_URL: "https://script.google.com/macros/s/AKfycbyJ2T-3MApoYIAjwLcOo4xLHV2h6CGzOOGmCkMa8J-17jhmh2n3UBp7_jhhoIeJzhO8oA/exec",
@@ -380,7 +435,8 @@ let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
     pekerja: [], komisen: [], runnerTugasan: [], expenses: [], rawExpenses: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
-    paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
+    paymentWhatsAppMsg: '', paymentWhatsAppTel: '',
+    offlineQueue: []  // untuk simpan status yang tertunda
 };
 
 // ==================== HELPERS ====================
@@ -539,7 +595,6 @@ function logout() {
     document.getElementById('loginError').classList.add('hidden');
 }
 
-// Tambah event listener untuk trim ruang kosong
 document.getElementById('adminUser').addEventListener('input', function() {
     this.value = this.value.trim();
 });
@@ -551,9 +606,9 @@ document.getElementById('adminPass').addEventListener('input', function() {
 function initApp() {
     renderSidebar();
     fetchData(() => {
-        // Default ke menu utama untuk admin
         const defaultTab = STATE.currentUser.role === 'admin' ? 'menu' : 'customer-portal';
         switchTab(defaultTab);
+        loadOfflineQueue(); // muat queue jika ada
     });
 }
 function renderSidebar() {
@@ -582,26 +637,23 @@ function renderSidebar() {
     });
 }
 
-// ==================== SWITCH TAB (DIUBAH UNTUK MENU) ====================
+// ==================== SWITCH TAB ====================
 function switchTab(tabId) {
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
     if (activeMenu) activeMenu.classList.add('active');
     
     const container = document.getElementById('tabContainer');
-    container.innerHTML = ''; // Kosongkan kandungan
+    container.innerHTML = '';
 
-    // Jika tabId = 'menu', paparkan menu utama dan keluar
     if (tabId === 'menu') {
         document.getElementById('halaman-menu-utama').style.display = 'block';
         if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
         return;
     } else {
-        // Sembunyikan menu utama jika sedang dipaparkan
         document.getElementById('halaman-menu-utama').style.display = 'none';
     }
 
-    // Teruskan logik asal
     if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
@@ -616,29 +668,22 @@ function switchTab(tabId) {
     else if (tabId === 'expenses') renderExpenses(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
 
-    // Tutup sidebar di mobile
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-    // ==================== NAVIGASI MENU GRID ====================
+
+// ==================== NAVIGASI MENU GRID ====================
 function tukarHalamanSistem(pilihanMenu) {
-    // Sembunyikan menu utama
     document.getElementById('halaman-menu-utama').style.display = 'none';
-    // Panggil switchTab untuk memaparkan modul
     switchTab(pilihanMenu);
-    // Tutup sidebar jika terbuka di mobile
     if (window.innerWidth <= 992) {
         document.body.classList.remove('sidebar-open');
     }
 }
 
 function kembaliKeMenuUtama() {
-    // Paparkan menu utama
     document.getElementById('halaman-menu-utama').style.display = 'block';
-    // Kosongkan tabContainer
     document.getElementById('tabContainer').innerHTML = '';
-    // Nyahaktifkan menu-item active di sidebar
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    // Pastikan sidebar tertutup di mobile
     if (window.innerWidth <= 992) {
         document.body.classList.remove('sidebar-open');
     }
@@ -668,26 +713,154 @@ function renderDashboard(container) {
         </tbody></table></div></div>`;
 }
 
-// ==================== CUSTOMER PORTAL ====================
+// ==================== CUSTOMER PORTAL (DUA TAB) ====================
 function renderCustomerPortal(container) {
-    const custId = STATE.currentUser.customerId;
-    const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
-    const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>Status Karpet Saya</h1><p class="muted">Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p></div></header>
+        <header><div><h1>Portal Pelanggan</h1><p class="muted">Semak status karpet atau mohon temujanji</p></div></header>
         <div class="card">
-            ${carpets.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
-                ${carpets.map(k => {
-                    const st = normalize(getField(k,['STATUS']));
-                    const badge = st==='READY TO DELIVER'?'badge-ready':(st==='SELESAI'||st==='SELESAI DIHANTAR')?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
-                    return `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
-                }).join('')}
-            </tbody></table></div>` : '<p class="muted">Anda tiada karpet dalam sistem.</p>'}
-        </div>`;
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="cust-status" onclick="switchCustomerTab('cust-status', this)">📦 Semak Status</button>
+                <button class="tab-btn" data-tab="cust-appointment" onclick="switchCustomerTab('cust-appointment', this)">📅 Mohon Temujanji</button>
+            </div>
+            <div id="customerTabContent"></div>
+        </div>
+    `;
+    // Default to status tab
+    switchCustomerTab('cust-status', document.querySelector('.tab-btn.active'));
 }
 
-// ==================== TEMUJANJI ====================
+// Gaya tab untuk customer
+const custTabStyle = `
+    .tab-btn {
+        padding: 10px 20px;
+        border: none;
+        background: none;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        color: var(--text-muted);
+        border-bottom: 2px solid transparent;
+        transition: .2s;
+    }
+    .tab-btn.active {
+        color: var(--primary-red);
+        border-bottom-color: var(--primary-red);
+    }
+`;
+if (!document.getElementById('custTabStyles')) {
+    const styleTag = document.createElement('style');
+    styleTag.id = 'custTabStyles';
+    styleTag.textContent = custTabStyle;
+    document.head.appendChild(styleTag);
+}
+
+function switchCustomerTab(tabId, btn) {
+    document.querySelectorAll('#customerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const content = document.getElementById('customerTabContent');
+    if (tabId === 'cust-status') renderCustomerStatus(content);
+    else if (tabId === 'cust-appointment') renderCustomerAppointment(content);
+}
+
+// ---------- TAB 1: SEMAK STATUS ----------
+function renderCustomerStatus(container) {
+    const isLoggedIn = STATE.currentUser && STATE.currentUser.role === 'customer';
+    const phone = isLoggedIn ? STATE.currentUser.telefon : '';
+    container.innerHTML = `
+        <div class="row">
+            <div class="col form-group">
+                <label>Nombor Telefon</label>
+                <input type="tel" id="custStatusPhone" class="form-control" placeholder="60123456789" value="${phone}">
+            </div>
+        </div>
+        <button class="btn btn-success" onclick="semakStatusPelanggan()"><i class="fa-solid fa-search"></i> Semak Status</button>
+        <div id="statusResult" class="mt-16"></div>
+    `;
+}
+
+function semakStatusPelanggan() {
+    const phone = document.getElementById('custStatusPhone').value.trim().replace(/[- ]/g, '');
+    if (!phone) { toast('Sila masukkan nombor telefon.'); return; }
+    const cust = STATE.pelanggan.find(c => {
+        const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
+        return normalize(dbPhone) === normalize(phone);
+    });
+    if (!cust) {
+        document.getElementById('statusResult').innerHTML = '<p class="muted">Nombor telefon tidak dijumpai. Sila daftar di kedai.</p>';
+        return;
+    }
+    const custId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID']);
+    const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
+    const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
+    // Filter out SELESAI DIHANTAR
+    const activeCarpets = carpets.filter(k => normalize(getField(k,['STATUS'])) !== 'SELESAI DIHANTAR');
+    if (!activeCarpets.length) {
+        document.getElementById('statusResult').innerHTML = '<p class="muted">Tiada karpet yang sedang dalam proses.</p>';
+        return;
+    }
+    let html = '<div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>';
+    activeCarpets.forEach(k => {
+        const st = normalize(getField(k,['STATUS']));
+        const badge = st==='READY TO DELIVER'?'badge-ready':st==='SELESAI DIHANTAR'?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+        html += `<tr><td><strong>${escapeHtml(getField(k,['QR ID','QR_ID']))}</strong></td><td>${escapeHtml(getField(k,['INV NO','INV_NO']))}</td><td>${escapeHtml(getField(k,['JENIS','JENIS CARPET']))}</td><td>${formatMoney(getField(k,['HARGA']))}</td><td>${escapeHtml(String(getField(k,['TARIKH'],'')).split('T')[0]||'-')}</td><td><span class="badge ${badge}">${escapeHtml(st)}</span></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    document.getElementById('statusResult').innerHTML = html;
+}
+
+// ---------- TAB 2: MOHON TEMUJANJI (WhatsApp ke Admin) ----------
+function renderCustomerAppointment(container) {
+    container.innerHTML = `
+        <h3 class="card-title">Mohon Temujanji Ambil Karpet</h3>
+        <p class="muted">Isi butiran di bawah, dan mesej akan dihantar ke pihak kami.</p>
+        <div class="row">
+            <div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="custApptNama" class="form-control" placeholder="Nama pelanggan"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="custApptTelefon" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="form-group"><label>Alamat Pengambilan</label><textarea id="custApptAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea></div>
+        <div class="row">
+            <div class="col form-group"><label>Tarikh Ambil</label><input type="date" id="custApptTarikh" class="form-control"></div>
+            <div class="col form-group"><label>Masa Ambil</label><input type="time" id="custApptMasa" class="form-control"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-primary" onclick="janaMesejApptPelanggan()"><i class="fa-regular fa-copy"></i> Salin Mesej</button>
+            <button class="btn btn-whatsapp" onclick="hantarWhatsAppApptPelanggan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke Admin</button>
+        </div>
+        <div id="apptPreview" class="wa-preview hidden mt-16"></div>
+    `;
+    document.getElementById('custApptTarikh').value = getToday();
+}
+
+function janaMesejApptPelanggan() {
+    const nama = document.getElementById('custApptNama').value.trim();
+    const alamat = document.getElementById('custApptAlamat').value.trim();
+    const tarikh = document.getElementById('custApptTarikh').value;
+    const masa = document.getElementById('custApptMasa').value;
+    if (!nama || !alamat || !tarikh || !masa) {
+        toast('Sila lengkapkan semua maklumat.');
+        return;
+    }
+    const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan: ${nama}\nMohon slot janji temu untuk pengambilan karpet:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila sahkan slot ini. Terima kasih! 🙏`;
+    document.getElementById('apptPreview').textContent = msg;
+    document.getElementById('apptPreview').classList.remove('hidden');
+    navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
+}
+
+function hantarWhatsAppApptPelanggan() {
+    const telefon = document.getElementById('custApptTelefon').value.trim().replace(/[- ]/g, '');
+    if (!telefon) { toast('Sila masukkan nombor telefon untuk dihubungi.'); return; }
+    const preview = document.getElementById('apptPreview');
+    let msg = preview.textContent;
+    if (!msg || preview.classList.contains('hidden')) {
+        janaMesejApptPelanggan();
+        msg = preview.textContent;
+    }
+    // Hantar ke admin 0174050336
+    bukaWhatsApp('0174050336', msg);
+}
+
+// ==================== TEMUJANJI (ADMIN) ====================
 function renderTemujanji(container) {
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
@@ -717,6 +890,7 @@ function hantarWhatsAppJanji() {
     if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
     bukaWhatsApp(telefon, msg);
 }
+
 
 // ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
@@ -927,7 +1101,7 @@ function hantarWhatsAppTempahan() {
     bukaWhatsApp(tel, msg);
 }
 
-// ==================== TRACKING ====================
+// ==================== TRACKING (DENGAN KAMERA QR + MANUAL + TORCH + BEEP + OFFLINE QUEUE) ====================
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -949,131 +1123,382 @@ function renderTracking(container) {
         <header><div><h1>Tracking QR</h1><p class="muted">Karpet aktif (kecuali Selesai Dihantar)</p></div></header>
         <div class="card">
             <div class="form-group"><label>Cari No. Invois / Alamat</label><select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select></div>
-            <div class="row"><div class="col form-group"><label>Cari QR ID</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1"></div><div class="col form-group"><label>Status Baharu (Pukal)</label><select id="batchStatusOpt" class="form-control"><option value="DALAM PROSES">DALAM PROSES</option><option value="PENGERINGAN">PENGERINGAN</option><option value="READY TO DELIVER">READY TO DELIVER</option><option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option></select></div></div>
-            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;"><div><strong id="trackingCheckedCount">0 item dipilih</strong></div><button class="btn btn-primary btn-sm" onclick="submitBatchUpdate()"><i class="fa-solid fa-save"></i> Kemas Kini Pukal</button></div>
+            <div class="row">
+                <div class="col form-group"><label>Cari QR ID</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="26080500-1"></div>
+                <div class="col form-group"><label>Status Baharu (Pukal)</label><select id="batchStatusOpt" class="form-control"><option value="DALAM PROSES">DALAM PROSES</option><option value="PENGERINGAN">PENGERINGAN</option><option value="READY TO DELIVER">READY TO DELIVER</option><option value="SELESAI DIHANTAR">SELESAI DIHANTAR</option></select></div>
+            </div>
+            <div class="flex-between" style="background:var(--bg-light);padding:12px;border-radius:8px;margin-bottom:16px;">
+                <div><strong id="trackingCheckedCount">0 item dipilih</strong></div>
+                <div class="camera-controls">
+                    <button class="btn btn-primary btn-sm" onclick="openQRScanner()"><i class="fa-solid fa-qrcode"></i> Scan QR</button>
+                    <button class="btn manual-delivery-btn btn-sm" onclick="manualDelivery()"><i class="fa-solid fa-check"></i> Selesai Hantar (Manual)</button>
+                    <button class="btn btn-secondary btn-sm torch-btn" onclick="toggleTorch()"><i class="fa-solid fa-lightbulb"></i> Lampu</button>
+                </div>
+            </div>
+            <div id="cameraPreview" class="camera-preview"><video id="qrVideo" autoplay playsinline></video></div>
+            <div id="scanStatus" class="scan-status"></div>
             <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Rak</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="8" class="text-center muted">Tiada data</td></tr></tbody></table></div>
         </div>`;
     document.getElementById('trackingInvoiceSelect').addEventListener('change', executeTrackingSearch);
     document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
     executeTrackingSearch();
 }
-function executeTrackingSearch() {
-    const tbody = document.getElementById('trackingTableBody');
-    tbody.innerHTML = '';
-    const selInv = document.getElementById('trackingInvoiceSelect').value;
-    const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
-    let filtered = STATE.karpet.filter(k => {
-        if (!k) return false;
-        const st = normalize(getField(k, ['STATUS']));
-        if (st === 'SELESAI DIHANTAR') return false;
-        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
-        const qr = String(getField(k, ['QR ID','QR_ID'], '')).trim();
-        if (selInv && normalize(inv) !== normalize(selInv)) return false;
-        if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
-        return true;
-    });
-    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
-    filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
-    filtered.forEach(k => {
-        const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
-        const qr = String(getField(k, ['QR ID','QR_ID'])).trim();
-        const st = normalize(getField(k, ['STATUS']));
-        const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
-        const rak = getField(k, ['RAK'], '');
-        let waButtonHtml = '';
-        if (st === 'READY TO DELIVER') {
-            const rawPhone = String(getField(cust, ['TELEFON'], '')).replace(/[- ]/g, '');
-            const cleanPhone = rawPhone.replace(/^0+/, '');
-            if (cleanPhone) {
-                const waNumber = cleanPhone.startsWith('60') ? cleanPhone : '60' + cleanPhone;
-                const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nAssalamualaikum / Salam sejahtera!\nKami ingin maklumkan bahawa karpet anda dengan No. Invois *${inv}* sudah siap dan *READY TO DELIVER*!\n\n📍 Sila hubungi/chat kami untuk menetapkan slot penghantaran.\n📞 Talian: 017-4050336\n\nTerima kasih kerana mempercayai perkhidmatan kami! 🙏`;
-                waButtonHtml = `<br><a href="https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}" target="_blank" class="btn btn-success" style="margin-top:5px; display:inline-block; padding:2px 6px; font-size:11px; border-radius:4px; color:#fff; text-decoration:none; background-color:#28a745; border:none;">💬 Hubungi WA</a>`;
-            }
+
+let qrScannerStream = null;
+
+function openQRScanner() {
+    const video = document.getElementById('qrVideo');
+    const preview = document.getElementById('cameraPreview');
+    const status = document.getElementById('scanStatus');
+    if (!video) return;
+    preview.style.display = 'block';
+    status.innerText = 'Membuka kamera...';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+            qrScannerStream = stream;
+            video.srcObject = stream;
+            video.play();
+            status.innerText = 'Scan QR...';
+            scanQRContinuously();
+        })
+        .catch(err => {
+            status.innerText = 'Gagal buka kamera: ' + err.message;
+        });
+}
+
+function scanQRContinuously() {
+    const video = document.getElementById('qrVideo');
+    const status = document.getElementById('scanStatus');
+    if (!video || video.paused || !qrScannerStream) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
+    if (code && code.data) {
+        // code.data diharapkan adalah QR ID
+        const qrId = code.data.trim();
+        status.innerText = 'QR dijumpai: ' + qrId;
+        // Cari karpet dengan QR ID
+        const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+        if (k) {
+            // Tukar status ke SELESAI DIHANTAR
+            updateStatuses([qrId], 'SELESAI DIHANTAR');
+            playBeep();
+            // Tutup kamera
+            closeQRScanner();
+        } else {
+            status.innerText = 'QR ID tidak dijumpai dalam sistem.';
         }
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
-            <td><strong>${escapeHtml(qr)}</strong><br><small>${escapeHtml(inv)}</small></td>
-            <td><strong>${escapeHtml(String(getField(cust, ['NAMA'], 'TIADA')))}</strong><br><small>${escapeHtml(String(getField(cust, ['ALAMAT'], '')))}</small></td>
-            <td>${escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'])))}</td>
-            <td>${formatMoney(getField(k, ['HARGA']))}</td>
-            <td><span class="badge ${badge}">${escapeHtml(st)}</span>${waButtonHtml}</td>
-            <td>${escapeHtml(rak) || '-'}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${escapeHtml(qr)}')"><i class="fa-solid fa-edit"></i></button>
-                ${st === 'READY TO DELIVER' ? `<button class="btn btn-info btn-sm" onclick="assignRak('${escapeHtml(qr)}')"><i class="fa-solid fa-box-archive"></i> Rak</button>` : ''}
-            </td>`;
-        tbody.appendChild(tr);
-    });
-    updateTrackingCheckedCount();
+    } else {
+        requestAnimationFrame(scanQRContinuously);
+    }
 }
-function assignRak(qrId) {
-    const rak = prompt('Masukkan kod rak (contoh: RAK-A1):');
-    if (!rak) return;
-    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
-    if (k) k['RAK'] = rak;
-    postData({ action: 'updateRak', qrId: qrId, rak: rak }).then(() => {
-        toast('Rak disimpan!');
-        executeTrackingSearch();
-    });
+
+function closeQRScanner() {
+    if (qrScannerStream) {
+        qrScannerStream.getTracks().forEach(track => track.stop());
+        qrScannerStream = null;
+    }
+    document.getElementById('cameraPreview').style.display = 'none';
+    document.getElementById('scanStatus').innerText = '';
 }
-function toggleSelectAll(masterCheckbox) {
-    document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
-    updateTrackingCheckedCount();
-}
-function updateTrackingCheckedCount() {
-    document.getElementById('trackingCheckedCount').textContent = `${document.querySelectorAll('.tracking-row-checkbox:checked').length} item dipilih`;
-}
-function updateSingleStatus(qrId) {
-    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
-    if (!k) return toast('Karpet tidak dijumpai.');
-    const cur = normalize(getField(k, ['STATUS']));
-    const overlay = document.createElement('div');
-    overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;";
-    overlay.innerHTML = `
-        <div class="card" style="width:320px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
-            <h3 style="margin-top:0;font-size:16px;margin-bottom:15px;">Kemas Kini Status Tunggal</h3>
-            <p style="font-size:13px;" class="muted">QR ID: <strong>${escapeHtml(qrId)}</strong></p>
-            <div class="form-group">
-                <label>Pilih Status Baharu</label>
-                <select id="singleStatusSelect" class="form-control">
-                    <option value="DALAM PROSES" ${cur === 'DALAM PROSES' ? 'selected' : ''}>DALAM PROSES</option>
-                    <option value="PENGERINGAN" ${cur === 'PENGERINGAN' ? 'selected' : ''}>PENGERINGAN</option>
-                    <option value="READY TO DELIVER" ${cur === 'READY TO DELIVER' ? 'selected' : ''}>READY TO DELIVER</option>
-                    <option value="SELESAI DIHANTAR" ${cur === 'SELESAI DIHANTAR' ? 'selected' : ''}>SELESAI DIHANTAR</option>
-                </select>
-            </div>
-            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
-                <button class="btn btn-secondary btn-sm" id="cancelSingleStatusBtn">Batal</button>
-                <button class="btn btn-primary btn-sm" id="saveSingleStatusBtn">Simpan</button>
-            </div>
-        </div>`;
-    document.body.appendChild(overlay);
-    document.getElementById('cancelSingleStatusBtn').onclick = () => overlay.remove();
-    document.getElementById('saveSingleStatusBtn').onclick = () => {
-        const selectedStatus = document.getElementById('singleStatusSelect').value;
-        overlay.remove();
-        updateStatuses([qrId], selectedStatus);
-    };
-}
-async function submitBatchUpdate() {
+
+function manualDelivery() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
-    if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
+    if (!checkboxes.length) {
+        toast('Sila pilih item yang hendak ditandakan selesai dihantar.');
+        return;
+    }
     const ids = Array.from(checkboxes).map(cb => cb.value);
-    const status = document.getElementById('batchStatusOpt').value;
-    await updateStatuses(ids, status);
+    // Semak sama ada semua item masih aktif (bukan SELESAI DIHANTAR)
+    const validIds = ids.filter(id => {
+        const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === id);
+        return k && normalize(getField(k, ['STATUS'])) !== 'SELESAI DIHANTAR';
+    });
+    if (!validIds.length) {
+        toast('Item yang dipilih sudah selesai dihantar.');
+        return;
+    }
+    if (!confirm('Anda pasti ingin menandakan ' + validIds.length + ' item sebagai SELESAI DIHANTAR?')) return;
+    // Gunakan offline queue jika tiada internet
+    if (!navigator.onLine) {
+        saveToOfflineQueue(validIds, 'SELESAI DIHANTAR');
+        toast('Disimpan dalam offline queue. Akan dihantar bila internet pulih.');
+        // Refresh UI
+        executeTrackingSearch();
+        return;
+    }
+    updateStatuses(validIds, 'SELESAI DIHANTAR');
+    playBeep();
 }
-async function updateStatuses(qrIds, status) {
-    showLoading(true);
-    await postData({ action: 'updateBatchStatus', qrIds, status });
-    showLoading(false);
-    toast('Status dikemas kini.');
-    const master = document.getElementById('trackingMasterCheck');
-    if (master) master.checked = false;
-    fetchData(() => executeTrackingSearch(), true);
+
+// ==================== FUNGSI KAMERA / OCR / TORCH / BEEP / WATERMARK / OFFLINE ====================
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 800;
+        osc.connect(ctx.destination);
+        osc.start();
+        setTimeout(() => { osc.stop(); }, 200);
+    } catch (e) { console.warn('Beep gagal:', e); }
 }
+
+let torchOn = false;
+async function toggleTorch() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        const track = stream.getVideoTracks()[0];
+        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+        if (capabilities.torch) {
+            await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
+            torchOn = !torchOn;
+            toast('Lampu suluh ' + (torchOn ? 'ON' : 'OFF'));
+        } else {
+            toast('Peranti tidak menyokong lampu suluh.');
+        }
+        stream.getTracks().forEach(t => t.stop());
+    } catch (e) {
+        toast('Gagal kawal lampu: ' + e.message);
+    }
+}
+
+function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                } else {
+                    if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+function addWatermark(imageBlob, invNo, customerName, date) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.fillRect(10, 10, 300, 60);
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 20px Inter';
+            ctx.fillText('MYCARPET PRO', 20, 40);
+            ctx.font = '14px Inter';
+            ctx.fillText('Inv: ' + invNo + ' | ' + customerName, 20, 65);
+            ctx.fillText('Tarikh: ' + date, 20, 85);
+            canvas.toBlob((blob) => resolve(blob), 'image/jpeg');
+        };
+        img.src = URL.createObjectURL(imageBlob);
+    });
+}
+
+// ==================== OCR RESIT (DI EXPENSES) ====================
+function renderExpenses(container) {
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
+        <div class="card" id="expenseFormContainer">
+            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
+            <input type="hidden" id="expenseEditId">
+            <div class="row">
+                <div class="col form-group">
+                    <label>Tarikh</label>
+                    <input type="date" id="expDate" class="form-control" value="${getToday()}">
+                </div>
+                <div class="col form-group">
+                    <label>Bayar Melalui</label>
+                    <select id="expBayar" class="form-control">
+                        <option value="MAYBANK">MAYBANK</option>
+                        <option value="TUNAI">TUNAI</option>
+                        <option value="HONG LEONG">HONG LEONG</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Jenis Barang</label>
+                    <input type="text" id="expJenis" class="form-control" placeholder="cth: BIL INTERNET" oninput="autoKodPerbelanjaan()">
+                </div>
+                <div class="col form-group">
+                    <label>Kod Perbelanjaan</label>
+                    <select id="expKod" class="form-control">
+                        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
+                        <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
+                        <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
+                        <option value="5-4000 UPAH DAN KOMISEN KRU">5-4000 UPAH DAN KOMISEN KRU</option>
+                        <option value="5-5000 KOS SUB-KONTRAK">5-5000 KOS SUB-KONTRAK</option>
+                        <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
+                        <option value="6-1200 KOMISEN AGEN JUALAN">6-1200 KOMISEN AGEN JUALAN</option>
+                        <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
+                        <option value="6-2200 INSURANS DAN CUKAI JALAN">6-2200 INSURANS DAN CUKAI JALAN</option>
+                        <option value="6-3100 SEWA PREMIS DAN STOR">6-3100 SEWA PREMIS DAN STOR</option>
+                        <option value="6-3200 ELEKTRIK DAN AIR (UTILITI)">6-3200 ELEKTRIK DAN AIR (UTILITI)</option>
+                        <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
+                        <option value="6-3400 GAJI TETAP PENTADBIRAN">6-3400 GAJI TETAP PENTADBIRAN</option>
+                        <option value="6-3500 ALAT TULIS DAN PEJABAT">6-3500 ALAT TULIS DAN PEJABAT</option>
+                        <option value="6-3600 PERALATAN DAN ALAT GANTI KECIL">6-3600 PERALATAN DAN ALAT GANTI KECIL</option>
+                        <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
+                        <option value="6-4200 YURAN GERBANG KAWALAN">6-4200 YURAN GERBANG KAWALAN</option>
+                        <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
+                        <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Kuantiti</label>
+                    <input type="number" id="expQty" class="form-control" min="1" value="1" oninput="kiraAmount()">
+                </div>
+                <div class="col form-group">
+                    <label>Harga Seunit (RM)</label>
+                    <input type="number" id="expPrice" class="form-control" min="0" step="0.01" value="0.00" oninput="kiraAmount()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Jumlah (RM) <small>(dikira automatik)</small></label>
+                <input type="text" id="expAmount" class="form-control" readonly style="font-weight:700;">
+            </div>
+            <div class="form-group">
+                <label>Butiran / No Resit</label>
+                <input type="text" id="expButiran" class="form-control" placeholder="No Resit: 54747">
+            </div>
+            <div class="row">
+                <div class="col form-group">
+                    <label>Pembekal</label>
+                    <input type="text" id="expPembekal" class="form-control" placeholder="cth: TESHEM TRADING">
+                </div>
+                <div class="col form-group">
+                    <label>Catatan</label>
+                    <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
+                </div>
+            </div>
+            <div class="ocr-camera-box">
+                <label class="btn-scan-resit">📸 Imbas Resit (OCR) <input type="file" accept="image/*" capture="environment" id="inputKameraResit" onchange="prosesOcrResit(event)" style="display:none;"></label>
+                <div id="statusOcr" class="scan-status"></div>
+            </div>
+            <button class="btn btn-primary" onclick="simpanPerbelanjaan()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
+            <div id="expenseMsg" class="mt-16"></div>
+        </div>
+        <div class="card">
+            <h3 class="card-title">Senarai Perbelanjaan</h3>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Tarikh</th><th>Bayar</th><th>Jenis</th><th>Jumlah</th><th>Tindakan</th></tr></thead>
+                    <tbody id="expenseTableBody">
+                        ${buildExpenseRows()}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    kiraAmount();
+}
+
+async function prosesOcrResit(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('statusOcr');
+    statusEl.innerText = "🔄 AI sedang membaca resit...";
+    try {
+        // Kompres gambar dahulu
+        const compressedBlob = await compressImage(file, 1080, 1080, 0.8);
+        const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+        const result = await Tesseract.recognize(compressedFile, 'msa+eng', { logger: m => console.log(m) });
+        const text = result.data.text;
+        console.log("OCR text:", text);
+        // Cari jumlah RM
+        const match = text.match(/(?:RM|TOTAL|JUMLAH)[\s:]*([\d.,]+)/i);
+        if (match && match[1]) {
+            let amount = match[1].replace(',', '');
+            document.getElementById('expPrice').value = parseFloat(amount).toFixed(2);
+            kiraAmount();
+            statusEl.innerText = `✅ RM ${amount} dikesan. Sila semak.`;
+        } else {
+            statusEl.innerText = "⚠️ Gagal mengesan jumlah RM secara automatik.";
+        }
+    } catch (error) {
+        console.error(error);
+        statusEl.innerText = "❌ Gagal memproses gambar resit.";
+    }
+}
+
+// ==================== OFFLINE QUEUE ====================
+function saveToOfflineQueue(qrIds, status) {
+    let queue = JSON.parse(localStorage.getItem('mycarpet_offline_queue') || '[]');
+    queue.push({ qrIds, status, timestamp: new Date().toISOString() });
+    localStorage.setItem('mycarpet_offline_queue', JSON.stringify(queue));
+    STATE.offlineQueue = queue;
+}
+
+function loadOfflineQueue() {
+    const stored = localStorage.getItem('mycarpet_offline_queue');
+    if (stored) {
+        STATE.offlineQueue = JSON.parse(stored);
+        if (STATE.offlineQueue.length > 0) {
+            toast('Ada ' + STATE.offlineQueue.length + ' data tertunda. Cuba sync...');
+            processOfflineQueue();
+        }
+    }
+}
+
+async function processOfflineQueue() {
+    if (STATE.offlineQueue.length === 0) return;
+    if (!navigator.onLine) {
+        toast('Tiada internet. Data akan dihantar kemudian.');
+        return;
+    }
+    const queue = STATE.offlineQueue;
+    const newQueue = [];
+    for (let item of queue) {
+        try {
+            await postData({ action: 'updateBatchStatus', qrIds: item.qrIds, status: item.status });
+            // berjaya, tidak perlu simpan
+        } catch (e) {
+            newQueue.push(item);
+        }
+    }
+    if (newQueue.length !== queue.length) {
+        localStorage.setItem('mycarpet_offline_queue', JSON.stringify(newQueue));
+        STATE.offlineQueue = newQueue;
+        toast('Sync selesai. ' + (queue.length - newQueue.length) + ' data dihantar.');
+        refreshAllUI();
+    } else {
+        toast('Sync gagal. Cuba lagi nanti.');
+    }
+}
+
+// Panggil processOfflineQueue apabila internet kembali
+window.addEventListener('online', () => {
+    if (STATE.offlineQueue && STATE.offlineQueue.length > 0) {
+        processOfflineQueue();
+    }
+});
+
+// ==================== TAMAT BAHAGIAN 3A ====================
 
 // ==================== PEMBAYARAN ====================
 function renderPayment(container) {
@@ -1178,7 +1603,6 @@ function hantarWhatsAppPembayaran() {
     bukaWhatsApp(tel, msg);
 }
 
-// ==================== INVOIS & RESIT ====================
 function renderInvoiceTab(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
