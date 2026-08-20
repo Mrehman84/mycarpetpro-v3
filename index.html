@@ -161,7 +161,7 @@
         .badge-ready { background: #e6fffa; color: #234e52; }
         .badge-selesai { background: #c6f6d5; color: #22543d; }
         .table-wrap {
-            overflow-x: auto;       /* ★ Penting untuk skrol mendatar di telefon */
+            overflow-x: auto;
             -webkit-overflow-scrolling: touch;
             margin-bottom: 15px;
         }
@@ -170,7 +170,7 @@
         }
         .data-table th,
         .data-table td {
-            white-space: nowrap;    /* ★ Elakkan teks pecah ke baris baru */
+            white-space: nowrap;
             padding: 10px 12px;
         }
         .data-table th {
@@ -255,8 +255,6 @@
     </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
-
-<!-- =============== MULA SCRIPT =============== -->
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
@@ -309,72 +307,60 @@ function toast(msg) {
     setTimeout(() => div.remove(), 3000);
 }
 
-// === FUNGSI UMUM UNTUK BUKA WHATSAPP (elak ralat emoji) ===
+// === FUNGSI UMUM UNTUK BUKA WHATSAPP ===
 function bukaWhatsApp(phone, message) {
     if (!phone) return;
-    // Bersihkan nombor: buang aksara selain digit, hilangkan leading 0, tambah 60 jika perlu
     const clean = String(phone).replace(/\D/g, '').replace(/^0+/, '');
     const waNumber = clean.startsWith('60') ? clean : '60' + clean;
     const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 }
 
-// ==================== API (Baharu – Kini menggunakan fetch) ====================
-// === KOD BARU FETCH DATA (ANTI-SANGKUT ANDROID) ===
-async function fetchData(callback, skipRefresh = false) {
+// ==================== API (JSONP UNTUK BACA) ====================
+function fetchData(callback, skipRefresh = false) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
     showLoading(true);
-    
-    // TEMPAT MASUKKAN LINK API: Pastikan CONFIG.GAS_API_URL mengandungi url Google Script yang betul
-    // Contoh format url: https://google.com
-    const apiUrl = CONFIG.GAS_API_URL; 
-
-    try {
-        // Tambah parameter action=readAll secara dinamik
-        const response = await fetch(`${apiUrl}?action=readAll`, {
-            method: 'GET',
-            mode: 'cors', // Wajib untuk bypass sekatan pelayar Android
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Respons pelayan tidak okay: ${response.status}`);
-        }
-
-        const resp = await response.json();
-        
-        if (resp && typeof resp === 'object') {
-            // Pemetaan data ke dalam sistem STATE MyCarpet
-            STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
-            STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
-            STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
-            STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
-            STATE.perbelanjaan = Array.isArray(resp.perbelanjaan) ? resp.perbelanjaan : [];
-            STATE.pembayaran = Array.isArray(resp.pembayaran) ? resp.pembayaran : [];
-            STATE.kodPerbelanjaan = Array.isArray(resp.kodPerbelanjaan) ? resp.kodPerbelanjaan : [];
-            STATE.tetapanbank = Array.isArray(resp.tetapanbank) ? resp.tetapanbank : [];
-            
-            if (callback) callback();
-            if (!skipRefresh) refreshAllUI();
-            console.log("Data berjaya dikemaskini dari Android/Laptop!");
-        } else {
-            throw new Error("Format JSON yang diterima tidak sah atau kosong.");
-        }
-    } catch (e) {
-        console.error("Ralat penuh sistem:", e);
-        // Jika ralat fetch JSON berlaku, sistem akan hantar amaran paparan ke skrin
-        toast(`Ralat Sistem: Gagal memproses data. (${e.message})`);
-    } finally {
-        showLoading(false);
+    $$('script[data-jsonp]').forEach(el => el.remove());
+    const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+    const timeout = setTimeout(() => {
+        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
+        toast('Masa muat turun tamat.');
+    }, 25000);
+    window[cbName] = function(resp) {
+        clearTimeout(timeout);
         STATE.isLoading = false;
-    }
+        showLoading(false);
+        try {
+            if (resp && typeof resp === 'object') {
+                STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
+                STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
+                STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
+                STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
+                STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
+                STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
+                STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
+                STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
+                STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
+                STATE.rawExpenses = STATE.expenses;
+
+                if (callback) callback();
+                if (!skipRefresh) refreshAllUI();
+            } else { toast('Data tidak sah.'); }
+        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
+        finally { cleanupJsonp(cbName); }
+    };
+    const script = document.createElement('script');
+    script.id = cbName; script.dataset.jsonp = 'true';
+    script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
+    script.onerror = function() {
+        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
+        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
+    };
+    document.body.appendChild(script);
 }
 
-
-// Fungsi untuk TULIS data (POST dengan no-cors – elak CORS)
+// ==================== API (POST DENGAN NO-CORS UNTUK TULIS) ====================
 async function postData(data) {
   try {
     const response = await fetch(CONFIG.GAS_API_URL, {
@@ -383,7 +369,6 @@ async function postData(data) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    // Dengan 'no-cors', kita tidak dapat baca respons, tapi data tetap dihantar.
     console.log('✅ Data dihantar ke GAS');
     return { success: true };
   } catch (e) {
@@ -392,8 +377,14 @@ async function postData(data) {
   }
 }
 
-// ==================== AUTH (dengan sokongan autofill Android) ====================
-const ADMIN_DUMMY = { username: 'Mrehman', password: 'Mrehman84', nama: 'Admin MyCarpet' };
+function cleanupJsonp(name) {
+    const el = document.getElementById(name);
+    if (el) el.remove();
+    try { delete window[name]; } catch(e) {}
+}
+
+// ==================== AUTH ====================
+const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
 
 function loginAdmin() {
     const username = document.getElementById('adminUser').value.trim();
@@ -418,7 +409,6 @@ function loginCustomer() {
 }
 
 function saveSession() {
-    // ★ PENTING: Sentiasa guna localStorage untuk Android – elakkan sessionStorage hilang
     localStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
 }
 
@@ -435,7 +425,7 @@ function logout() {
     document.getElementById('loginError').classList.add('hidden');
 }
 
-// Tambah event listener untuk trim ruang kosong semasa menaip (bantu autofill Android)
+// Tambah event listener untuk trim ruang kosong
 document.getElementById('adminUser').addEventListener('input', function() {
     this.value = this.value.trim();
 });
@@ -443,7 +433,7 @@ document.getElementById('adminPass').addEventListener('input', function() {
     this.value = this.value.trim();
 });
 
-// ==================== APP INIT & SIDEBAR ====================
+// ==================== APP INIT ====================
 function initApp() {
     renderSidebar();
     fetchData(() => {
@@ -476,7 +466,6 @@ function renderSidebar() {
         menuContainer.appendChild(li);
     });
 }
-
 function switchTab(tabId) {
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
@@ -498,6 +487,7 @@ function switchTab(tabId) {
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
 function refreshAllUI() { if (STATE.currentUser) { const ct = document.querySelector('.menu-item.active'); if (ct) switchTab(ct.dataset.tab); } }
+
     // ==================== DASHBOARD ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
@@ -1316,7 +1306,7 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-    // ==================== PEKERJA (sambungan) ====================
+    // ==================== PEKERJA ====================
 function renderPekerja(container) {
     container.innerHTML = `
         <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
@@ -2087,6 +2077,11 @@ function simpanPerbelanjaan() {
         showPriceMsg('expenseMsg', '❌ Gagal simpan.', 'error');
     });
 }
+function showPriceMsg(containerId, msg, type) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
+    setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
 
 // ==================== GLOBAL EVENTS & SERVICE WORKER ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
@@ -2101,7 +2096,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('loginError').classList.add('hidden');
         });
     });
-    const stored = localStorage.getItem('mycarpet_user');  // ★ Hanya localStorage
+    const stored = localStorage.getItem('mycarpet_user');
     if (stored) {
         try {
             STATE.currentUser = JSON.parse(stored);
