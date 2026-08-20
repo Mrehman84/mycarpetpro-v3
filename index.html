@@ -1226,6 +1226,7 @@ function hantarWhatsAppTempahan() {
 
 // ==================== PENJANA INVOIS (YYMMDD + SIRI BERMULA 500) ====================
 // ⚠️ INI ADALAH FUNGSI YANG TERTINGGAL – TAMBAH INI DI SINI
+// ==================== PENJANA INVOIS (SIRI GLOBAL BERMULA 500) ====================
 function generateInvoiceNumber() {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);          // 26
@@ -1233,19 +1234,22 @@ function generateInvoiceNumber() {
     const dd = ('0' + now.getDate()).slice(-2);              // 20
     const prefix = yy + mm + dd;                             // "260820"
 
-    let maxSeq = 499; // supaya siri pertama jadi 500
+    // Cari siri tertinggi di seluruh sistem (bukan hanya hari ini)
+    let maxSeq = 499; // bermula dari 499 supaya siri pertama 500
     STATE.tempahan.forEach(t => {
         const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-        // Semak invois hari ini: panjang 13 (INV + 6 digit + 4 digit siri)
-        if (inv.length === 13 && inv.startsWith('INV' + prefix)) {
-            const suffix = parseInt(inv.substring(9), 10);   // ambil 4 digit terakhir
+        // Semak jika invois bermula dengan "INV" dan mempunyai 4 digit siri di hujung
+        // Panjang minimum: INV + 6 digit tarikh + 4 digit siri = 13
+        if (inv.length >= 13 && inv.startsWith('INV')) {
+            // Ambil 4 digit terakhir (siri)
+            const suffix = parseInt(inv.slice(-4), 10);
             if (!isNaN(suffix) && suffix > maxSeq) {
                 maxSeq = suffix;
             }
         }
     });
     const nextSeq = maxSeq + 1;
-    return 'INV' + prefix + nextSeq;  // contoh: INV2608200500, INV2608200501...
+    return 'INV' + prefix + nextSeq; // Contoh: INV2608200500, INV2608210501...
 }
 // ==================== TRACKING (DENGAN KAMERA QR + MANUAL + TORCH + BEEP + OFFLINE QUEUE) ====================
 function renderTracking(container) {
