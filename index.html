@@ -264,7 +264,6 @@
             color: #444;
             text-align: center;
         }
-        /* Butang kembali ke menu */
         .btn-back-menu {
             display: inline-block;
             margin-bottom: 15px;
@@ -272,14 +271,13 @@
     </style>
 </head>
 <body>
-<!-- ... (bahagian login dan app container sama seperti asal) ... -->
 <div id="loadingOverlay"><div class="spinner"></div><p style="margin-top:15px;font-weight:500;color:var(--text-muted)">Memuat data...</p></div>
 
 <!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
     <div class="login-card">
         <img src="icon-512.png" alt="Logo" class="login-logo">
-        <h2>MYCARPET PRO v3.0</h2>
+        <h2>MYCARPET PRO v3.3</h2>
         <p class="muted">Sistem Pengurusan Cucian Karpet</p>
         <div class="login-tabs">
             <button class="login-tab active" data-role="admin">Admin</button>
@@ -308,69 +306,71 @@
         <div class="sidebar-footer"><div class="menu-item" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Log Keluar</div></div>
     </aside>
     <main>
-    <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;"><i class="fa-solid fa-bars"></i> Menu</button>
-    
-    <!-- === PANEL MENU UTAMA === -->
-    <div id="halaman-menu-utama" class="menu-grid-container">
-        <div class="menu-header-welcome">
-            <h3>Selamat Datang ke MyCarpet Pro</h3>
-            <p>Sila pilih menu tugasan anda di bawah:</p>
+        <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;"><i class="fa-solid fa-bars"></i> Menu</button>
+        
+        <!-- === PANEL MENU UTAMA === -->
+        <div id="halaman-menu-utama" class="menu-grid-container">
+            <div class="menu-header-welcome">
+                <h3>Selamat Datang ke MyCarpet Pro</h3>
+                <p>Sila pilih menu tugasan anda di bawah:</p>
+            </div>
+            <div class="menu-grid">
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('dashboard')">
+                    <span class="icon-menu-hub">📊</span>
+                    <span class="label-menu-hub">Dashboard Operasi</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('temujanji')">
+                    <span class="icon-menu-hub">📅</span>
+                    <span class="label-menu-hub">Temujanji Ambil</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('tempahan')">
+                    <span class="icon-menu-hub">📝</span>
+                    <span class="label-menu-hub">Tempahan Baru</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('tracking')">
+                    <span class="icon-menu-hub">🧺</span>
+                    <span class="label-menu-hub">Status Karpet</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('payment')">
+                    <span class="icon-menu-hub">💳</span>
+                    <span class="label-menu-hub">Pembayaran</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('invoice')">
+                    <span class="icon-menu-hub">🖨️</span>
+                    <span class="label-menu-hub">Invois & Resit</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('pelanggan')">
+                    <span class="icon-menu-hub">👥</span>
+                    <span class="label-menu-hub">Data Pelanggan</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('pekerja')">
+                    <span class="icon-menu-hub">👷</span>
+                    <span class="label-menu-hub">Pekerja</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('pricematrix')">
+                    <span class="icon-menu-hub">📋</span>
+                    <span class="label-menu-hub">Price Matrix</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('barcode')">
+                    <span class="icon-menu-hub">🏷️</span>
+                    <span class="label-menu-hub">Cetak Barcode</span>
+                </button>
+                <button class="btn-menu-hub" onclick="tukarHalamanSistem('expenses')">
+                    <span class="icon-menu-hub">🧾</span>
+                    <span class="label-menu-hub">Perbelanjaan</span>
+                </button>
+            </div>
         </div>
-        <div class="menu-grid">
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('dashboard')">
-        <span class="icon-menu-hub">📊</span>
-        <span class="label-menu-hub">Dashboard Operasi</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('temujanji')">
-        <span class="icon-menu-hub">📅</span>
-        <span class="label-menu-hub">Temujanji Ambil</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('tempahan')">
-        <span class="icon-menu-hub">📝</span>
-        <span class="label-menu-hub">Tempahan Baru</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('tracking')">
-        <span class="icon-menu-hub">🧺</span>
-        <span class="label-menu-hub">Status Karpet</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('payment')">
-        <span class="icon-menu-hub">💳</span>
-        <span class="label-menu-hub">Pembayaran</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('invoice')">
-        <span class="icon-menu-hub">🖨️</span>
-        <span class="label-menu-hub">Invois & Resit</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('pelanggan')">
-        <span class="icon-menu-hub">👥</span>
-        <span class="label-menu-hub">Data Pelanggan</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('pekerja')">
-        <span class="icon-menu-hub">👷</span>
-        <span class="label-menu-hub">Pekerja</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('pricematrix')">
-        <span class="icon-menu-hub">📋</span>
-        <span class="label-menu-hub">Price Matrix</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('barcode')">
-        <span class="icon-menu-hub">🏷️</span>
-        <span class="label-menu-hub">Cetak Barcode</span>
-    </button>
-    <button class="btn-menu-hub" onclick="tukarHalamanSistem('expenses')">
-        <span class="icon-menu-hub">🧾</span>
-        <span class="label-menu-hub">Perbelanjaan</span>
-    </button>
-</div>
-    
-    <!-- === TAMAT PANEL MENU UTAMA === -->
+        <!-- === TAMAT PANEL MENU UTAMA === -->
 
-    <div id="tabContainer"></div>
-</main>
+        <div id="tabContainer"></div>
+    </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
+
+<!-- =============== MULA SCRIPT =============== -->
 <script>
-// ==================== CONFIG & STATE ====================
+    // ==================== CONFIG & STATE ====================
 const CONFIG = {
     GAS_API_URL: "https://script.google.com/macros/s/AKfycbxB8-ENhS_pe4I1Uw5ulQZA-fiXJ2hBbIIKI_yOel_5OwG1YGEof6k1TILpVP0OOlMd/exec",
     FINANCE_GAS_URL: "https://script.google.com/macros/s/AKfycbyJ2T-3MApoYIAjwLcOo4xLHV2h6CGzOOGmCkMa8J-17jhmh2n3UBp7_jhhoIeJzhO8oA/exec",
@@ -547,10 +547,11 @@ document.getElementById('adminPass').addEventListener('input', function() {
     this.value = this.value.trim();
 });
 
-// ==================== APP INIT ====================
+// ==================== APP INIT & SIDEBAR ====================
 function initApp() {
     renderSidebar();
     fetchData(() => {
+        // Default ke menu utama untuk admin
         const defaultTab = STATE.currentUser.role === 'admin' ? 'menu' : 'customer-portal';
         switchTab(defaultTab);
     });
@@ -580,17 +581,17 @@ function renderSidebar() {
         menuContainer.appendChild(li);
     });
 }
+
+// ==================== SWITCH TAB (DIUBAH UNTUK MENU) ====================
 function switchTab(tabId) {
-    // 1. Buang class active dari semua menu-item
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
     if (activeMenu) activeMenu.classList.add('active');
     
-    // 2. Kosongkan tabContainer
     const container = document.getElementById('tabContainer');
-    container.innerHTML = '';
+    container.innerHTML = ''; // Kosongkan kandungan
 
-    // 3. Jika tabId = 'menu', paparkan menu utama dan keluar
+    // Jika tabId = 'menu', paparkan menu utama dan keluar
     if (tabId === 'menu') {
         document.getElementById('halaman-menu-utama').style.display = 'block';
         if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
@@ -600,7 +601,7 @@ function switchTab(tabId) {
         document.getElementById('halaman-menu-utama').style.display = 'none';
     }
 
-    // 4. Teruskan logik asal switchTab (render modul)
+    // Teruskan logik asal
     if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
@@ -615,19 +616,42 @@ function switchTab(tabId) {
     else if (tabId === 'expenses') renderExpenses(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
 
-    // 5. Tutup sidebar di mobile
+    // Tutup sidebar di mobile
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-function refreshAllUI() { if (STATE.currentUser) { const ct = document.querySelector('.menu-item.active'); if (ct) switchTab(ct.dataset.tab); } }
+    // ==================== NAVIGASI MENU GRID ====================
+function tukarHalamanSistem(pilihanMenu) {
+    // Sembunyikan menu utama
+    document.getElementById('halaman-menu-utama').style.display = 'none';
+    // Panggil switchTab untuk memaparkan modul
+    switchTab(pilihanMenu);
+    // Tutup sidebar jika terbuka di mobile
+    if (window.innerWidth <= 992) {
+        document.body.classList.remove('sidebar-open');
+    }
+}
 
-    // ==================== DASHBOARD ====================
+function kembaliKeMenuUtama() {
+    // Paparkan menu utama
+    document.getElementById('halaman-menu-utama').style.display = 'block';
+    // Kosongkan tabContainer
+    document.getElementById('tabContainer').innerHTML = '';
+    // Nyahaktifkan menu-item active di sidebar
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    // Pastikan sidebar tertutup di mobile
+    if (window.innerWidth <= 992) {
+        document.body.classList.remove('sidebar-open');
+    }
+}
+
+// ==================== DASHBOARD ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
     const ready = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'READY TO DELIVER').length;
     const selesai = STATE.karpet.filter(k => ['SELESAI','SELESAI DIHANTAR'].includes(normalize(getField(k,['STATUS'])))).length;
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Dashboard Operasi</h1><p class="muted">Data sebenar dari spreadsheet</p></div><button class="btn btn-secondary" onclick="fetchData()"><i class="fa-solid fa-sync"></i> Refresh</button></header>
         <div class="metrics-grid">
             <div class="metric-card" style="border-left-color:#f1c40f"><h3>Dalam Proses</h3><p>${proses}</p></div>
@@ -650,6 +674,7 @@ function renderCustomerPortal(container) {
     const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
     const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
     container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Status Karpet Saya</h1><p class="muted">Nombor Telefon: ${escapeHtml(STATE.currentUser.telefon)}</p></div></header>
         <div class="card">
             ${carpets.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
@@ -665,7 +690,7 @@ function renderCustomerPortal(container) {
 // ==================== TEMUJANJI ====================
 function renderTemujanji(container) {
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Temujanji Ambil Karpet</h1><p class="muted">Jana mesej WhatsApp untuk pengambilan</p></div></header>
         <div class="card">
             <div class="row"><div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="tjNama" class="form-control" placeholder="Nama pelanggan"></div><div class="col form-group"><label>No. Telefon</label><input type="text" id="tjTelefon" class="form-control" placeholder="60123456789"></div></div>
@@ -701,7 +726,7 @@ function renderTempahan(container) {
         pelangganOptions += `<option value="${escapeHtml(id)}">${escapeHtml(id)} - ${escapeHtml(alamat)}${nama ? ' | '+escapeHtml(nama) : ''}</option>`;
     });
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
         <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
             <div class="form-group"><label>Jenis Pelanggan</label><div style="display:flex;gap:20px;"><label><input type="radio" name="custType" value="lama" checked onchange="toggleCustType()"> Pelanggan Sedia Ada</label><label><input type="radio" name="custType" value="baru" onchange="toggleCustType()"> Pelanggan Baru</label></div></div>
@@ -920,7 +945,7 @@ function renderTracking(container) {
         invoiceOptions.push(`<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)}</option>`);
     });
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Tracking QR</h1><p class="muted">Karpet aktif (kecuali Selesai Dihantar)</p></div></header>
         <div class="card">
             <div class="form-group"><label>Cari No. Invois / Alamat</label><select id="trackingInvoiceSelect" class="form-control">${invoiceOptions.join('')}</select></div>
@@ -1072,7 +1097,7 @@ function renderPayment(container) {
         return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)} [${label}]</option>`;
     }).join('');
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
         <div class="card">
             <div class="form-group"><label>Pilih Invois</label><select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
@@ -1171,7 +1196,7 @@ function renderInvoiceTab(container) {
         return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
     }).join('');
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
         <div class="card no-print">
             <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
@@ -1270,7 +1295,7 @@ function hantarWhatsAppInvoice() {
 // ==================== PELANGGAN ====================
 function renderPelanggan(container) {
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header>
             <div><h1>👥 Pengurusan Pelanggan</h1><p class="muted">Senarai pelanggan berdaftar</p></div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
@@ -1445,10 +1470,11 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-    // ==================== PEKERJA ====================
+
+// ==================== PEKERJA ====================
 function renderPekerja(container) {
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
         <div class="card">
             <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
@@ -1715,7 +1741,7 @@ async function tambahRunnerTask() {
 // ==================== PRICE MATRIX ====================
 function renderPriceMatrix(container) {
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>📋 Price Matrix</h1><p class="muted">Tetapan kod, jenis permaidani, dan kos cucian semasa</p></div></header>
         <div class="card">
             <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
@@ -1874,7 +1900,7 @@ function renderBarcode(container) {
     invList.sort((a, b) => b.inv.localeCompare(a.inv));
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
         <div class="card">
             <div class="form-group"><label>Pilih Invois</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
@@ -1951,7 +1977,7 @@ function simpanGambarStikers() {
 // ==================== PERBELANJAAN ====================
 function renderExpenses(container) {
     container.innerHTML = `
-     <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
         <div class="card" id="expenseFormContainer">
             <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
@@ -2261,50 +2287,6 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.log('Service Worker gagal: ', err));
     });
 }
- // ==================== FUNGSI PEMBETULAN NAVIGASI GRID MENU ====================
-
-function tukarHalamanSistem(pilihanMenu) {
-    // 1. Sembunyikan panel grid menu utama di hadapan
-    const menuUtama = document.getElementById('halaman-menu-utama');
-    if (menuUtama) menuUtama.style.display = 'none';
-    
-    // 2. Gunakan fungsi asal sistem untuk mengaktifkan modul dan tab yang betul
-    if (typeof switchTab === 'function') {
-        switchTab(pilihanMenu);
-    } else {
-        console.error("Fungsi switchTab tidak ditemui.");
-    }
-    
-    // 3. Tutup menu tepi secara automatik jika peranti berskrin kecil/Android
-    if (typeof toggleSidebar === 'function' && document.body.classList.contains('sidebar-open')) {
-        toggleSidebar(); 
-    }
-}
-
-function kembaliKeMenuUtama() {
-    // 1. Sembunyikan tabContainer atau modul aktif yang sedang dipaparkan
-    const container = document.getElementById('tabContainer');
-    if (container) container.innerHTML = '';
-    
-    // 2. Buang status 'active' pada mana-mana ikon menu tepi supaya tiada kekeliruan
-    if (typeof $$ === 'function') {
-        $$('.menu-item').forEach(el => el.classList.remove('active'));
-    }
-    
-    // 3. Paparkan semula panel Grid Menu Utama di hadapan
-    const menuUtama = document.getElementById('halaman-menu-utama');
-    if (menuUtama) {
-        menuUtama.style.display = 'block';
-    } else {
-        console.error("Elemen halaman-menu-utama tidak dijumpai.");
-    }
-    
-    // 4. Pastikan jika di Android, sidebar tertutup dengan kemas
-    if (window.innerWidth <= 992) {
-        document.body.classList.remove('sidebar-open');
-    }
-}
-
 </script>
 </body>
 </html>
