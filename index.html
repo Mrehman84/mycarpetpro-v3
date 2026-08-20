@@ -619,7 +619,6 @@ window.addEventListener('online', () => {
     }
 });
 
-
 // ==================== AUTH ====================
 const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
 
@@ -644,11 +643,9 @@ function loginCustomer() {
         saveSession(); afterLogin();
     } else { showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.'); }
 }
-
 function saveSession() {
     localStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
 }
-
 function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.classList.remove('hidden'); }
 function afterLogin() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); initApp(); }
 function logout() {
@@ -661,7 +658,6 @@ function logout() {
     document.getElementById('custPhone').value = '';
     document.getElementById('loginError').classList.add('hidden');
 }
-
 document.getElementById('adminUser').addEventListener('input', function() {
     this.value = this.value.trim();
 });
@@ -756,6 +752,13 @@ function kembaliKeMenuUtama() {
     }
 }
 
+function refreshAllUI() {
+    if (STATE.currentUser) {
+        const ct = document.querySelector('.menu-item.active');
+        if (ct) switchTab(ct.dataset.tab);
+    }
+}
+
 // ==================== FORM TEMUJANJI TANPA LOGIN (BUTANG KETIGA) ====================
 function renderAppointmentForm() {
     const container = document.getElementById('appointmentFormContainer');
@@ -808,23 +811,7 @@ function hantarWhatsAppApptTanpaLogin() {
     bukaWhatsApp('0174050336', msg);
 }
 
-// === EVENT LISTENER UNTUK LOGIN TABS ===
-document.querySelectorAll('.login-tab').forEach(tab => {
-    tab.addEventListener('click', function() {
-        document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-        this.classList.add('active');
-        const role = this.dataset.role;
-        document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
-        document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
-        document.getElementById('loginFormAppointment').classList.toggle('active', role === 'appointment');
-        document.getElementById('loginError').classList.add('hidden');
-        if (role === 'appointment') {
-            renderAppointmentForm();
-        }
-    });
-});
-
-    // ==================== DASHBOARD ====================
+// ==================== DASHBOARD ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
@@ -1404,8 +1391,7 @@ async function toggleTorch() {
     }
 }
 
-// ==================== TAMAT BAHAGIAN 3 ====================
-    // ==================== PEMBAYARAN ====================
+// ==================== PEMBAYARAN ====================
 function renderPayment(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -2512,8 +2498,6 @@ function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
 }
 
 // --- Fungsi Expenses lain (kiraAmount, autoKodPerbelanjaan, buildExpenseRows, editExpense, deleteExpense, simpanPerbelanjaan, showPriceMsg) ---
-// (Saya akan sertakan fungsi-fungsi yang belum dihantar. Sebahagiannya mungkin sudah ada, tapi saya akan salin semula untuk lengkap.)
-
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
@@ -2701,8 +2685,7 @@ function showPriceMsg(containerId, msg, type) {
     setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
 
-// ==================== TAMAT BAHAGIAN 4 ====================
-    // ==================== GLOBAL EVENTS ====================
+// ==================== GLOBAL EVENTS ====================
 function toggleSidebar() {
     document.body.classList.toggle('sidebar-open');
 }
