@@ -14,7 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Tambahan pustaka OCR & QR -->
+    <!-- Pustaka OCR & QR -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
@@ -215,7 +215,7 @@
         @media (max-width: 600px) {
             .metrics-grid { grid-template-columns: 1fr; }
         }
-        /* ★ GRID MENU UTAMA – BAHARU ★ */
+        /* GRID MENU UTAMA */
         .menu-grid-container {
             max-width: 600px;
             margin: 20px auto;
@@ -271,8 +271,7 @@
             display: inline-block;
             margin-bottom: 15px;
         }
-
-        /* ★ GAYA UNTUK KAMERA / OCR / GALERI ★ */
+        /* GAYA KAMERA / OCR / GALERI */
         .camera-preview {
             width: 100%;
             max-width: 480px;
@@ -364,7 +363,6 @@
             <button type="button" class="btn btn-success w-full" onclick="loginCustomer()"><i class="fa-solid fa-user-check"></i> Semak Status</button>
         </form>
         <form id="loginFormAppointment" class="login-form">
-            <!-- Form temujanji tanpa login – akan diisi oleh renderAppointmentForm() -->
             <div id="appointmentFormContainer"></div>
         </form>
         <div id="loginError" class="login-error hidden"></div>
@@ -381,7 +379,7 @@
     <main>
         <button class="btn btn-secondary mobile-menu" onclick="toggleSidebar()" style="margin-bottom:15px;"><i class="fa-solid fa-bars"></i> Menu</button>
         
-        <!-- === PANEL MENU UTAMA === -->
+        <!-- PANEL MENU UTAMA -->
         <div id="halaman-menu-utama" class="menu-grid-container">
             <div class="menu-header-welcome">
                 <h3>Selamat Datang ke MyCarpet Pro</h3>
@@ -434,12 +432,12 @@
                 </button>
             </div>
         </div>
-        <!-- === TAMAT PANEL MENU UTAMA === -->
-
+        <!-- TAMAT PANEL MENU UTAMA -->
         <div id="tabContainer"></div>
     </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
+
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
@@ -568,6 +566,59 @@ function cleanupJsonp(name) {
     if (el) el.remove();
     try { delete window[name]; } catch(e) {}
 }
+
+// ==================== OFFLINE QUEUE FUNCTIONS ====================
+function saveToOfflineQueue(qrIds, status) {
+    let queue = JSON.parse(localStorage.getItem('mycarpet_offline_queue') || '[]');
+    queue.push({ qrIds, status, timestamp: new Date().toISOString() });
+    localStorage.setItem('mycarpet_offline_queue', JSON.stringify(queue));
+    STATE.offlineQueue = queue;
+}
+
+function loadOfflineQueue() {
+    const stored = localStorage.getItem('mycarpet_offline_queue');
+    if (stored) {
+        STATE.offlineQueue = JSON.parse(stored);
+        if (STATE.offlineQueue.length > 0) {
+            toast('Ada ' + STATE.offlineQueue.length + ' data tertunda. Cuba sync...');
+            processOfflineQueue();
+        }
+    }
+}
+
+async function processOfflineQueue() {
+    if (STATE.offlineQueue.length === 0) return;
+    if (!navigator.onLine) {
+        toast('Tiada internet. Data akan dihantar kemudian.');
+        return;
+    }
+    const queue = STATE.offlineQueue;
+    const newQueue = [];
+    for (let item of queue) {
+        try {
+            await postData({ action: 'updateBatchStatus', qrIds: item.qrIds, status: item.status });
+            // berjaya, tidak perlu simpan
+        } catch (e) {
+            newQueue.push(item);
+        }
+    }
+    if (newQueue.length !== queue.length) {
+        localStorage.setItem('mycarpet_offline_queue', JSON.stringify(newQueue));
+        STATE.offlineQueue = newQueue;
+        toast('Sync selesai. ' + (queue.length - newQueue.length) + ' data dihantar.');
+        refreshAllUI();
+    } else {
+        toast('Sync gagal. Cuba lagi nanti.');
+    }
+}
+
+// Panggil processOfflineQueue apabila internet kembali
+window.addEventListener('online', () => {
+    if (STATE.offlineQueue && STATE.offlineQueue.length > 0) {
+        processOfflineQueue();
+    }
+});
+
 
 // ==================== AUTH ====================
 const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
