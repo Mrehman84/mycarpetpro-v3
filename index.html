@@ -2351,7 +2351,7 @@ function generateBarcodePreview() {
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
         const kod = String(getField(k, ['KOD'], '')).trim();
-        const trackingUrl = `https://mrehman84.github.io/mycarpetpro-v3/?phone=${encodeURIComponent(telefon)}`;
+       const trackingUrl = `https://mycarpetpro-v3.onrender.com/?phone=${encodeURIComponent(telefon)}`;
         stikersHTML += `
             <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
                 <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
