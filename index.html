@@ -272,7 +272,7 @@
             margin-bottom: 15px;
         }
 
-        /* ★ GAYA UNTUK KAMERA / OCR ★ */
+        /* ★ GAYA UNTUK KAMERA / OCR / GALERI ★ */
         .camera-preview {
             width: 100%;
             max-width: 480px;
@@ -323,6 +323,19 @@
             flex-wrap: wrap;
             margin: 10px 0;
         }
+        .qc-image-options {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .qc-image-options label {
+            cursor: pointer;
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-weight: 600;
+        }
+        .qc-image-options label:hover { background: #e0e0e0; }
     </style>
 </head>
 <body>
@@ -337,6 +350,7 @@
         <div class="login-tabs">
             <button class="login-tab active" data-role="admin">Admin</button>
             <button class="login-tab" data-role="customer">Pelanggan</button>
+            <button class="login-tab" data-role="appointment">📅 Mohon Temujanji</button>
         </div>
         <form id="loginFormAdmin" class="login-form active">
             <div class="form-group"><label>Username</label><input type="text" id="adminUser" class="form-control" placeholder="admin" autocomplete="username"></div>
@@ -348,6 +362,10 @@
             <div class="form-group"><label>Nombor Telefon</label><input type="tel" id="custPhone" class="form-control" placeholder="60123456789"></div>
             <div class="form-group flex"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="rememberMeCust"> Ingat Saya</label></div>
             <button type="button" class="btn btn-success w-full" onclick="loginCustomer()"><i class="fa-solid fa-user-check"></i> Semak Status</button>
+        </form>
+        <form id="loginFormAppointment" class="login-form">
+            <!-- Form temujanji tanpa login – akan diisi oleh renderAppointmentForm() -->
+            <div id="appointmentFormContainer"></div>
         </form>
         <div id="loginError" class="login-error hidden"></div>
     </div>
@@ -422,8 +440,6 @@
     </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
-
-<!-- =============== MULA SCRIPT =============== -->
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
@@ -689,7 +705,75 @@ function kembaliKeMenuUtama() {
     }
 }
 
-// ==================== DASHBOARD ====================
+// ==================== FORM TEMUJANJI TANPA LOGIN (BUTANG KETIGA) ====================
+function renderAppointmentForm() {
+    const container = document.getElementById('appointmentFormContainer');
+    container.innerHTML = `
+        <h3 style="margin-top:0;">📅 Mohon Temujanji</h3>
+        <p class="muted">Isi butiran di bawah, dan mesej akan dihantar ke pihak kami.</p>
+        <div class="row">
+            <div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="apptNama" class="form-control" placeholder="Nama pelanggan"></div>
+            <div class="col form-group"><label>No. Telefon Anda</label><input type="text" id="apptTelefon" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="form-group"><label>Alamat Pengambilan</label><textarea id="apptAlamat" class="form-control" rows="2" placeholder="No, Jalan, Taman..."></textarea></div>
+        <div class="row">
+            <div class="col form-group"><label>Tarikh Ambil</label><input type="date" id="apptTarikh" class="form-control"></div>
+            <div class="col form-group"><label>Masa Ambil</label><input type="time" id="apptMasa" class="form-control"></div>
+        </div>
+        <div class="flex">
+            <button class="btn btn-primary" onclick="janaMesejApptTanpaLogin()"><i class="fa-regular fa-copy"></i> Salin Mesej</button>
+            <button class="btn btn-whatsapp" onclick="hantarWhatsAppApptTanpaLogin()"><i class="fa-brands fa-whatsapp"></i> Hantar ke Admin</button>
+        </div>
+        <div id="apptPreviewTanpaLogin" class="wa-preview hidden mt-16"></div>
+    `;
+    document.getElementById('apptTarikh').value = getToday();
+}
+
+function janaMesejApptTanpaLogin() {
+    const nama = document.getElementById('apptNama').value.trim();
+    const alamat = document.getElementById('apptAlamat').value.trim();
+    const tarikh = document.getElementById('apptTarikh').value;
+    const masa = document.getElementById('apptMasa').value;
+    if (!nama || !alamat || !tarikh || !masa) {
+        toast('Sila lengkapkan semua maklumat.');
+        return;
+    }
+    const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan: ${nama}\nMohon slot janji temu untuk pengambilan karpet:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila sahkan slot ini. Terima kasih! 🙏`;
+    document.getElementById('apptPreviewTanpaLogin').textContent = msg;
+    document.getElementById('apptPreviewTanpaLogin').classList.remove('hidden');
+    navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
+}
+
+function hantarWhatsAppApptTanpaLogin() {
+    const telefon = document.getElementById('apptTelefon').value.trim().replace(/[- ]/g, '');
+    if (!telefon) { toast('Sila masukkan nombor telefon untuk dihubungi.'); return; }
+    const preview = document.getElementById('apptPreviewTanpaLogin');
+    let msg = preview.textContent;
+    if (!msg || preview.classList.contains('hidden')) {
+        janaMesejApptTanpaLogin();
+        msg = preview.textContent;
+    }
+    // Hantar ke admin 0174050336
+    bukaWhatsApp('0174050336', msg);
+}
+
+// === EVENT LISTENER UNTUK LOGIN TABS ===
+document.querySelectorAll('.login-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+        document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+        const role = this.dataset.role;
+        document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
+        document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
+        document.getElementById('loginFormAppointment').classList.toggle('active', role === 'appointment');
+        document.getElementById('loginError').classList.add('hidden');
+        if (role === 'appointment') {
+            renderAppointmentForm();
+        }
+    });
+});
+
+    // ==================== DASHBOARD ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
@@ -891,7 +975,6 @@ function hantarWhatsAppJanji() {
     bukaWhatsApp(telefon, msg);
 }
 
-
 // ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
     let pelangganOptions = '<option value="">-- Pilih --</option>';
@@ -925,11 +1008,11 @@ function renderTempahan(container) {
                     <textarea id="qcNota" class="form-control" rows="2" placeholder="Terangkan kerosakan..."></textarea>
                 </div>
             </div>
-            <div class="mt-16">
-                <label>Gambar Kerosakan (Klik untuk ambil/muat naik)</label>
-                <input type="file" id="qcImageInput" accept="image/*" capture="environment" style="display:block;margin-top:8px;">
-                <img id="qcImagePreview" src="" alt="Preview" style="max-width:200px;max-height:200px;display:none;margin-top:8px;">
+            <div class="qc-image-options">
+                <label>📸 Ambil Gambar <input type="file" accept="image/*" capture="environment" id="qcImageInput" style="display:none;" onchange="qcImageSelected(event)"></label>
+                <label>🖼️ Pilih dari Galeri <input type="file" accept="image/*" id="qcGalleryInput" style="display:none;" onchange="qcImageSelected(event)"></label>
             </div>
+            <img id="qcImagePreview" src="" alt="Preview" style="max-width:200px;max-height:200px;display:none;margin-top:8px;">
             <div class="flex mt-16">
                 <button class="btn btn-warning" onclick="hantarQcWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Hantar Kerosakan ke WhatsApp</button>
             </div>
@@ -942,18 +1025,19 @@ function renderTempahan(container) {
         <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
     `;
     addCarpetRow();
-    document.getElementById('qcImageInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                document.getElementById('qcImagePreview').src = ev.target.result;
-                document.getElementById('qcImagePreview').style.display = 'block';
-            };
-            reader.readAsDataURL(file);
-        }
-    });
 }
+
+function qcImageSelected(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        document.getElementById('qcImagePreview').src = ev.target.result;
+        document.getElementById('qcImagePreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
 function hantarQcWhatsApp() {
     const nama = document.getElementById('custNama').value || document.getElementById('custNamaBaru').value || 'Pelanggan';
     const tel = document.getElementById('custTel').value || document.getElementById('custTelBaru').value || '';
@@ -969,6 +1053,7 @@ function hantarQcWhatsApp() {
     msg += `\nSila sahkan sama ada kami teruskan basuhan. Terima kasih.`;
     bukaWhatsApp(tel, msg);
 }
+
 function toggleCustType() {
     const baru = document.querySelector('input[name="custType"]:checked').value === 'baru';
     document.getElementById('secCustLama').style.display = baru ? 'none' : 'block';
@@ -1145,6 +1230,7 @@ function renderTracking(container) {
 }
 
 let qrScannerStream = null;
+let qrScanning = false;
 
 function openQRScanner() {
     const video = document.getElementById('qrVideo');
@@ -1159,6 +1245,7 @@ function openQRScanner() {
             video.srcObject = stream;
             video.play();
             status.innerText = 'Scan QR...';
+            qrScanning = true;
             scanQRContinuously();
         })
         .catch(err => {
@@ -1169,7 +1256,12 @@ function openQRScanner() {
 function scanQRContinuously() {
     const video = document.getElementById('qrVideo');
     const status = document.getElementById('scanStatus');
-    if (!video || video.paused || !qrScannerStream) return;
+    if (!video || video.paused || !qrScannerStream || !qrScanning) return;
+    // Tunggu video siap loadedmetadata
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+        requestAnimationFrame(scanQRContinuously);
+        return;
+    }
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     canvas.width = video.videoWidth;
@@ -1178,16 +1270,12 @@ function scanQRContinuously() {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
     if (code && code.data) {
-        // code.data diharapkan adalah QR ID
         const qrId = code.data.trim();
         status.innerText = 'QR dijumpai: ' + qrId;
-        // Cari karpet dengan QR ID
         const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
         if (k) {
-            // Tukar status ke SELESAI DIHANTAR
             updateStatuses([qrId], 'SELESAI DIHANTAR');
             playBeep();
-            // Tutup kamera
             closeQRScanner();
         } else {
             status.innerText = 'QR ID tidak dijumpai dalam sistem.';
@@ -1198,6 +1286,7 @@ function scanQRContinuously() {
 }
 
 function closeQRScanner() {
+    qrScanning = false;
     if (qrScannerStream) {
         qrScannerStream.getTracks().forEach(track => track.stop());
         qrScannerStream = null;
@@ -1213,7 +1302,6 @@ function manualDelivery() {
         return;
     }
     const ids = Array.from(checkboxes).map(cb => cb.value);
-    // Semak sama ada semua item masih aktif (bukan SELESAI DIHANTAR)
     const validIds = ids.filter(id => {
         const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === id);
         return k && normalize(getField(k, ['STATUS'])) !== 'SELESAI DIHANTAR';
@@ -1223,11 +1311,9 @@ function manualDelivery() {
         return;
     }
     if (!confirm('Anda pasti ingin menandakan ' + validIds.length + ' item sebagai SELESAI DIHANTAR?')) return;
-    // Gunakan offline queue jika tiada internet
     if (!navigator.onLine) {
         saveToOfflineQueue(validIds, 'SELESAI DIHANTAR');
         toast('Disimpan dalam offline queue. Akan dihantar bila internet pulih.');
-        // Refresh UI
         executeTrackingSearch();
         return;
     }
@@ -1267,240 +1353,8 @@ async function toggleTorch() {
     }
 }
 
-function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
-                } else {
-                    if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-function addWatermark(imageBlob, invNo, customerName, date) {
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.fillRect(10, 10, 300, 60);
-            ctx.fillStyle = '#000';
-            ctx.font = 'bold 20px Inter';
-            ctx.fillText('MYCARPET PRO', 20, 40);
-            ctx.font = '14px Inter';
-            ctx.fillText('Inv: ' + invNo + ' | ' + customerName, 20, 65);
-            ctx.fillText('Tarikh: ' + date, 20, 85);
-            canvas.toBlob((blob) => resolve(blob), 'image/jpeg');
-        };
-        img.src = URL.createObjectURL(imageBlob);
-    });
-}
-
-// ==================== OCR RESIT (DI EXPENSES) ====================
-function renderExpenses(container) {
-    container.innerHTML = `
-        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
-        <div class="card" id="expenseFormContainer">
-            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
-            <input type="hidden" id="expenseEditId">
-            <div class="row">
-                <div class="col form-group">
-                    <label>Tarikh</label>
-                    <input type="date" id="expDate" class="form-control" value="${getToday()}">
-                </div>
-                <div class="col form-group">
-                    <label>Bayar Melalui</label>
-                    <select id="expBayar" class="form-control">
-                        <option value="MAYBANK">MAYBANK</option>
-                        <option value="TUNAI">TUNAI</option>
-                        <option value="HONG LEONG">HONG LEONG</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Jenis Barang</label>
-                    <input type="text" id="expJenis" class="form-control" placeholder="cth: BIL INTERNET" oninput="autoKodPerbelanjaan()">
-                </div>
-                <div class="col form-group">
-                    <label>Kod Perbelanjaan</label>
-                    <select id="expKod" class="form-control">
-                        <option value="5-1000 SABUN DAN PEWANGI">5-1000 SABUN DAN PEWANGI</option>
-                        <option value="5-2000 BAHAN PEMBUNGKUSAN">5-2000 BAHAN PEMBUNGKUSAN</option>
-                        <option value="5-3000 PETROL DAN TOL OPERASI">5-3000 PETROL DAN TOL OPERASI</option>
-                        <option value="5-4000 UPAH DAN KOMISEN KRU">5-4000 UPAH DAN KOMISEN KRU</option>
-                        <option value="5-5000 KOS SUB-KONTRAK">5-5000 KOS SUB-KONTRAK</option>
-                        <option value="6-1100 PROMOSI DAN IKLAN">6-1100 PROMOSI DAN IKLAN</option>
-                        <option value="6-1200 KOMISEN AGEN JUALAN">6-1200 KOMISEN AGEN JUALAN</option>
-                        <option value="6-2100 PENYELENGGARAAN KENDERAAN">6-2100 PENYELENGGARAAN KENDERAAN</option>
-                        <option value="6-2200 INSURANS DAN CUKAI JALAN">6-2200 INSURANS DAN CUKAI JALAN</option>
-                        <option value="6-3100 SEWA PREMIS DAN STOR">6-3100 SEWA PREMIS DAN STOR</option>
-                        <option value="6-3200 ELEKTRIK DAN AIR (UTILITI)">6-3200 ELEKTRIK DAN AIR (UTILITI)</option>
-                        <option value="6-3300 INTERNET DAN TELEFON">6-3300 INTERNET DAN TELEFON</option>
-                        <option value="6-3400 GAJI TETAP PENTADBIRAN">6-3400 GAJI TETAP PENTADBIRAN</option>
-                        <option value="6-3500 ALAT TULIS DAN PEJABAT">6-3500 ALAT TULIS DAN PEJABAT</option>
-                        <option value="6-3600 PERALATAN DAN ALAT GANTI KECIL">6-3600 PERALATAN DAN ALAT GANTI KECIL</option>
-                        <option value="6-4100 LESEN DAN PERUNDANGAN">6-4100 LESEN DAN PERUNDANGAN</option>
-                        <option value="6-4200 YURAN GERBANG KAWALAN">6-4200 YURAN GERBANG KAWALAN</option>
-                        <option value="6-5100 GANTI RUGI PELANGGAN">6-5100 GANTI RUGI PELANGGAN</option>
-                        <option value="6-5200 LAIN-LAIN / BELANJA RENCAM">6-5200 LAIN-LAIN / BELANJA RENCAM</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Kuantiti</label>
-                    <input type="number" id="expQty" class="form-control" min="1" value="1" oninput="kiraAmount()">
-                </div>
-                <div class="col form-group">
-                    <label>Harga Seunit (RM)</label>
-                    <input type="number" id="expPrice" class="form-control" min="0" step="0.01" value="0.00" oninput="kiraAmount()">
-                </div>
-            </div>
-            <div class="form-group">
-                <label>Jumlah (RM) <small>(dikira automatik)</small></label>
-                <input type="text" id="expAmount" class="form-control" readonly style="font-weight:700;">
-            </div>
-            <div class="form-group">
-                <label>Butiran / No Resit</label>
-                <input type="text" id="expButiran" class="form-control" placeholder="No Resit: 54747">
-            </div>
-            <div class="row">
-                <div class="col form-group">
-                    <label>Pembekal</label>
-                    <input type="text" id="expPembekal" class="form-control" placeholder="cth: TESHEM TRADING">
-                </div>
-                <div class="col form-group">
-                    <label>Catatan</label>
-                    <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
-                </div>
-            </div>
-            <div class="ocr-camera-box">
-                <label class="btn-scan-resit">📸 Imbas Resit (OCR) <input type="file" accept="image/*" capture="environment" id="inputKameraResit" onchange="prosesOcrResit(event)" style="display:none;"></label>
-                <div id="statusOcr" class="scan-status"></div>
-            </div>
-            <button class="btn btn-primary" onclick="simpanPerbelanjaan()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
-            <div id="expenseMsg" class="mt-16"></div>
-        </div>
-        <div class="card">
-            <h3 class="card-title">Senarai Perbelanjaan</h3>
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead><tr><th>Tarikh</th><th>Bayar</th><th>Jenis</th><th>Jumlah</th><th>Tindakan</th></tr></thead>
-                    <tbody id="expenseTableBody">
-                        ${buildExpenseRows()}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    `;
-    kiraAmount();
-}
-
-async function prosesOcrResit(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const statusEl = document.getElementById('statusOcr');
-    statusEl.innerText = "🔄 AI sedang membaca resit...";
-    try {
-        // Kompres gambar dahulu
-        const compressedBlob = await compressImage(file, 1080, 1080, 0.8);
-        const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
-        const result = await Tesseract.recognize(compressedFile, 'msa+eng', { logger: m => console.log(m) });
-        const text = result.data.text;
-        console.log("OCR text:", text);
-        // Cari jumlah RM
-        const match = text.match(/(?:RM|TOTAL|JUMLAH)[\s:]*([\d.,]+)/i);
-        if (match && match[1]) {
-            let amount = match[1].replace(',', '');
-            document.getElementById('expPrice').value = parseFloat(amount).toFixed(2);
-            kiraAmount();
-            statusEl.innerText = `✅ RM ${amount} dikesan. Sila semak.`;
-        } else {
-            statusEl.innerText = "⚠️ Gagal mengesan jumlah RM secara automatik.";
-        }
-    } catch (error) {
-        console.error(error);
-        statusEl.innerText = "❌ Gagal memproses gambar resit.";
-    }
-}
-
-// ==================== OFFLINE QUEUE ====================
-function saveToOfflineQueue(qrIds, status) {
-    let queue = JSON.parse(localStorage.getItem('mycarpet_offline_queue') || '[]');
-    queue.push({ qrIds, status, timestamp: new Date().toISOString() });
-    localStorage.setItem('mycarpet_offline_queue', JSON.stringify(queue));
-    STATE.offlineQueue = queue;
-}
-
-function loadOfflineQueue() {
-    const stored = localStorage.getItem('mycarpet_offline_queue');
-    if (stored) {
-        STATE.offlineQueue = JSON.parse(stored);
-        if (STATE.offlineQueue.length > 0) {
-            toast('Ada ' + STATE.offlineQueue.length + ' data tertunda. Cuba sync...');
-            processOfflineQueue();
-        }
-    }
-}
-
-async function processOfflineQueue() {
-    if (STATE.offlineQueue.length === 0) return;
-    if (!navigator.onLine) {
-        toast('Tiada internet. Data akan dihantar kemudian.');
-        return;
-    }
-    const queue = STATE.offlineQueue;
-    const newQueue = [];
-    for (let item of queue) {
-        try {
-            await postData({ action: 'updateBatchStatus', qrIds: item.qrIds, status: item.status });
-            // berjaya, tidak perlu simpan
-        } catch (e) {
-            newQueue.push(item);
-        }
-    }
-    if (newQueue.length !== queue.length) {
-        localStorage.setItem('mycarpet_offline_queue', JSON.stringify(newQueue));
-        STATE.offlineQueue = newQueue;
-        toast('Sync selesai. ' + (queue.length - newQueue.length) + ' data dihantar.');
-        refreshAllUI();
-    } else {
-        toast('Sync gagal. Cuba lagi nanti.');
-    }
-}
-
-// Panggil processOfflineQueue apabila internet kembali
-window.addEventListener('online', () => {
-    if (STATE.offlineQueue && STATE.offlineQueue.length > 0) {
-        processOfflineQueue();
-    }
-});
-
-// ==================== TAMAT BAHAGIAN 3A ====================
-
-// ==================== PEMBAYARAN ====================
+// ==================== TAMAT BAHAGIAN 3 ====================
+    // ==================== PEMBAYARAN ====================
 function renderPayment(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1537,6 +1391,7 @@ function renderPayment(container) {
             </div>
         </div>`;
 }
+
 function loadPaymentData() {
     const inv = document.getElementById('paymentInvoiceSelect').value;
     const infoDiv = document.getElementById('paymentInfo');
@@ -1562,6 +1417,7 @@ function loadPaymentData() {
         html += '</ul>'; historyDiv.innerHTML = html;
     } else { historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>'; }
 }
+
 async function rekodBayaran() {
     const inv = document.getElementById('paymentInvoiceSelect').value;
     if (!inv) return toast('Sila pilih invois.');
@@ -1596,6 +1452,7 @@ async function rekodBayaran() {
         STATE.paymentWhatsAppMsg = msg; STATE.paymentWhatsAppTel = tel;
     }, true);
 }
+
 function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
     if (!tel) return toast('Nombor telefon tidak dijumpai.');
@@ -1603,6 +1460,7 @@ function hantarWhatsAppPembayaran() {
     bukaWhatsApp(tel, msg);
 }
 
+// ==================== INVOIS & RESIT ====================
 function renderInvoiceTab(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1633,6 +1491,7 @@ function renderInvoiceTab(container) {
         </div>
         <div id="invoicePreviewContainer"></div>`;
 }
+
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
@@ -1678,6 +1537,7 @@ function renderInvoicePreview() {
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
 }
+
 async function shareInvoiceWithAttachment() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
@@ -1702,6 +1562,7 @@ async function shareInvoiceWithAttachment() {
     try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
     bukaWhatsApp(data.telefon, data.msg);
 }
+
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
@@ -1710,6 +1571,7 @@ function downloadInvoicePDF() {
     toast('Sedang menjana PDF...');
     html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch((err) => { console.error('PDF error:', err); toast('Gagal menjana PDF. Sila cuba lagi.'); });
 }
+
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
@@ -1733,9 +1595,11 @@ function renderPelanggan(container) {
     `;
     renderPelangganList();
 }
+
 function filterPelanggan() {
     renderPelangganList(document.getElementById('pelangganSearch').value.trim().toLowerCase());
 }
+
 function renderPelangganList(searchTerm = '') {
     const container = document.getElementById('pelangganListContainer');
     let list = STATE.pelanggan || [];
@@ -1784,6 +1648,7 @@ function renderPelangganList(searchTerm = '') {
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
+
 function gunaDiskaun(customerId, mata) {
     if (mata < 100) {
         return toast('Maaf, mata minimum untuk tebus diskaun ialah 100 (bersamaan RM100 perbelanjaan).');
@@ -1791,6 +1656,7 @@ function gunaDiskaun(customerId, mata) {
     const diskaun = Math.floor(mata / 100) * 1;
     toast(`Pelanggan ini layak mendapat diskaun RM${diskaun}. Sila gunakan di menu Pembayaran.`);
 }
+
 function showTambahPelanggan() {
     const container = document.getElementById('pelangganFormContainer');
     container.classList.remove('hidden');
@@ -1811,6 +1677,7 @@ function showTambahPelanggan() {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
+
 async function simpanTambahPelanggan() {
     const nama = document.getElementById('plgNama').value.trim();
     const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
@@ -1828,6 +1695,7 @@ async function simpanTambahPelanggan() {
     fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
+
 function showEditPelanggan(customerId) {
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     if (!cust) return toast('Pelanggan tidak dijumpai.');
@@ -1850,6 +1718,7 @@ function showEditPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
+
 async function simpanEditPelanggan(customerId) {
     const nama = document.getElementById('plgNama').value.trim();
     const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
@@ -1867,6 +1736,7 @@ async function simpanEditPelanggan(customerId) {
     fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
+
 function lihatSejarahPelanggan(customerId) {
     const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
@@ -1942,7 +1812,6 @@ function switchWorkerTab(tabId, btn) {
     else if (tabId === 'workercommission') renderWorkerCommission(content);
     else if (tabId === 'workerrunner') renderWorkerRunner(content);
 }
-// ---------- SUB TAB 1: SENARAI PEKERJA ----------
 function renderWorkerList(container) {
     const workers = STATE.pekerja || [];
     let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -2033,7 +1902,6 @@ async function simpanEditPekerja(id) {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
-// ---------- SUB TAB 2: KOMISEN ----------
 function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
@@ -2097,7 +1965,6 @@ async function tambahKomisen() {
     fetchData(null, true);
     setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
-// ---------- SUB TAB 3: RUNNER ----------
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
@@ -2331,18 +2198,21 @@ function renderBarcode(container) {
             <div id="barcodePreviewContainer" class="mt-16"><p class="muted">Sila pilih invois untuk lihat preview barcode.</p></div>
         </div>`;
 }
+
 function generateBarcodePreview() {
     const inv = document.getElementById('barcodeInvoiceSelect').value;
     const container = document.getElementById('barcodePreviewContainer');
     if (!inv) { container.innerHTML = '<p class="muted">Sila pilih invois.</p>'; return; }
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
     if (!carpets.length) { container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>'; return; }
+
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const telefon = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
     const cusId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID'], '');
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
+
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
@@ -2357,6 +2227,7 @@ function generateBarcodePreview() {
                 <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
+
     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
@@ -2368,6 +2239,7 @@ function generateBarcodePreview() {
         </div>
         <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
     container.innerHTML = html;
+
     carpets.forEach((k, idx) => {
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
@@ -2376,6 +2248,7 @@ function generateBarcodePreview() {
         }
     });
 }
+
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2385,7 +2258,9 @@ function printStikers() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
 }
+
 function simpanPDFStikers() { printStikers(); }
+
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2398,7 +2273,7 @@ function simpanGambarStikers() {
     });
 }
 
-// ==================== PERBELANJAAN ====================
+// ==================== PERBELANJAAN (DENGAN OCR) ====================
 function renderExpenses(container) {
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
@@ -2478,6 +2353,10 @@ function renderExpenses(container) {
                     <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
                 </div>
             </div>
+            <div class="ocr-camera-box">
+                <label class="btn-scan-resit">📸 Imbas Resit (OCR) <input type="file" accept="image/*" capture="environment" id="inputKameraResit" onchange="prosesOcrResit(event)" style="display:none;"></label>
+                <div id="statusOcr" class="scan-status"></div>
+            </div>
             <button class="btn btn-primary" onclick="simpanPerbelanjaan()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
             <div id="expenseMsg" class="mt-16"></div>
         </div>
@@ -2495,40 +2374,95 @@ function renderExpenses(container) {
     `;
     kiraAmount();
 }
-function buildExpenseRows() {
-    const data = STATE.rawExpenses || [];
-    const now = new Date();
-    const currentMM = String(now.getMonth() + 1).padStart(2, '0');
-    const currentYYYY = now.getFullYear();
-    const filtered = data.filter(item => {
-        const t = getField(item, ['TARIKH']);
-        if (!t) return false;
-        const parts = t.split('/');
-        if (parts.length !== 3) return false;
-        return parts[1] === currentMM && parts[2] == currentYYYY;
-    });
-    if (!filtered.length) return '<tr><td colspan="5" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
-    filtered.sort((a, b) => (getField(b, ['TARIKH']) || '').localeCompare(getField(a, ['TARIKH']) || ''));
-    let rows = '';
-    filtered.forEach(item => {
-        const id = escapeHtml(getField(item, ['ID'], ''));
-        const tgl = escapeHtml(getField(item, ['TARIKH'], '-'));
-        const bayar = escapeHtml(getField(item, ['BAYAR_MELALUI'], '-'));
-        const jenis = escapeHtml(getField(item, ['JENIS BARANG','JENIS_BARANG','JENIS'], '-'));
-        const jumlah = formatMoney(getField(item, ['AMOUNT','JUMLAH'], 0));
-        rows += `<tr>
-            <td>${tgl}</td>
-            <td>${bayar}</td>
-            <td>${jenis}</td>
-            <td>${jumlah}</td>
-            <td>
-                <button class="btn btn-secondary btn-sm" onclick="editExpense('${id}')"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn btn-danger btn-sm" onclick="deleteExpense('${id}')"><i class="fa-solid fa-trash"></i></button>
-            </td>
-        </tr>`;
-    });
-    return rows;
+
+// --- OCR Functions ---
+async function prosesOcrResit(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const statusEl = document.getElementById('statusOcr');
+    statusEl.innerText = "🔄 AI sedang membaca resit...";
+    try {
+        const compressedBlob = await compressImage(file, 1080, 1080, 0.8);
+        const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' });
+        const result = await Tesseract.recognize(compressedFile, 'msa+eng', { logger: m => console.log(m) });
+        const text = result.data.text;
+        console.log("OCR text:", text);
+
+        // 1. Cari Tarikh (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD/MM/YY)
+        let dateFound = null;
+        const dateRegexes = [
+            /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
+            /(\d{2})-(\d{2})-(\d{4})/,   // DD-MM-YYYY
+            /(\d{4})-(\d{2})-(\d{2})/,   // YYYY-MM-DD
+            /(\d{2})\/(\d{2})\/(\d{2})/  // DD/MM/YY
+        ];
+        for (let regex of dateRegexes) {
+            const match = text.match(regex);
+            if (match) {
+                let y = match[3];
+                if (y.length === 2) y = '20' + y;
+                let m = match[2], d = match[1];
+                if (m.length === 1) m = '0' + m;
+                if (d.length === 1) d = '0' + d;
+                dateFound = y + '-' + m + '-' + d;
+                break;
+            }
+        }
+        if (dateFound) {
+            document.getElementById('expDate').value = dateFound;
+        }
+
+        // 2. Cari Pembekal (perkataan selepas "Kedai:" atau "Supplier:")
+        const supplierMatch = text.match(/(?:Kedai|Supplier)[:\s]*([^\n\r]+)/i);
+        if (supplierMatch) {
+            document.getElementById('expPembekal').value = supplierMatch[1].trim();
+        }
+
+        // 3. Cari Jumlah (RM / TOTAL / JUMLAH)
+        const amountMatch = text.match(/(?:RM|TOTAL|JUMLAH)[\s:]*([\d.,]+)/i);
+        if (amountMatch && amountMatch[1]) {
+            let amount = amountMatch[1].replace(',', '');
+            document.getElementById('expPrice').value = parseFloat(amount).toFixed(2);
+            kiraAmount();
+            statusEl.innerText = `✅ RM ${amount} dikesan. Sila semak.`;
+        } else {
+            statusEl.innerText = "⚠️ Gagal mengesan jumlah RM secara automatik.";
+        }
+    } catch (error) {
+        console.error(error);
+        statusEl.innerText = "❌ Gagal memproses gambar resit.";
+    }
 }
+
+function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
+                } else {
+                    if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// --- Fungsi Expenses lain (kiraAmount, autoKodPerbelanjaan, buildExpenseRows, editExpense, deleteExpense, simpanPerbelanjaan, showPriceMsg) ---
+// (Saya akan sertakan fungsi-fungsi yang belum dihantar. Sebahagiannya mungkin sudah ada, tapi saya akan salin semula untuk lengkap.)
+
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
@@ -2536,6 +2470,7 @@ function kiraAmount() {
     const el = document.getElementById('expAmount');
     if (el) el.value = formatMoney(amount);
 }
+
 function autoKodPerbelanjaan() {
     const jenis = (document.getElementById('expJenis')?.value || '').toUpperCase();
     const mapping = {
@@ -2582,6 +2517,42 @@ function autoKodPerbelanjaan() {
         }
     }
 }
+
+function buildExpenseRows() {
+    const data = STATE.rawExpenses || [];
+    const now = new Date();
+    const currentMM = String(now.getMonth() + 1).padStart(2, '0');
+    const currentYYYY = now.getFullYear();
+    const filtered = data.filter(item => {
+        const t = getField(item, ['TARIKH']);
+        if (!t) return false;
+        const parts = t.split('/');
+        if (parts.length !== 3) return false;
+        return parts[1] === currentMM && parts[2] == currentYYYY;
+    });
+    if (!filtered.length) return '<tr><td colspan="5" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
+    filtered.sort((a, b) => (getField(b, ['TARIKH']) || '').localeCompare(getField(a, ['TARIKH']) || ''));
+    let rows = '';
+    filtered.forEach(item => {
+        const id = escapeHtml(getField(item, ['ID'], ''));
+        const tgl = escapeHtml(getField(item, ['TARIKH'], '-'));
+        const bayar = escapeHtml(getField(item, ['BAYAR_MELALUI'], '-'));
+        const jenis = escapeHtml(getField(item, ['JENIS BARANG','JENIS_BARANG','JENIS'], '-'));
+        const jumlah = formatMoney(getField(item, ['AMOUNT','JUMLAH'], 0));
+        rows += `<tr>
+            <td>${tgl}</td>
+            <td>${bayar}</td>
+            <td>${jenis}</td>
+            <td>${jumlah}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="editExpense('${id}')"><i class="fa-solid fa-pen"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteExpense('${id}')"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>`;
+    });
+    return rows;
+}
+
 function editExpense(id) {
     const item = STATE.rawExpenses.find(x => x.ID === id);
     if (!item) return toast('Rekod tidak dijumpai.');
@@ -2599,6 +2570,7 @@ function editExpense(id) {
     document.getElementById('expenseMsg').innerHTML = '<span class="badge badge-proses">Sedang mengedit rekod...</span>';
     document.getElementById('expenseFormContainer').scrollIntoView({ behavior: 'smooth' });
 }
+
 function deleteExpense(id) {
     if (!confirm('Pastikan padam rekod ini?')) return;
     showLoading(true);
@@ -2611,6 +2583,7 @@ function deleteExpense(id) {
         toast('Gagal memadam.');
     });
 }
+
 function simpanPerbelanjaan() {
     const tarikhISO = document.getElementById('expDate').value;
     if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
@@ -2670,25 +2643,22 @@ function simpanPerbelanjaan() {
         showPriceMsg('expenseMsg', '❌ Gagal simpan.', 'error');
     });
 }
+
 function showPriceMsg(containerId, msg, type) {
     const el = document.getElementById(containerId);
     el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
     setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
 
-// ==================== GLOBAL EVENTS & SERVICE WORKER ====================
-function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
+// ==================== TAMAT BAHAGIAN 4 ====================
+    // ==================== GLOBAL EVENTS ====================
+function toggleSidebar() {
+    document.body.classList.toggle('sidebar-open');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.login-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-            document.querySelectorAll('.login-tab').forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            const role = this.dataset.role;
-            document.getElementById('loginFormAdmin').classList.toggle('active', role === 'admin');
-            document.getElementById('loginFormCustomer').classList.toggle('active', role === 'customer');
-            document.getElementById('loginError').classList.add('hidden');
-        });
-    });
+    // Login tabs sudah dikendalikan di Bahagian 2 (event listener)
+    // Kita hanya perlu pastikan session dipulihkan
     const stored = localStorage.getItem('mycarpet_user');
     if (stored) {
         try {
@@ -2699,11 +2669,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch(e) {}
     }
 });
+
 document.addEventListener('click', function(e) {
+    // Tutup sidebar jika klik di luar sidebar dan bukan butang menu
     if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
         document.body.classList.remove('sidebar-open');
     }
 });
+
+// ==================== SERVICE WORKER ====================
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
@@ -2711,6 +2685,8 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.log('Service Worker gagal: ', err));
     });
 }
+
+// ==================== TAMAT SCRIPT ====================
 </script>
 </body>
 </html>
