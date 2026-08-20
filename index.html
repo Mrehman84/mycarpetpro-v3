@@ -2,9 +2,8 @@
 <html lang="ms">
 <head>
     <link rel="icon" type="image/png" href="icon-512.png">
-     <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ff4b4b">
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MYCARPET PRO v3.0</title>
@@ -161,15 +160,24 @@
         .badge-cuci { background: #ebf8ff; color: #2b6cb0; }
         .badge-ready { background: #e6fffa; color: #234e52; }
         .badge-selesai { background: #c6f6d5; color: #22543d; }
-        .table-wrap { overflow-x: auto; }
+        .table-wrap {
+            overflow-x: auto;       /* ★ Penting untuk skrol mendatar di telefon */
+            -webkit-overflow-scrolling: touch;
+            margin-bottom: 15px;
+        }
         .data-table {
             width: 100%; border-collapse: collapse; font-size: 14px; min-width: 600px;
         }
+        .data-table th,
+        .data-table td {
+            white-space: nowrap;    /* ★ Elakkan teks pecah ke baris baru */
+            padding: 10px 12px;
+        }
         .data-table th {
-            padding: 10px 12px; border-bottom: 2px solid var(--border-color);
+            border-bottom: 2px solid var(--border-color);
             color: var(--text-muted); text-align: left; font-weight: 600;
         }
-        .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
+        .data-table td { border-bottom: 1px solid var(--border-color); vertical-align: middle; }
         .data-table tr:hover { background: #f7fafc; }
         .wa-preview {
             background: #dcf8c6; padding: 16px; border-radius: var(--radius);
@@ -212,9 +220,7 @@
 <!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
     <div class="login-card">
-        
         <img src="icon-512.png" alt="Logo" class="login-logo">
-
         <h2>MYCARPET PRO v3.0</h2>
         <p class="muted">Sistem Pengurusan Cucian Karpet</p>
         <div class="login-tabs">
@@ -249,6 +255,8 @@
     </main>
 </div>
 <div id="toastContainer" class="toast-container"></div>
+
+<!-- =============== MULA SCRIPT =============== -->
 <script>
 // ==================== CONFIG & STATE ====================
 const CONFIG = {
@@ -258,7 +266,7 @@ const CONFIG = {
 };
 let STATE = {
     senaraiHarga: [], pelanggan: [], tempahan: [], karpet: [], payment: [],
-    pekerja: [], komisen: [], runnerTugasan: [],expenses: [],rawExpenses: [],
+    pekerja: [], komisen: [], runnerTugasan: [], expenses: [], rawExpenses: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
     paymentWhatsAppMsg: '', paymentWhatsAppTel: ''
 };
@@ -311,59 +319,54 @@ function bukaWhatsApp(phone, message) {
     window.open(url, '_blank');
 }
 
-// ==================== API ====================
-function fetchData(callback, skipRefresh = false) {
+// ==================== API (Baharu – Kini menggunakan fetch) ====================
+async function fetchData(callback, skipRefresh = false) {
     if (STATE.isLoading) return;
     STATE.isLoading = true;
     showLoading(true);
-    $$('script[data-jsonp]').forEach(el => el.remove());
-    const cbName = 'jsonp_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
-    const timeout = setTimeout(() => {
-        cleanupJsonp(cbName); showLoading(false); STATE.isLoading = false;
-        toast('Masa muat turun tamat.');
-    }, 25000);
-    window[cbName] = function(resp) {
-        clearTimeout(timeout);
-        STATE.isLoading = false;
-        showLoading(false);
-        try {
-            if (resp && typeof resp === 'object') {
-                STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
-                STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
-                STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
-                STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
-                STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
-                STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
-                STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
-                STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
-                STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
-                STATE.rawExpenses = STATE.expenses;
 
-                if (callback) callback();
-                if (!skipRefresh) refreshAllUI();
-            } else { toast('Data tidak sah.'); }
-        } catch(e) { console.error(e); toast('Ralat memproses data.'); }
-        finally { cleanupJsonp(cbName); }
-    };
-    const script = document.createElement('script');
-    script.id = cbName; script.dataset.jsonp = 'true';
-    script.src = CONFIG.GAS_API_URL + '?action=readAll&callback=' + encodeURIComponent(cbName);
-    script.onerror = function() {
-        clearTimeout(timeout); showLoading(false); STATE.isLoading = false;
-        cleanupJsonp(cbName); toast('Gagal hubungi GAS.');
-    };
-    document.body.appendChild(script);
+    try {
+        // Gantikan JSONP dengan fetch standard – GAS mesti kembalikan JSON tulen
+        const response = await fetch(CONFIG.GAS_API_URL + '?action=readAll', {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const resp = await response.json();
+
+        if (resp && typeof resp === 'object') {
+            STATE.senaraiHarga = Array.isArray(resp.senaraiHarga) ? resp.senaraiHarga : [];
+            STATE.pelanggan = Array.isArray(resp.pelanggan) ? resp.pelanggan : [];
+            STATE.tempahan = Array.isArray(resp.tempahan) ? resp.tempahan : [];
+            STATE.karpet = Array.isArray(resp.karpet) ? resp.karpet : [];
+            STATE.payment = Array.isArray(resp.payment) ? resp.payment : [];
+            STATE.pekerja = Array.isArray(resp.pekerja) ? resp.pekerja : [];
+            STATE.komisen = Array.isArray(resp.komisen) ? resp.komisen : [];
+            STATE.runnerTugasan = Array.isArray(resp.runnerTugasan) ? resp.runnerTugasan : [];
+            STATE.expenses = Array.isArray(resp.Raw_Expenses) ? resp.Raw_Expenses : [];
+            STATE.rawExpenses = STATE.expenses;
+
+            if (callback) callback();
+            if (!skipRefresh) refreshAllUI();
+        } else {
+            toast('Data tidak sah.');
+        }
+    } catch (e) {
+        console.error("Ralat API pada telefon:", e);
+        toast('Gagal memuatkan data. Sila semak sambungan internet.');
+    } finally {
+        showLoading(false);
+        STATE.isLoading = false;
+    }
 }
 
-// 2. Fungsi untuk TULIS data (POST dengan no-cors – elak CORS)
+// Fungsi untuk TULIS data (POST dengan no-cors – elak CORS)
 async function postData(data) {
   try {
     const response = await fetch(CONFIG.GAS_API_URL, {
       method: 'POST',
-      mode: 'no-cors',   // ★ KRUSIAL – elak preflight CORS
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
     // Dengan 'no-cors', kita tidak dapat baca respons, tapi data tetap dihantar.
@@ -375,15 +378,9 @@ async function postData(data) {
   }
 }
 
-// 3. Fungsi helper untuk bersihkan JSONP
-function cleanupJsonp(name) {
-    const el = document.getElementById(name);
-    if (el) el.remove();
-    try { delete window[name]; } catch(e) {}
-}
-
-// ==================== AUTH ====================
+// ==================== AUTH (dengan sokongan autofill Android) ====================
 const ADMIN_DUMMY = { username: 'Carpet2026', password: 'Carpet2026', nama: 'Admin MyCarpet' };
+
 function loginAdmin() {
     const username = document.getElementById('adminUser').value.trim();
     const password = document.getElementById('adminPass').value.trim();
@@ -405,17 +402,17 @@ function loginCustomer() {
         saveSession(); afterLogin();
     } else { showLoginError('Nombor telefon tidak dijumpai. Sila daftar di kedai.'); }
 }
+
 function saveSession() {
-    const remember = STATE.currentUser.role === 'admin' ?
-        document.getElementById('rememberMeAdmin').checked : document.getElementById('rememberMeCust').checked;
-    const storage = remember ? localStorage : sessionStorage;
-    storage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
+    // ★ PENTING: Sentiasa guna localStorage untuk Android – elakkan sessionStorage hilang
+    localStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
 }
+
 function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.classList.remove('hidden'); }
 function afterLogin() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); initApp(); }
 function logout() {
     STATE.currentUser = null;
-    localStorage.removeItem('mycarpet_user'); sessionStorage.removeItem('mycarpet_user');
+    localStorage.removeItem('mycarpet_user');
     document.getElementById('appContainer').classList.add('hidden');
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('adminUser').value = '';
@@ -424,7 +421,15 @@ function logout() {
     document.getElementById('loginError').classList.add('hidden');
 }
 
-// ==================== APP INIT ====================
+// Tambah event listener untuk trim ruang kosong semasa menaip (bantu autofill Android)
+document.getElementById('adminUser').addEventListener('input', function() {
+    this.value = this.value.trim();
+});
+document.getElementById('adminPass').addEventListener('input', function() {
+    this.value = this.value.trim();
+});
+
+// ==================== APP INIT & SIDEBAR ====================
 function initApp() {
     renderSidebar();
     fetchData(() => {
@@ -457,6 +462,7 @@ function renderSidebar() {
         menuContainer.appendChild(li);
     });
 }
+
 function switchTab(tabId) {
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
@@ -478,8 +484,7 @@ function switchTab(tabId) {
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
 function refreshAllUI() { if (STATE.currentUser) { const ct = document.querySelector('.menu-item.active'); if (ct) switchTab(ct.dataset.tab); } }
-
-// ==================== DASHBOARD ====================
+    // ==================== DASHBOARD ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
@@ -546,32 +551,11 @@ function hantarWhatsAppJanji() {
     if (!telefon) { toast('Sila masukkan nombor telefon.'); return; }
     const preview = document.getElementById('mesejPreviewJanji');
     let msg = preview.textContent;
-    if (!msg || preview.classList.contains('hidden')) {
-        janaMesejJanji();
-        msg = preview.textContent;
-    }
+    if (!msg || preview.classList.contains('hidden')) { janaMesejJanji(); msg = preview.textContent; }
     bukaWhatsApp(telefon, msg);
 }
 
-// ==================== PENJANA INVOIS ====================
-function generateInvoiceNumber() {
-    const now = new Date();
-    const yy = String(now.getFullYear()).slice(-2);
-    const mm = ('0' + (now.getMonth() + 1)).slice(-2);
-    const prefix = yy + mm;
-    let maxSeq = 499;
-    STATE.tempahan.forEach(t => {
-        const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-        if (inv.length === 11 && inv.startsWith('INV' + prefix)) {
-            const suffix = parseInt(inv.substring(4), 10);
-            if (!isNaN(suffix) && suffix > maxSeq) maxSeq = suffix;
-        }
-    });
-    const nextSeq = ('0000' + (maxSeq + 1)).slice(-4);
-    return 'INV' + prefix + nextSeq;
-}
-
-// ==================== TEMPAHAN BARU (dengan QC Pra-Basuhan) ====================
+// ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
@@ -696,7 +680,7 @@ function addCarpetRow() {
     const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
     col4.innerHTML = '<label>Harga (RM)</label>';
     const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
-    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = false; col4.appendChild(price);
+    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
     const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
     const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
     del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
@@ -779,7 +763,7 @@ function hantarWhatsAppTempahan() {
     bukaWhatsApp(tel, msg);
 }
 
-// ==================== TRACKING (dengan Lokasi Rak) ====================
+// ==================== TRACKING ====================
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -808,13 +792,11 @@ function renderTracking(container) {
     document.getElementById('trackingSearchBox').addEventListener('input', executeTrackingSearch);
     executeTrackingSearch();
 }
-
 function executeTrackingSearch() {
     const tbody = document.getElementById('trackingTableBody');
     tbody.innerHTML = '';
     const selInv = document.getElementById('trackingInvoiceSelect').value;
     const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
-    
     let filtered = STATE.karpet.filter(k => {
         if (!k) return false;
         const st = normalize(getField(k, ['STATUS']));
@@ -825,15 +807,8 @@ function executeTrackingSearch() {
         if (search && !qr.toLowerCase().includes(search) && !inv.toLowerCase().includes(search)) return false;
         return true;
     });
-    
-    if (!filtered.length) { 
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; 
-        updateTrackingCheckedCount(); 
-        return; 
-    }
-    
+    if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada hasil</td></tr>'; updateTrackingCheckedCount(); return; }
     filtered.sort((a,b) => String(getField(b, ['QR ID','QR_ID'])).localeCompare(String(getField(a, ['QR ID','QR_ID']))));
-    
     filtered.forEach(k => {
         const inv = String(getField(k, ['INV NO','INV_NO'])).trim();
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
@@ -842,30 +817,16 @@ function executeTrackingSearch() {
         const st = normalize(getField(k, ['STATUS']));
         const badge = st === 'READY TO DELIVER' ? 'badge-ready' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
         const rak = getField(k, ['RAK'], '');
-        
         let waButtonHtml = '';
         if (st === 'READY TO DELIVER') {
             const rawPhone = String(getField(cust, ['TELEFON'], '')).replace(/[- ]/g, '');
             const cleanPhone = rawPhone.replace(/^0+/, '');
-            
             if (cleanPhone) {
                 const waNumber = cleanPhone.startsWith('60') ? cleanPhone : '60' + cleanPhone;
-                const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
-                            `Assalamualaikum / Salam sejahtera!\n` +
-                            `Kami ingin maklumkan bahawa karpet anda dengan No. Invois *${inv}* sudah siap dan *READY TO DELIVER*!\n\n` +
-                            `📍 Sila hubungi/chat kami untuk menetapkan slot penghantaran.\n` +
-                            `📞 Talian: 017-4050336\n\n` +
-                            `Terima kasih kerana mempercayai perkhidmatan kami! 🙏`;
-                            
-                waButtonHtml = `<br><a href="https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}" 
-                                  target="_blank" 
-                                  class="btn btn-success" 
-                                  style="margin-top:5px; display:inline-block; padding:2px 6px; font-size:11px; border-radius:4px; color:#fff; text-decoration:none; background-color:#28a745; border:none;">
-                                  💬 Hubungi WA
-                                </a>`;
+                const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nAssalamualaikum / Salam sejahtera!\nKami ingin maklumkan bahawa karpet anda dengan No. Invois *${inv}* sudah siap dan *READY TO DELIVER*!\n\n📍 Sila hubungi/chat kami untuk menetapkan slot penghantaran.\n📞 Talian: 017-4050336\n\nTerima kasih kerana mempercayai perkhidmatan kami! 🙏`;
+                waButtonHtml = `<br><a href="https://wa.me/${waNumber}?text=${encodeURIComponent(msg)}" target="_blank" class="btn btn-success" style="margin-top:5px; display:inline-block; padding:2px 6px; font-size:11px; border-radius:4px; color:#fff; text-decoration:none; background-color:#28a745; border:none;">💬 Hubungi WA</a>`;
             }
         }
-
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td><input type="checkbox" class="tracking-row-checkbox" value="${escapeHtml(qr)}" onchange="updateTrackingCheckedCount()"></td>
@@ -883,7 +844,6 @@ function executeTrackingSearch() {
     });
     updateTrackingCheckedCount();
 }
-
 function assignRak(qrId) {
     const rak = prompt('Masukkan kod rak (contoh: RAK-A1):');
     if (!rak) return;
@@ -894,24 +854,19 @@ function assignRak(qrId) {
         executeTrackingSearch();
     });
 }
-
 function toggleSelectAll(masterCheckbox) {
     document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = masterCheckbox.checked);
     updateTrackingCheckedCount();
 }
-
 function updateTrackingCheckedCount() {
     document.getElementById('trackingCheckedCount').textContent = `${document.querySelectorAll('.tracking-row-checkbox:checked').length} item dipilih`;
 }
-
 function updateSingleStatus(qrId) {
     const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
     if (!k) return toast('Karpet tidak dijumpai.');
     const cur = normalize(getField(k, ['STATUS']));
-
     const overlay = document.createElement('div');
     overlay.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;justify-content:center;align-items:center;z-index:9999;";
-    
     overlay.innerHTML = `
         <div class="card" style="width:320px; background:#fff; padding:20px; border-radius:8px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
             <h3 style="margin-top:0;font-size:16px;margin-bottom:15px;">Kemas Kini Status Tunggal</h3>
@@ -938,7 +893,6 @@ function updateSingleStatus(qrId) {
         updateStatuses([qrId], selectedStatus);
     };
 }
-
 async function submitBatchUpdate() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) return toast('Pilih sekurang-kurangnya satu item.');
@@ -946,7 +900,6 @@ async function submitBatchUpdate() {
     const status = document.getElementById('batchStatusOpt').value;
     await updateStatuses(ids, status);
 }
-
 async function updateStatuses(qrIds, status) {
     showLoading(true);
     await postData({ action: 'updateBatchStatus', qrIds, status });
@@ -956,7 +909,8 @@ async function updateStatuses(qrIds, status) {
     if (master) master.checked = false;
     fetchData(() => executeTrackingSearch(), true);
 }
-    // ==================== PEMBAYARAN ====================
+
+// ==================== PEMBAYARAN ====================
 function renderPayment(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -977,7 +931,6 @@ function renderPayment(container) {
         const label = item.status === 'PENDING' ? '⏳ PENDING' : '✅ PAID';
         return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)} [${label}]</option>`;
     }).join('');
-
     container.innerHTML = `
         <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
         <div class="card">
@@ -993,7 +946,6 @@ function renderPayment(container) {
             </div>
         </div>`;
 }
-
 function loadPaymentData() {
     const inv = document.getElementById('paymentInvoiceSelect').value;
     const infoDiv = document.getElementById('paymentInfo');
@@ -1019,7 +971,6 @@ function loadPaymentData() {
         html += '</ul>'; historyDiv.innerHTML = html;
     } else { historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>'; }
 }
-
 async function rekodBayaran() {
     const inv = document.getElementById('paymentInvoiceSelect').value;
     if (!inv) return toast('Sila pilih invois.');
@@ -1054,7 +1005,6 @@ async function rekodBayaran() {
         STATE.paymentWhatsAppMsg = msg; STATE.paymentWhatsAppTel = tel;
     }, true);
 }
-
 function hantarWhatsAppPembayaran() {
     const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
     if (!tel) return toast('Nombor telefon tidak dijumpai.');
@@ -1079,7 +1029,6 @@ function renderInvoiceTab(container) {
         const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
         return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
     }).join('');
-
     container.innerHTML = `
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
         <div class="card no-print">
@@ -1093,7 +1042,6 @@ function renderInvoiceTab(container) {
         </div>
         <div id="invoicePreviewContainer"></div>`;
 }
-
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
@@ -1139,7 +1087,6 @@ function renderInvoicePreview() {
     const msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n💵 *Jumlah:* ${formatMoney(total)}\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid };
 }
-
 async function shareInvoiceWithAttachment() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
@@ -1164,7 +1111,6 @@ async function shareInvoiceWithAttachment() {
     try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
     bukaWhatsApp(data.telefon, data.msg);
 }
-
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
@@ -1173,14 +1119,13 @@ function downloadInvoicePDF() {
     toast('Sedang menjana PDF...');
     html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch((err) => { console.error('PDF error:', err); toast('Gagal menjana PDF. Sila cuba lagi.'); });
 }
-
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
     bukaWhatsApp(data.telefon, data.msg);
 }
 
-// ==================== PELANGGAN (dengan Loyalty) ====================
+// ==================== PELANGGAN ====================
 function renderPelanggan(container) {
     container.innerHTML = `
         <header>
@@ -1196,11 +1141,9 @@ function renderPelanggan(container) {
     `;
     renderPelangganList();
 }
-
 function filterPelanggan() {
     renderPelangganList(document.getElementById('pelangganSearch').value.trim().toLowerCase());
 }
-
 function renderPelangganList(searchTerm = '') {
     const container = document.getElementById('pelangganListContainer');
     let list = STATE.pelanggan || [];
@@ -1222,7 +1165,6 @@ function renderPelangganList(searchTerm = '') {
             loyaltyMap[cid] = (loyaltyMap[cid] || 0) + getNumber(getField(t, ['JUMLAH HARGA'], 0));
         }
     });
-
     let html = `<div class="table-wrap"><table class="data-table">
         <thead><tr><th>Customer ID</th><th>Nama</th><th>Telefon</th><th>Alamat</th><th>Daerah</th><th>Mata</th><th>Tindakan</th></tr></thead>
         <tbody>`;
@@ -1250,7 +1192,6 @@ function renderPelangganList(searchTerm = '') {
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
-
 function gunaDiskaun(customerId, mata) {
     if (mata < 100) {
         return toast('Maaf, mata minimum untuk tebus diskaun ialah 100 (bersamaan RM100 perbelanjaan).');
@@ -1258,7 +1199,6 @@ function gunaDiskaun(customerId, mata) {
     const diskaun = Math.floor(mata / 100) * 1;
     toast(`Pelanggan ini layak mendapat diskaun RM${diskaun}. Sila gunakan di menu Pembayaran.`);
 }
-
 function showTambahPelanggan() {
     const container = document.getElementById('pelangganFormContainer');
     container.classList.remove('hidden');
@@ -1279,18 +1219,15 @@ function showTambahPelanggan() {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-
 async function simpanTambahPelanggan() {
     const nama = document.getElementById('plgNama').value.trim();
     const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
     const alamat = document.getElementById('plgAlamat').value.trim();
     const daerah = document.getElementById('plgDaerah').value.trim();
-
     if (!nama || !tel || !alamat) {
         toast('Sila lengkapkan Nama, Telefon dan Alamat.');
         return;
     }
-
     showLoading(true);
     await postData({ action: 'addCustomer', nama, telefon: tel, alamat, daerah });
     showLoading(false);
@@ -1299,7 +1236,6 @@ async function simpanTambahPelanggan() {
     fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
-
 function showEditPelanggan(customerId) {
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     if (!cust) return toast('Pelanggan tidak dijumpai.');
@@ -1322,18 +1258,15 @@ function showEditPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-
 async function simpanEditPelanggan(customerId) {
     const nama = document.getElementById('plgNama').value.trim();
     const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
     const alamat = document.getElementById('plgAlamat').value.trim();
     const daerah = document.getElementById('plgDaerah').value.trim();
-
     if (!nama || !tel || !alamat) {
         toast('Sila lengkapkan Nama, Telefon dan Alamat.');
         return;
     }
-
     showLoading(true);
     await postData({ action: 'updateCustomer', customerId, nama, telefon: tel, alamat, daerah });
     showLoading(false);
@@ -1342,7 +1275,6 @@ async function simpanEditPelanggan(customerId) {
     fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
-
 function lihatSejarahPelanggan(customerId) {
     const invList = STATE.tempahan.filter(t => normalize(getField(t, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
@@ -1370,8 +1302,7 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-
-// ==================== PEKERJA ====================
+    // ==================== PEKERJA (sambungan) ====================
 function renderPekerja(container) {
     container.innerHTML = `
         <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
@@ -1386,7 +1317,6 @@ function renderPekerja(container) {
     `;
     switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
 }
-
 const workerTabStyle = `
     .tab-btn {
         padding: 10px 20px;
@@ -1410,7 +1340,6 @@ if (!document.getElementById('workerTabStyles')) {
     styleTag.textContent = workerTabStyle;
     document.head.appendChild(styleTag);
 }
-
 function switchWorkerTab(tabId, btn) {
     document.querySelectorAll('#workerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1419,7 +1348,6 @@ function switchWorkerTab(tabId, btn) {
     else if (tabId === 'workercommission') renderWorkerCommission(content);
     else if (tabId === 'workerrunner') renderWorkerRunner(content);
 }
-
 // ---------- SUB TAB 1: SENARAI PEKERJA ----------
 function renderWorkerList(container) {
     const workers = STATE.pekerja || [];
@@ -1453,7 +1381,6 @@ function renderWorkerList(container) {
     }
     container.innerHTML = html;
 }
-
 function showAddWorker() {
     const content = document.getElementById('workerTabContent');
     content.innerHTML = `
@@ -1469,7 +1396,6 @@ function showAddWorker() {
         </div>
     `;
 }
-
 async function simpanTambahPekerja() {
     const nama = document.getElementById('workerNama').value.trim();
     const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
@@ -1480,7 +1406,6 @@ async function simpanTambahPekerja() {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
-
 async function deleteWorker(id) {
     if (!confirm('Padam pekerja ini?')) return;
     await postData({ action: 'deleteWorker', id });
@@ -1488,7 +1413,6 @@ async function deleteWorker(id) {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
-
 function editWorker(id) {
     const w = (STATE.pekerja || []).find(x => normalize(getField(x, ['ID','WORKER_ID'])) === normalize(id));
     if (!w) return;
@@ -1506,7 +1430,6 @@ function editWorker(id) {
         </div>
     `;
 }
-
 async function simpanEditPekerja(id) {
     const nama = document.getElementById('workerNama').value.trim();
     const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
@@ -1516,19 +1439,16 @@ async function simpanEditPekerja(id) {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
-
 // ---------- SUB TAB 2: KOMISEN ----------
 function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
-    
     let workerOptions = '<option value="">-- Pilih Pekerja --</option>';
     workers.forEach(w => {
         const id = escapeHtml(getField(w, ['ID','WORKER_ID'], ''));
         const nama = escapeHtml(getField(w, ['NAMA'], ''));
         workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
     });
-
     let qrOptions = '<option value="">-- Pilih QR ID --</option>';
     STATE.karpet.forEach(k => {
         const st = normalize(getField(k, ['STATUS']));
@@ -1537,7 +1457,6 @@ function renderWorkerCommission(container) {
             qrOptions += `<option value="${qr}">${qr}</option>`;
         }
     });
-
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
     const monthlyKomisen = {};
@@ -1548,7 +1467,6 @@ function renderWorkerCommission(container) {
             monthlyKomisen[wid] = (monthlyKomisen[wid] || 0) + getNumber(getField(k, ['KOMISEN (RM)'], 0));
         }
     });
-
     let laporanHtml = '<h4>Komisen Bulan Ini</h4><ul>';
     workers.forEach(w => {
         const wid = getField(w, ['ID','WORKER_ID'], '');
@@ -1557,7 +1475,6 @@ function renderWorkerCommission(container) {
         laporanHtml += `<li>${escapeHtml(nama)}: RM ${total.toFixed(2)}</li>`;
     });
     laporanHtml += '</ul>';
-
     container.innerHTML = `
         <h3 class="card-title">💰 Tambah Komisen Pekerja</h3>
         <div class="row">
@@ -1571,7 +1488,6 @@ function renderWorkerCommission(container) {
         ${laporanHtml}
     `;
 }
-
 async function tambahKomisen() {
     const workerId = document.getElementById('komisenWorkerSelect').value;
     const qrId = document.getElementById('komisenQrSelect').value;
@@ -1582,18 +1498,15 @@ async function tambahKomisen() {
     const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
     const today = getToday();
-
     await postData({ action: 'addKomisen', workerId, workerName, qrId, date: today, amount: 1.00 });
     showPriceMsg('komisenMsg', '✅ Komisen RM 1.00 berjaya direkodkan!', 'success');
     fetchData(null, true);
     setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
-
 // ---------- SUB TAB 3: RUNNER ----------
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
-
     let workerOptions = '<option value="">-- Pilih Runner --</option>';
     workers.forEach(w => {
         if (getField(w, ['PERANAN'], '') === 'Runner') {
@@ -1602,7 +1515,6 @@ function renderWorkerRunner(container) {
             workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
         }
     });
-
     let tasksHtml = '';
     if (tasks.length) {
         tasksHtml = `<div class="table-wrap"><table class="data-table">
@@ -1622,7 +1534,6 @@ function renderWorkerRunner(container) {
     } else {
         tasksHtml = '<p class="muted">Tiada tugasan.</p>';
     }
-
     container.innerHTML = `
         <h3 class="card-title">🚚 Tambah Tugasan Runner</h3>
         <div class="row">
@@ -1640,21 +1551,17 @@ function renderWorkerRunner(container) {
         ${tasksHtml}
     `;
 }
-
 async function tambahRunnerTask() {
     const workerId = document.getElementById('runnerSelect').value;
     const alamat = document.getElementById('runnerAlamat').value.trim();
     const tarikh = document.getElementById('runnerTarikh').value;
     const status = document.getElementById('runnerStatus').value;
-
     if (!workerId || !alamat) {
         showPriceMsg('runnerMsg', '❌ Sila pilih Runner dan isi Alamat.', 'error');
         return;
     }
-
     const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
-
     await postData({ action: 'addRunnerTask', workerId, workerName, alamat, tarikh, status });
     showPriceMsg('runnerMsg', '✅ Tugasan berjaya disimpan!', 'success');
     fetchData(null, true);
@@ -1676,7 +1583,6 @@ function renderPriceMatrix(container) {
     `;
     switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
 }
-
 const priceTabStyle = `
     .tab-btn { padding: 10px 20px; border: none; background: none; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: .2s; }
     .tab-btn.active { color: var(--primary-red); border-bottom-color: var(--primary-red); }
@@ -1687,7 +1593,6 @@ if (!document.getElementById('priceTabStyles')) {
     styleTag.textContent = priceTabStyle;
     document.head.appendChild(styleTag);
 }
-
 function switchPriceTab(tabId, btn) {
     document.querySelectorAll('#priceTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1696,7 +1601,6 @@ function switchPriceTab(tabId, btn) {
     else if (tabId === 'addprice') renderAddPriceForm(content);
     else if (tabId === 'bulkprice') renderBulkPrice(content);
 }
-
 function renderPriceList(container) {
     const data = STATE.senaraiHarga || [];
     if (!data.length) { container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>'; return; }
@@ -1710,7 +1614,6 @@ function renderPriceList(container) {
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
-
 function renderAddPriceForm(container) {
     container.innerHTML = `
         <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
@@ -1723,7 +1626,6 @@ function renderAddPriceForm(container) {
         <div id="addPriceMsg" class="mt-16"></div>
     `;
 }
-
 async function addNewPrice() {
     const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
     const jenis = document.getElementById('newPriceJenis').value.trim();
@@ -1739,13 +1641,11 @@ async function addNewPrice() {
     fetchData(null, true);
     setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
 }
-
 function showPriceMsg(containerId, msg, type) {
     const el = document.getElementById(containerId);
     el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
     setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
-
 function renderBulkPrice(container) {
     const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
     container.innerHTML = `
@@ -1763,14 +1663,12 @@ function renderBulkPrice(container) {
         <button class="btn btn-success mt-16" onclick="saveBulkPrices()"><i class="fa-solid fa-cloud-upload-alt"></i> Sahkan & Kemas Kini Semua Harga</button>
         <div id="bulkPriceMsg" class="mt-16"></div>
     `;
-
     const extractLuas = (kod) => {
         const match = kod.match(/(\d+)\s*X\s*(\d+)/);
         if (match) return parseFloat(match[1]) * parseFloat(match[2]);
         if (kod.includes('TEBAL')) return 24.0;
         return 0.0;
     };
-
     const updatePreview = () => {
         const elCK = document.getElementById('multCK');
         if (!elCK) return;
@@ -1797,11 +1695,9 @@ function renderBulkPrice(container) {
         html += '</tbody></table></div>';
         previewDiv.innerHTML = html;
     };
-
     document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => inp.addEventListener('input', updatePreview));
     setTimeout(updatePreview, 50);
 }
-
 async function saveBulkPrices() {
     const inputs = document.querySelectorAll('.bulk-input');
     if (inputs.length === 0) return toast('Tiada data harga.');
@@ -1832,7 +1728,6 @@ function renderBarcode(container) {
     });
     invList.sort((a, b) => b.inv.localeCompare(a.inv));
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
-
     container.innerHTML = `
         <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
         <div class="card">
@@ -1840,21 +1735,18 @@ function renderBarcode(container) {
             <div id="barcodePreviewContainer" class="mt-16"><p class="muted">Sila pilih invois untuk lihat preview barcode.</p></div>
         </div>`;
 }
-
 function generateBarcodePreview() {
     const inv = document.getElementById('barcodeInvoiceSelect').value;
     const container = document.getElementById('barcodePreviewContainer');
     if (!inv) { container.innerHTML = '<p class="muted">Sila pilih invois.</p>'; return; }
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
     if (!carpets.length) { container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>'; return; }
-
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const telefon = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
     const cusId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID'], '');
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
-
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
@@ -1869,7 +1761,6 @@ function generateBarcodePreview() {
                 <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
-
     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
@@ -1881,7 +1772,6 @@ function generateBarcodePreview() {
         </div>
         <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
     container.innerHTML = html;
-
     carpets.forEach((k, idx) => {
         const qrContainer = document.getElementById(`qr-stiker-${idx}`);
         if (qrContainer) {
@@ -1890,7 +1780,6 @@ function generateBarcodePreview() {
         }
     });
 }
-
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -1900,9 +1789,7 @@ function printStikers() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
 }
-
 function simpanPDFStikers() { printStikers(); }
-
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2011,13 +1898,11 @@ function renderExpenses(container) {
     `;
     kiraAmount();
 }
-
 function buildExpenseRows() {
     const data = STATE.rawExpenses || [];
     const now = new Date();
     const currentMM = String(now.getMonth() + 1).padStart(2, '0');
     const currentYYYY = now.getFullYear();
-
     const filtered = data.filter(item => {
         const t = getField(item, ['TARIKH']);
         if (!t) return false;
@@ -2025,9 +1910,7 @@ function buildExpenseRows() {
         if (parts.length !== 3) return false;
         return parts[1] === currentMM && parts[2] == currentYYYY;
     });
-
     if (!filtered.length) return '<tr><td colspan="5" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
-
     filtered.sort((a, b) => (getField(b, ['TARIKH']) || '').localeCompare(getField(a, ['TARIKH']) || ''));
     let rows = '';
     filtered.forEach(item => {
@@ -2049,7 +1932,6 @@ function buildExpenseRows() {
     });
     return rows;
 }
-
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
@@ -2057,7 +1939,6 @@ function kiraAmount() {
     const el = document.getElementById('expAmount');
     if (el) el.value = formatMoney(amount);
 }
-
 function autoKodPerbelanjaan() {
     const jenis = (document.getElementById('expJenis')?.value || '').toUpperCase();
     const mapping = {
@@ -2104,12 +1985,11 @@ function autoKodPerbelanjaan() {
         }
     }
 }
-
 function editExpense(id) {
     const item = STATE.rawExpenses.find(x => x.ID === id);
     if (!item) return toast('Rekod tidak dijumpai.');
     document.getElementById('expenseEditId').value = id;
-    document.getElementById('expDate').value = item.TARIKH.split('/').reverse().join('-'); // DD/MM/YYYY -> YYYY-MM-DD
+    document.getElementById('expDate').value = item.TARIKH.split('/').reverse().join('-');
     document.getElementById('expBayar').value = item.BAYAR_MELALUI || 'TUNAI';
     document.getElementById('expJenis').value = item['JENIS BARANG'] || '';
     document.getElementById('expQty').value = item.KUANTITI || 1;
@@ -2122,7 +2002,6 @@ function editExpense(id) {
     document.getElementById('expenseMsg').innerHTML = '<span class="badge badge-proses">Sedang mengedit rekod...</span>';
     document.getElementById('expenseFormContainer').scrollIntoView({ behavior: 'smooth' });
 }
-
 function deleteExpense(id) {
     if (!confirm('Pastikan padam rekod ini?')) return;
     showLoading(true);
@@ -2135,7 +2014,6 @@ function deleteExpense(id) {
         toast('Gagal memadam.');
     });
 }
-
 function simpanPerbelanjaan() {
     const tarikhISO = document.getElementById('expDate').value;
     if (!tarikhISO) { showPriceMsg('expenseMsg', '❌ Sila pilih tarikh.', 'error'); return; }
@@ -2151,12 +2029,10 @@ function simpanPerbelanjaan() {
     const pembekal = document.getElementById('expPembekal').value.trim();
     const catatan = document.getElementById('expCatatan').value.trim();
     const editId = document.getElementById('expenseEditId').value;
-
     if (!jenis || amount <= 0) {
         showPriceMsg('expenseMsg', '❌ Sila isi Jenis Barang dan pastikan Jumlah > 0.', 'error');
         return;
     }
-
     const payload = {
         tarikh: tarikhDDMMYYYY,
         bayar: bayar,
@@ -2170,18 +2046,15 @@ function simpanPerbelanjaan() {
         amount: amount,
         gabungan: ''
     };
-
     showLoading(true);
     let action = 'addOperationalExpense';
     if (editId) {
         action = 'updateExpense';
         payload.id = editId;
     }
-
     postData({ action: action, ...payload }).then(() => {
         showLoading(false);
         toast(editId ? '✅ Perbelanjaan dikemaskini!' : '✅ Perbelanjaan direkodkan!');
-        
         document.getElementById('expenseEditId').value = '';
         document.getElementById('expJenis').value = '';
         document.getElementById('expQty').value = '1';
@@ -2192,7 +2065,6 @@ function simpanPerbelanjaan() {
         document.getElementById('expCatatan').value = '';
         document.getElementById('expenseMsg').innerHTML = '';
         kiraAmount();
-
         fetchData(function() {
             renderExpenses(document.getElementById('tabContainer'));
         }, false);
@@ -2202,7 +2074,7 @@ function simpanPerbelanjaan() {
     });
 }
 
-// ==================== GLOBAL EVENTS ====================
+// ==================== GLOBAL EVENTS & SERVICE WORKER ====================
 function toggleSidebar() { document.body.classList.toggle('sidebar-open'); }
 document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.login-tab').forEach(tab => {
@@ -2215,7 +2087,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('loginError').classList.add('hidden');
         });
     });
-    const stored = localStorage.getItem('mycarpet_user') || sessionStorage.getItem('mycarpet_user');
+    const stored = localStorage.getItem('mycarpet_user');  // ★ Hanya localStorage
     if (stored) {
         try {
             STATE.currentUser = JSON.parse(stored);
@@ -2230,8 +2102,6 @@ document.addEventListener('click', function(e) {
         document.body.classList.remove('sidebar-open');
     }
 });
-
-// Service Worker
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/mycarpetpro-v3/service-worker.js')
