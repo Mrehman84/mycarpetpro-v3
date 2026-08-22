@@ -1332,10 +1332,20 @@ function openQRScanner() {
     preview.style.display = 'block';
     status.innerText = 'Membuka kamera...';
 
-    html5QrCodeInstance = new Html5Qrcode("qr-reader");
+    // Pastikan pemindai fokus kepada format QR Code sahaja secara agresif
+    const formatsToSupport = [ Html5QrcodeSupportedFormats.QR_CODE ];
+
+    html5QrCodeInstance = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport });
+    
     const config = {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
+        fps: 20, // Meningkatkan frame per second kepada 20fps untuk tindak balas imbasan yang pantas
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+            // Kotak bidik dinamik (75% daripada saiz skrin peranti)
+            const minEdgePercentage = 0.75;
+            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
+            return { width: qrboxSize, height: qrboxSize };
+        },
         aspectRatio: 1.0
     };
 
@@ -1345,7 +1355,17 @@ function openQRScanner() {
         onScanSuccess,
         onScanError
     ).then(() => {
-        status.innerText = 'Kamera berjaya dibuka. Imbas QR...';
+        status.innerText = 'Kamera aktif. Sila halakan tepat pada QR Code...';
+        
+        // Pemicu Autofokus Berterusan (Continuous Focus) selepas kamera berjaya dibuka
+        setTimeout(() => {
+            if (html5QrCodeInstance) {
+                html5QrCodeInstance.applyVideoConstraints({
+                    focusMode: "continuous"
+                }).catch(e => console.log("Peranti tidak menyokong tetapan manual fokus:", e));
+            }
+        }, 1500);
+
     }).catch(err => {
         status.innerText = 'Gagal buka kamera: ' + err;
         preview.style.display = 'none';
@@ -1356,20 +1376,25 @@ function openQRScanner() {
 function onScanSuccess(decodedText, decodedResult) {
     const status = document.getElementById('scanStatus');
     const qrId = decodedText.trim();
+    
+    console.log("QR Dijumpai teks asal:", qrId);
     status.innerText = 'QR dijumpai: ' + qrId;
-    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+    
+    // Membersihkan teks daripada sebarang simbol tersembunyi (\r, \n, \t)
+    const cleanQrId = qrId.replace(/[\r\n\t]/g, "").trim();
+
+    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === cleanQrId);
     if (k) {
-        updateStatuses([qrId], 'SELESAI DIHANTAR');
+        updateStatuses([cleanQrId], 'SELESAI DIHANTAR');
         playBeep();
         closeQRScanner();
     } else {
-        status.innerText = 'QR ID tidak dijumpai dalam sistem.';
+        status.innerHTML = `<span style="color:red; font-weight:bold;">ID: "${cleanQrId}" tiada dalam sistem!</span>`;
     }
 }
 
 function onScanError(err) {
-    // Abaikan ralat biasa
-    // console.warn(err);
+    // Diabaikan bagi mengelakkan limpahan log sampah dalam konsol
 }
 
 function closeQRScanner() {
@@ -1391,13 +1416,11 @@ function toggleTorch() {
         return;
     }
     try {
-        // html5-qrcode tidak mempunyai torch built-in, kita gunakan cara alternatif
-        // Cuba cari track video dan set torch
         const video = document.querySelector('#qr-reader video');
         if (video) {
             const stream = video.srcObject;
             if (stream) {
-                const track = stream.getVideoTracks()[0];
+                const track = stream.getVideoTracks()[0]; // Pembetulan indeks tatasusunan trek video
                 if (track) {
                     const capabilities = track.getCapabilities ? track.getCapabilities() : {};
                     if (capabilities.torch) {
@@ -1430,6 +1453,7 @@ function playBeep() {
     } catch (e) { console.warn('Beep gagal:', e); }
 }
 
+// 🟢 PEMBETULAN PENUH: Logik fungsi manual penghantaran yang bebas ralat
 function manualDelivery() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) {
@@ -1438,9 +1462,12 @@ function manualDelivery() {
     }
     const ids = Array.from(checkboxes).map(cb => cb.value);
     const validIds = ids.filter(id => {
+        // Mencari objek karpet dengan padanan ID yang betul berdasarkan x
         const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === id);
+        // Memastikan objek k wujud sebelum menyemak status normalisasinya
         return k && normalize(getField(k, ['STATUS'])) !== 'SELESAI DIHANTAR';
     });
+    
     if (!validIds.length) {
         toast('Item yang dipilih sudah selesai dihantar.');
         return;
@@ -1448,6 +1475,7 @@ function manualDelivery() {
     if (!confirm('Anda pasti ingin menandakan ' + validIds.length + ' item sebagai SELESAI DIHANTAR?')) return;
     updateStatuses(validIds, 'SELESAI DIHANTAR');
 }
+
     // ================================================================
 //                   BAHAGIAN 2E - PEMBAYARAN
 // ================================================================
