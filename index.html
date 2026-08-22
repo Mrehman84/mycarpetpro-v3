@@ -1194,6 +1194,10 @@ if (telBaruInput) {
 let html5QrCodeInstance = null;
 let torchOn = false;
 
+// ================================================================
+//  BAHAGIAN 1: ANTARA MUKA HTML & PAPARAN JADUAL PENJEJAKAN
+// ================================================================
+
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -1283,6 +1287,100 @@ function executeTrackingSearch() {
     tbody.innerHTML = html;
     updateTrackingCount();
 }
+// ================================================================
+//  BAHAGIAN 2: ENJIN IMBASAN KAMERA QR (html5-qrcode)
+// ================================================================
+
+let html5QrCodeInstance = null;
+
+function openQRScanner() {
+    const preview = document.getElementById('cameraPreview');
+    const status = document.getElementById('scanStatus');
+    if (html5QrCodeInstance) {
+        closeQRScanner();
+    }
+    preview.style.display = 'block';
+    status.innerText = 'Membuka kamera...';
+
+    // Inisialisasi enjin kamera tanpa sekatan format tegar demi keserasian telefon pintar
+    html5QrCodeInstance = new Html5Qrcode("qr-reader");
+    
+    const config = {
+        fps: 20, // Pemprosesan imej dipercepat kepada 20 frame per saat
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCodeInstance.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccess,
+        onScanError
+    ).then(() => {
+        status.innerText = 'Kamera aktif. Sila halakan tepat pada QR Code...';
+    }).catch(err => {
+        status.innerText = 'Gagal buka kamera: ' + err;
+        preview.style.display = 'none';
+        html5QrCodeInstance = null;
+    });
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    const status = document.getElementById('scanStatus');
+    const qrId = decodedText.trim();
+    
+    console.log("QR Berjaya Diimbas:", qrId);
+    status.innerText = 'QR dijumpai: ' + qrId;
+    
+    // Membuang simbol putih tersembunyi yang dihasilkan oleh ralat pencetakan resi
+    const cleanQrId = qrId.replace(/[\r\n\t]/g, "").trim();
+
+    // Semak padanan ID karpet dalam pangkalan data pautan STATE
+    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === cleanQrId);
+    
+    if (k) {
+        playBeep(); // Bunyikan isyarat bip digital tanda pengesahan berjaya
+        
+        // MENYUAP HASIL IMBASAN: Masukkan nilai teks terus ke kotak carian utama tracking
+        const inputCarian = document.getElementById('trackingSearchBox');
+        if (inputCarian) {
+            inputCarian.value = cleanQrId;
+            
+            // Mencetuskan event input secara paksa agar fungsi penapisan jadual bertindak balas serta-merta
+            inputCarian.dispatchEvent(new Event('input'));
+        }
+        
+        status.innerHTML = `<span style="color:green; font-weight:bold;">Data disuap ke kotak carian. Sila edit status di bawah.</span>`;
+        
+        // Tutup kamera scanner secara automatik bagi mengosongkan ruang skrin untuk dropdown edit
+        closeQRScanner();
+        
+    } else {
+        status.innerHTML = `<span style="color:red; font-weight:bold;">ID: "${cleanQrId}" tiada dalam rekod penjejakan sistem!</span>`;
+    }
+}
+
+function onScanError(err) {
+    // Diabaikan untuk mengelakkan banjir log amaran dalam konsol penyemak imbas
+}
+
+function closeQRScanner() {
+    if (html5QrCodeInstance) {
+        try {
+            html5QrCodeInstance.stop().then(() => {
+                html5QrCodeInstance.clear();
+                html5QrCodeInstance = null;
+            }).catch(() => {});
+        } catch(e) {}
+    }
+    document.getElementById('cameraPreview').style.display = 'none';
+    document.getElementById('scanStatus').innerText = '';
+}
+// ================================================================
+//  BAHAGIAN 3: PENGURUSAN STATUS, LAMPU SULUH & LOGIK SISTEM
+// ================================================================
+
+let torchOn = false;
 
 function updateTrackingCount() {
     const checked = document.querySelectorAll('.tracking-row-checkbox:checked').length;
@@ -1322,112 +1420,6 @@ function updateStatuses(qrIds, status) {
         });
 }
 
-// ==================== QR SCANNER (html5-qrcode) ====================
-function openQRScanner() {
-    const preview = document.getElementById('cameraPreview');
-    const status = document.getElementById('scanStatus');
-    if (html5QrCodeInstance) {
-        closeQRScanner();
-    }
-    preview.style.display = 'block';
-    status.innerText = 'Membuka kamera...';
-
-    // Pastikan pemindai fokus kepada format QR Code sahaja secara agresif
-    const formatsToSupport = [ Html5QrcodeSupportedFormats.QR_CODE ];
-
-    html5QrCodeInstance = new Html5Qrcode("qr-reader", { formatsToSupport: formatsToSupport });
-    
-    const config = {
-        fps: 20, // Meningkatkan frame per second kepada 20fps untuk tindak balas imbasan yang pantas
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-            // Kotak bidik dinamik (75% daripada saiz skrin peranti)
-            const minEdgePercentage = 0.75;
-            const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
-            const qrboxSize = Math.floor(minEdgeSize * minEdgePercentage);
-            return { width: qrboxSize, height: qrboxSize };
-        },
-        aspectRatio: 1.0
-    };
-
-    html5QrCodeInstance.start(
-        { facingMode: "environment" },
-        config,
-        onScanSuccess,
-        onScanError
-    ).then(() => {
-        status.innerText = 'Kamera aktif. Sila halakan tepat pada QR Code...';
-        
-        // Pemicu Autofokus Berterusan (Continuous Focus) selepas kamera berjaya dibuka
-        setTimeout(() => {
-            if (html5QrCodeInstance) {
-                html5QrCodeInstance.applyVideoConstraints({
-                    focusMode: "continuous"
-                }).catch(e => console.log("Peranti tidak menyokong tetapan manual fokus:", e));
-            }
-        }, 1500);
-
-    }).catch(err => {
-        status.innerText = 'Gagal buka kamera: ' + err;
-        preview.style.display = 'none';
-        html5QrCodeInstance = null;
-    });
-}
-
-function onScanSuccess(decodedText, decodedResult) {
-    const status = document.getElementById('scanStatus');
-    const qrId = decodedText.trim();
-    
-    console.log("QR Berjaya Diimbas:", qrId);
-    status.innerText = 'QR dijumpai: ' + qrId;
-    
-    // 1. Bersihkan teks daripada sebarang simbol putih (whitespace/linebreaks)
-    const cleanQrId = qrId.replace(/[\r\n\t]/g, "").trim();
-
-    // 2. Cari data karpet di dalam pangkalan data STATE
-    const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === cleanQrId);
-    
-    if (k) {
-        playBeep(); // Bunyikan isyarat bip tanda data ditemui
-        
-        // 3. MASUKKAN DETAIL KE DALAM KOTAK CARIAN QR ID ANDA
-        // Sila pastikan ID elemen input carian anda adalah 'inputCariQr' (sesuaikan jika berbeza)
-        const inputCarian = document.getElementById('inputCariQr') || document.getElementById('searchQrId');
-        if (inputCarian) {
-            inputCarian.value = cleanQrId;
-            
-            // Cergaskan event input secara manual jika sistem anda memerlukan pemicu fungsi cari
-            inputCarian.dispatchEvent(new Event('input'));
-        }
-        
-        status.innerHTML = `<span style="color:green; font-weight:bold;">Data disuap ke kotak carian. Sila pilih tindakan status di bawah.</span>`;
-        
-        // 4. Tutup kamera scanner secara automatik supaya pengguna boleh melihat borang dropdown status
-        closeQRScanner();
-        
-    } else {
-        // Jika QR Code dibaca tetapi tiada dalam rekod pangkalan data sheet
-        status.innerHTML = `<span style="color:red; font-weight:bold;">ID: "${cleanQrId}" tiada dalam rekod sistem!</span>`;
-    }
-}
-
-
-function onScanError(err) {
-    // Diabaikan bagi mengelakkan limpahan log sampah dalam konsol
-}
-
-function closeQRScanner() {
-    if (html5QrCodeInstance) {
-        try {
-            html5QrCodeInstance.stop().then(() => {
-                html5QrCodeInstance.clear();
-                html5QrCodeInstance = null;
-            }).catch(() => {});
-        } catch(e) {}
-    }
-    document.getElementById('cameraPreview').style.display = 'none';
-    document.getElementById('scanStatus').innerText = '';
-}
-
 function toggleTorch() {
     if (!html5QrCodeInstance) {
         toast('Sila buka kamera dahulu.');
@@ -1438,11 +1430,11 @@ function toggleTorch() {
         if (video) {
             const stream = video.srcObject;
             if (stream) {
-                const track = stream.getVideoTracks()[0]; // Pembetulan indeks tatasusunan trek video
-                if (track) {
-                    const capabilities = track.getCapabilities ? track.getCapabilities() : {};
+                const track = stream.getVideoTracks();
+                if (track && track.length > 0) {
+                    const capabilities = track[0].getCapabilities ? track[0].getCapabilities() : {};
                     if (capabilities.torch) {
-                        track.applyConstraints({ advanced: [{ torch: !torchOn }] }).then(() => {
+                        track[0].applyConstraints({ advanced: [{ torch: !torchOn }] }).then(() => {
                             torchOn = !torchOn;
                             toast('Lampu suluh ' + (torchOn ? 'ON' : 'OFF'));
                         }).catch(() => toast('Gagal kawal lampu.'));
@@ -1471,7 +1463,6 @@ function playBeep() {
     } catch (e) { console.warn('Beep gagal:', e); }
 }
 
-// 🟢 PEMBETULAN PENUH: Logik fungsi manual penghantaran yang bebas ralat
 function manualDelivery() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) {
@@ -1480,9 +1471,7 @@ function manualDelivery() {
     }
     const ids = Array.from(checkboxes).map(cb => cb.value);
     const validIds = ids.filter(id => {
-        // Mencari objek karpet dengan padanan ID yang betul berdasarkan x
         const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === id);
-        // Memastikan objek k wujud sebelum menyemak status normalisasinya
         return k && normalize(getField(k, ['STATUS'])) !== 'SELESAI DIHANTAR';
     });
     
@@ -1493,6 +1482,7 @@ function manualDelivery() {
     if (!confirm('Anda pasti ingin menandakan ' + validIds.length + ' item sebagai SELESAI DIHANTAR?')) return;
     updateStatuses(validIds, 'SELESAI DIHANTAR');
 }
+
 
     // ================================================================
 //                   BAHAGIAN 2E - PEMBAYARAN
@@ -2344,8 +2334,8 @@ async function saveBulkPrices() {
     fetchData(null, true);
     setTimeout(() => renderBulkPrice(document.getElementById('priceTabContent')), 1500);
 }
-    // ================================================================
-//                    BAHAGIAN 2J - BARCODE
+  // ================================================================
+//                    BAHAGIAN 2J - BARCODE (50mm x 30mm)
 // ================================================================
 
 function renderBarcode(container) {
@@ -2361,7 +2351,7 @@ function renderBarcode(container) {
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)}</option>`).join('');
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Saiz 40mm x 30mm untuk thermal printer</p></div></header>
+        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Dioptimumkan untuk saiz kertas thermal 50mm x 30mm</p></div></header>
         <div class="card">
             <div class="form-group"><label>Pilih Invois</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
             <div id="barcodePreviewContainer" class="mt-16"><p class="muted">Sila pilih invois untuk lihat preview barcode.</p></div>
@@ -2382,19 +2372,23 @@ function generateBarcodePreview() {
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
 
-    const trackingUrl = `https://mycarpetpro-v3.onrender.com/?phone=${encodeURIComponent(telefon)}`;
+    const carpetsData = carpets.map(k => {
+        return {
+            qrId: String(getField(k, ['QR ID','QR_ID'], '')).trim(),
+            kod: String(getField(k, ['KOD'], '')).trim()
+        };
+    });
 
     let stikersHTML = '';
-    carpets.forEach((k, idx) => {
-        const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
-        const kod = String(getField(k, ['KOD'], '')).trim();
+    carpetsData.forEach((k, idx) => {
+        // PERUBAHAN UKURAN: Lebar disetkan kepada 50mm mengikut spesifikasi saiz gulungan kertas thermal baharu anda
         stikersHTML += `
-            <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
-                <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
-                <div style="font-size:7px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
-                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:10mm;display:flex;align-items:center;justify-content:center;"></div>
-                <div style="font-size:6px;font-weight:bold;font-family:monospace;">QR ID: ${escapeHtml(qrId)}</div>
-                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:0.5px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+            <div class="stiker-box" style="width:50mm;height:30mm;border:1px dashed #000;padding:1.5mm 1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
+                <div style="font-size:8px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v3.3</div>
+                <div style="font-size:8px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:13mm;display:flex;align-items:center;justify-content:center;"></div>
+                <div style="font-size:7px;font-weight:bold;font-family:monospace;letter-spacing:0.5px;">QR ID: ${escapeHtml(k.qrId)}</div>
+                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:1px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
 
@@ -2411,32 +2405,41 @@ function generateBarcodePreview() {
     container.innerHTML = html;
 
     setTimeout(() => {
-        carpets.forEach((k, idx) => {
+        carpetsData.forEach((k, idx) => {
             const qrContainer = document.getElementById(`qr-stiker-${idx}`);
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 try {
+                    // Hanya teks k.qrId sahaja yang disuap ke dalam generator QR, tiada URL lagi [1]
                     new QRCode(qrContainer, {
-                        text: trackingUrl,
-                        width: 40,
-                        height: 40,
-                        colorDark: "#000",
-                        colorLight: "#fff",
-                        correctLevel: QRCode.CorrectLevel.M
+                        text: k.qrId, 
+                        width: 120,
+                        height: 120,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.L
                     });
+
+                    const qrImg = qrContainer.querySelector('img');
+                    if (qrImg) {
+                        qrImg.style.width = '13mm';
+                        qrImg.style.height = '13mm';
+                        qrImg.style.objectFit = 'contain';
+                    }
                 } catch (e) {
                     console.error('Gagal jana QR untuk stiker', idx, e);
                 }
             }
         });
-    }, 50);
+    }, 100);
 }
 
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    printWindow.document.write(`<html><head><title>Cetak Stiker Barcode</title><style>*{box-sizing:border-box;margin:0;padding:0;}@page{size:40mm 30mm;margin:0;}body{margin:0;display:flex;flex-wrap:wrap;justify-content:center;background:#fff;}.stiker-box{width:40mm!important;height:30mm!important;margin:0!important;border:none;padding:1mm;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;page-break-after:always;background:#fff;box-sizing:border-box;}.stiker-box img{width:10mm!important;height:10mm!important;object-fit:contain;}.stiker-box div{line-height:1.1!important;}</style></head><body>${grid.innerHTML}</body></html>`);
+    // PERUBAHAN CSS CETAKAN: Format helaian @page dikemas kini kepada saiz 50mm 30mm
+    printWindow.document.write(`<html><head><title>Cetak Stiker Barcode</title><style>*{box-sizing:border-box;margin:0;padding:0;}@page{size:50mm 30mm;margin:0;}body{margin:0;display:flex;flex-wrap:wrap;justify-content:center;background:#fff;}.stiker-box{width:50mm!important;height:30mm!important;margin:0!important;border:none;padding:1.5mm 1mm;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;page-break-after:always;background:#fff;box-sizing:border-box;}.stiker-box table, .stiker-box canvas, .stiker-box img {width:13mm!important;height:13mm!important;margin:0 auto!important;object-fit:contain;}.stiker-box div{line-height:1.1!important;}</style></head><body>${grid.innerHTML}</body></html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
@@ -2447,14 +2450,17 @@ function simpanPDFStikers() { printStikers(); }
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
+    if (typeof html2canvas === 'undefined') return toast('Pustaka html2canvas tidak dijumpai.');
+    
     html2canvas(grid, { scale: 2 }).then(canvas => {
         const link = document.createElement('a');
-        link.download = 'Stiker_Barcode.png';
+        link.download = 'Stiker_Barcode_50x30.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
         toast('Gambar disimpan.');
     });
 }
+
     // ================================================================
 //          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
 // ================================================================
