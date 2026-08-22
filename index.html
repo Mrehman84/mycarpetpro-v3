@@ -2465,6 +2465,10 @@ function simpanGambarStikers() {
 //          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
 // ================================================================
 
+// ================================================================
+//  BAHAGIAN 1: ANTARA MUKA HTML BORANG PERBELANJAAN (renderExpenses)
+// ================================================================
+
 function renderExpenses(container) {
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
@@ -2544,10 +2548,23 @@ function renderExpenses(container) {
                     <input type="text" id="expCatatan" class="form-control" placeholder="Catatan tambahan">
                 </div>
             </div>
-            <div class="ocr-camera-box">
-                <label class="btn-scan-resit">📸 Imbas Resit (OCR) <input type="file" accept="image/*" capture="environment" id="inputKameraResit" onchange="prosesOcrResit(event)" style="display:none;"></label>
+            
+            <div class="ocr-camera-box" style="margin-bottom: 20px;">
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                    <button type="button" class="btn btn-secondary" onclick="bukaScannerResitPerbelanjaan()" style="padding: 10px 16px;"><i class="fa-solid fa-qrcode"></i> Scan QR/Barcode Resit</button>
+                    <label class="btn-scan-resit" style="padding: 10px 16px; background:#6c757d; color:#fff; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; display:inline-flex; align-items:center; gap:8px; margin:0;"><i class="fa-solid fa-camera"></i> Imbas Gambar Resit (OCR) <input type="file" accept="image/*" capture="environment" id="inputKameraResit" onchange="prosesOcrResit(event)" style="display:none;"></label>
+                </div>
+                
+                <div id="perbelanjaanScannerContainer" style="display: none; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed #ff9800; margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: bold; color: #ff9800;"><i class="fa-solid fa-circle-dot"></i> Kamera Pembaca Resit Teraktif</span>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="tutupScannerResitPerbelanjaan()" style="padding: 2px 8px; font-size: 11px;">Tutup</button>
+                    </div>
+                    <div id="perbelanjaan-qr-reader" style="width: 100%; border-radius: 6px; overflow: hidden;"></div>
+                </div>
                 <div id="statusOcr" class="scan-status"></div>
             </div>
+            
             <button class="btn btn-primary" onclick="simpanPerbelanjaan()"><i class="fa-solid fa-save"></i> Simpan Perbelanjaan</button>
             <div id="expenseMsg" class="mt-16"></div>
         </div>
@@ -2565,6 +2582,9 @@ function renderExpenses(container) {
     `;
     kiraAmount();
 }
+// ================================================================
+//  BAHAGIAN 2: PENGURUSAN JADUAL & KAWALAN EDIT/PADAM
+// ================================================================
 
 function buildExpenseRows() {
     const data = STATE.rawExpenses || [];
@@ -2631,6 +2651,9 @@ function deleteExpense(id) {
         toast('Gagal memadam.');
     });
 }
+// ================================================================
+//  BAHAGIAN 3: FUNGSI AUTOMASI, PENGIRAAN MATEMATIK & SIMPAN
+// ================================================================
 
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
@@ -2746,8 +2769,81 @@ function simpanPerbelanjaan() {
         showPriceMsg('expenseMsg', '❌ Gagal simpan.', 'error');
     });
 }
+// ================================================================
+//  BAHAGIAN 4: SISTEM KAMERA IMBASAN LIVE & PEMBACA IMEJ OCR
+// ================================================================
 
-// ==================== FUNGSI OCR RESIT ====================
+function bukaScannerResitPerbelanjaan() {
+    const previewContainer = document.getElementById('perbelanjaanScannerContainer');
+    const statusText = document.getElementById('statusOcr');
+    
+    if (typeof closeQRScanner === 'function') closeQRScanner();
+    if (typeof tutupScannerCepatDashboard === 'function') tutupScannerCepatDashboard();
+    if (html5QrCodeInstance) {
+        try { html5QrCodeInstance.stop(); } catch(e){}
+        html5QrCodeInstance = null;
+    }
+    
+    previewContainer.style.display = 'block';
+    statusText.innerText = 'Menghidupkan kamera live...';
+
+    html5QrCodeInstance = new Html5Qrcode("perbelanjaan-qr-reader");
+    
+    const config = {
+        fps: 20,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCodeInstance.start(
+        { facingMode: "environment" },
+        config,
+        onScanSuccessPerbelanjaan,
+        (err) => {}
+    ).then(() => {
+        statusText.innerText = 'Halakan kamera tepat pada QR/Barcode resit bil...';
+        previewContainer.scrollIntoView({ behavior: 'smooth' });
+    }).catch(err => {
+        statusText.innerText = 'Gagal akses live kamera: ' + err;
+        previewContainer.style.display = 'none';
+        html5QrCodeInstance = null;
+    });
+}
+
+function onScanSuccessPerbelanjaan(decodedText, decodedResult) {
+    const statusText = document.getElementById('statusOcr');
+    const scannedData = decodedText.trim();
+    
+    console.log("Data Resit Berjaya Diimbas:", scannedData);
+    playBeep();
+    
+    const inputResit = document.getElementById('expButiran');
+    if (inputResit) {
+        inputResit.value = scannedData;
+        inputResit.readOnly = false; // KOTAK TIDAK DIKUNCI (Boleh diedit semula secara manual)
+        inputResit.style.background = "#fff";
+        inputResit.dispatchEvent(new Event('input'));
+    }
+    
+    statusText.innerHTML = `<span style="color:green; font-weight:bold;">✅ Kod "${scannedData}" dikesan & disuap masuk. Anda boleh edit butiran jika perlu.</span>`;
+    tutupScannerResitPerbelanjaan();
+}
+
+function tutupScannerResitPerbelanjaan() {
+    if (html5QrCodeInstance) {
+        try {
+            html5QrCodeInstance.stop().then(() => {
+                html5QrCodeInstance.clear();
+                html5QrCodeInstance = null;
+            }).catch(() => {});
+        } catch(e) {}
+    }
+    const previewContainer = document.getElementById('perbelanjaanScannerContainer');
+    if (previewContainer) previewContainer.style.display = 'none';
+    const statusText = document.getElementById('statusOcr');
+    if (statusText && statusText.innerText.includes('Halakan kamera')) statusText.innerText = '';
+}
+
 async function prosesOcrResit(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2760,7 +2856,6 @@ async function prosesOcrResit(event) {
         const text = result.data.text;
         console.log("OCR text:", text);
 
-        // 1. Cari Tarikh (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD/MM/YY)
         let dateFound = null;
         const dateRegexes = [
             /(\d{2})\/(\d{2})\/(\d{4})/,
@@ -2784,13 +2879,11 @@ async function prosesOcrResit(event) {
             document.getElementById('expDate').value = dateFound;
         }
 
-        // 2. Cari Pembekal
         const supplierMatch = text.match(/(?:Kedai|Supplier|Pembekal)[:\s]*([^\n\r]+)/i);
         if (supplierMatch) {
             document.getElementById('expPembekal').value = supplierMatch[1].trim();
         }
 
-        // 3. Cari Jumlah (RM / TOTAL / JUMLAH)
         const amountMatch = text.match(/(?:RM|TOTAL|JUMLAH)[\s:]*([\d.,]+)/i);
         if (amountMatch && amountMatch[1]) {
             let amount = amountMatch[1].replace(',', '');
@@ -2831,6 +2924,7 @@ function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
         reader.readAsDataURL(file);
     });
 }
+
     // ================================================================
 //      BAHAGIAN 2L - SERVICE WORKER, TOGGLE SIDEBAR & PENUTUP
 // ================================================================
