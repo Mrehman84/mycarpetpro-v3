@@ -1082,7 +1082,6 @@ function hantarWhatsAppJanji() {
     bukaWhatsApp(telefon, msg);
 }
 
-// ==================== TEMPAHAN BARU ====================
 function renderTempahan(container) {
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
@@ -1098,7 +1097,7 @@ function renderTempahan(container) {
             <div id="secCustBaru" style="display:none;"><div class="row"><div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div><div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div></div>
         </div>
         <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
-            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>.</div>
+            <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>. Atau pilih <strong>CUSTOM</strong> untuk kira luas sendiri.</div>
             <div id="carpetItemsContainer"></div>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
         </div>
@@ -1166,6 +1165,7 @@ function toggleCustType() {
     document.getElementById('secCustLama').style.display = baru ? 'none' : 'block';
     document.getElementById('secCustBaru').style.display = baru ? 'block' : 'none';
 }
+
 function loadCustomerDetails() {
     const id = document.getElementById('optPelanggan').value;
     const c = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === id);
@@ -1175,73 +1175,282 @@ function loadCustomerDetails() {
     document.getElementById('custAlamat').value = getField(c, ['ALAMAT'], '');
     document.getElementById('custDaerah').value = getField(c, ['DAERAH'], '');
 }
+
 let carpetRowCount = 0;
+
 function resetCarpetRows() { document.getElementById('carpetItemsContainer').innerHTML = ''; carpetRowCount = 0; addCarpetRow(); }
+
 function addCarpetRow() {
     carpetRowCount++;
     const container = document.getElementById('carpetItemsContainer');
     const rowId = 'carpetRow_' + carpetRowCount;
-    const div = document.createElement('div'); div.className = 'row card-item-row'; div.id = rowId;
-    div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;';
-    const col1 = document.createElement('div'); col1.className = 'col form-group'; col1.style.flex = '1.5';
+    const div = document.createElement('div');
+    div.className = 'row card-item-row';
+    div.id = rowId;
+    div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;flex-wrap:wrap;';
+
+    // --- KOD (col1) ---
+    const col1 = document.createElement('div');
+    col1.className = 'col form-group';
+    col1.style.flex = '1.5';
     col1.innerHTML = '<label>Kod</label>';
-    const sel = document.createElement('select'); sel.className = 'form-control select-kod-karpet';
+    const sel = document.createElement('select');
+    sel.className = 'form-control select-kod-karpet';
     sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
+
     STATE.senaraiHarga.forEach(p => {
-        const kod = String(getField(p, ['KOD'])).trim(); if (!kod) return;
+        const kod = String(getField(p, ['KOD'])).trim();
+        if (!kod) return;
         const jenis = getField(p, ['JENIS CARPET'], '');
         let harga = getNumber(getField(p, ['LEBAR'], 0));
         if (harga <= 0) harga = getNumber(getField(p, ['HARGA OPEN'], 0));
         if (harga <= 0) return;
-        const opt = document.createElement('option'); opt.value = kod;
+        const opt = document.createElement('option');
+        opt.value = kod;
         opt.textContent = `${kod} - ${jenis} (${formatMoney(harga)})`;
-        opt.dataset.harga = harga; opt.dataset.jenis = jenis;
+        opt.dataset.harga = harga;
+        opt.dataset.jenis = jenis;
         sel.appendChild(opt);
     });
+
+    // Tambah opsi CUSTOM di paling bawah
+    const customOpt = document.createElement('option');
+    customOpt.value = 'CUSTOM';
+    customOpt.textContent = 'CUSTOM - (Saiz Sendiri / Kira Luas)';
+    sel.appendChild(customOpt);
+
     sel.onchange = function() { handleCodeSelection(rowId); };
     col1.appendChild(sel);
-    const info = document.createElement('div'); info.className = 'jenis-vlookup-info';
+
+    const info = document.createElement('div');
+    info.className = 'jenis-vlookup-info';
     info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
-    info.textContent = 'Jenis & harga auto.'; col1.appendChild(info);
-    const col2 = document.createElement('div'); col2.className = 'col form-group'; col2.style.maxWidth = '80px';
+    info.textContent = 'Jenis & harga auto.';
+    col1.appendChild(info);
+
+    // --- QTY (col2) ---
+    const col2 = document.createElement('div');
+    col2.className = 'col form-group';
+    col2.style.maxWidth = '80px';
     col2.innerHTML = '<label>Qty</label>';
-    const qty = document.createElement('input'); qty.type = 'number'; qty.min = 1; qty.step = 1; qty.value = 1;
-    qty.className = 'form-control inp-qty'; qty.oninput = calculateGrandTotal; col2.appendChild(qty);
-    const col4 = document.createElement('div'); col4.className = 'col form-group'; col4.style.maxWidth = '140px';
+    const qty = document.createElement('input');
+    qty.type = 'number';
+    qty.min = 1;
+    qty.step = 1;
+    qty.value = 1;
+    qty.className = 'form-control inp-qty';
+    qty.oninput = function() { handleCustomCalculation(rowId); };
+    col2.appendChild(qty);
+
+    // --- HARGA (col4) ---
+    const col4 = document.createElement('div');
+    col4.className = 'col form-group';
+    col4.style.maxWidth = '140px';
     col4.innerHTML = '<label>Harga (RM)</label>';
-    const price = document.createElement('input'); price.type = 'text'; price.value = '0.00';
-    price.className = 'form-control inp-harga-final'; price.style.fontWeight = '600'; price.readOnly = true; col4.appendChild(price);
-    const col5 = document.createElement('div'); col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
-    const del = document.createElement('button'); del.type = 'button'; del.className = 'btn btn-danger btn-sm';
-    del.innerHTML = '<i class="fa-solid fa-trash"></i>'; del.onclick = () => removeCarpetRow(rowId); col5.appendChild(del);
-    div.appendChild(col1); div.appendChild(col2); div.appendChild(col4); div.appendChild(col5);
+    const price = document.createElement('input');
+    price.type = 'text';
+    price.value = '0.00';
+    price.className = 'form-control inp-harga-final';
+    price.style.fontWeight = '600';
+    price.readOnly = true;
+    col4.appendChild(price);
+
+    // --- DELETE (col5) ---
+    const col5 = document.createElement('div');
+    col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn btn-danger btn-sm';
+    del.innerHTML = '<i class="fa-solid fa-trash"></i>';
+    del.onclick = () => removeCarpetRow(rowId);
+    col5.appendChild(del);
+
+    // --- CUSTOM CONTAINER (baris baru, lebar penuh) ---
+    const customContainer = document.createElement('div');
+    customContainer.className = 'box-custom-container';
+    customContainer.style.cssText = 'display:none; width:100%; margin-top:12px; padding-top:12px; border-top:1px dashed #d0dbe8;';
+
+    const customRow = document.createElement('div');
+    customRow.className = 'row';
+    customRow.style.cssText = 'gap:8px; align-items:end;';
+
+    // Lebar (ft)
+    const colLebar = document.createElement('div');
+    colLebar.className = 'col form-group';
+    colLebar.style.minWidth = '80px';
+    colLebar.innerHTML = '<label style="font-size:12px;">Lebar (ft)</label>';
+    const inpLebar = document.createElement('input');
+    inpLebar.type = 'number';
+    inpLebar.step = '0.1';
+    inpLebar.min = '0';
+    inpLebar.value = '0';
+    inpLebar.className = 'form-control inp-lebar';
+    inpLebar.style.fontSize = '14px';
+    colLebar.appendChild(inpLebar);
+    customRow.appendChild(colLebar);
+
+    // Panjang (ft)
+    const colPanjang = document.createElement('div');
+    colPanjang.className = 'col form-group';
+    colPanjang.style.minWidth = '80px';
+    colPanjang.innerHTML = '<label style="font-size:12px;">Panjang (ft)</label>';
+    const inpPanjang = document.createElement('input');
+    inpPanjang.type = 'number';
+    inpPanjang.step = '0.1';
+    inpPanjang.min = '0';
+    inpPanjang.value = '0';
+    inpPanjang.className = 'form-control inp-panjang';
+    inpPanjang.style.fontSize = '14px';
+    colPanjang.appendChild(inpPanjang);
+    customRow.appendChild(colPanjang);
+
+    // Harga/Sqft (RM)
+    const colPriceSqft = document.createElement('div');
+    colPriceSqft.className = 'col form-group';
+    colPriceSqft.style.minWidth = '80px';
+    colPriceSqft.innerHTML = '<label style="font-size:12px;">Harga/Sqft (RM)</label>';
+    const inpPriceSqft = document.createElement('input');
+    inpPriceSqft.type = 'number';
+    inpPriceSqft.step = '0.01';
+    inpPriceSqft.min = '0';
+    inpPriceSqft.value = '0';
+    inpPriceSqft.className = 'form-control inp-price-sqft';
+    inpPriceSqft.style.fontSize = '14px';
+    colPriceSqft.appendChild(inpPriceSqft);
+    customRow.appendChild(colPriceSqft);
+
+    // Jumlah Luas (readonly)
+    const colLuas = document.createElement('div');
+    colLuas.className = 'col form-group';
+    colLuas.style.minWidth = '100px';
+    colLuas.innerHTML = '<label style="font-size:12px;">Jumlah Luas</label>';
+    const viewLuas = document.createElement('input');
+    viewLuas.type = 'text';
+    viewLuas.className = 'form-control view-luas';
+    viewLuas.style.cssText = 'font-weight:600; background:#f0f4f9; font-size:14px;';
+    viewLuas.readOnly = true;
+    viewLuas.placeholder = '0.0 sqft';
+    colLuas.appendChild(viewLuas);
+    customRow.appendChild(colLuas);
+
+    customContainer.appendChild(customRow);
+
+    // Pasang oninput untuk ketiga input custom
+    inpLebar.oninput = function() { handleCustomCalculation(rowId); };
+    inpPanjang.oninput = function() { handleCustomCalculation(rowId); };
+    inpPriceSqft.oninput = function() { handleCustomCalculation(rowId); };
+
+    // Susun semua ke dalam div utama
+    div.appendChild(col1);
+    div.appendChild(col2);
+    div.appendChild(col4);
+    div.appendChild(col5);
+    div.appendChild(customContainer);
+
     container.appendChild(div);
     calculateGrandTotal();
 }
+
 function handleCodeSelection(rowId) {
-    const row = document.getElementById(rowId); if (!row) return;
-    const sel = row.querySelector('.select-kod-karpet'), price = row.querySelector('.inp-harga-final'), info = row.querySelector('.jenis-vlookup-info');
+    const row = document.getElementById(rowId);
+    if (!row) return;
+    const sel = row.querySelector('.select-kod-karpet');
+    const price = row.querySelector('.inp-harga-final');
+    const info = row.querySelector('.jenis-vlookup-info');
+    const customContainer = row.querySelector('.box-custom-container');
+
+    const isCustom = (sel && sel.value === 'CUSTOM');
+
+    // Toggle custom container
+    if (customContainer) {
+        customContainer.style.display = isCustom ? 'block' : 'none';
+    }
+
+    if (isCustom) {
+        // Reset custom inputs to 0
+        const lebar = row.querySelector('.inp-lebar');
+        const panjang = row.querySelector('.inp-panjang');
+        const priceSqft = row.querySelector('.inp-price-sqft');
+        const viewLuas = row.querySelector('.view-luas');
+        if (lebar) lebar.value = '0';
+        if (panjang) panjang.value = '0';
+        if (priceSqft) priceSqft.value = '0';
+        if (viewLuas) viewLuas.value = '0.0 sqft';
+        price.value = '0.00';
+        info.innerHTML = '<strong>CUSTOM</strong><br>Sila isi saiz & harga/sqft';
+        calculateGrandTotal();
+        return;
+    }
+
+    // Bukan CUSTOM: ambil dari dataset
     const opt = sel.options[sel.selectedIndex];
     if (opt && opt.dataset.harga) {
         const harga = parseFloat(opt.dataset.harga);
         price.value = harga.toFixed(2);
         info.innerHTML = `<strong>${escapeHtml(opt.dataset.jenis)}</strong><br>Harga: ${formatMoney(harga)}`;
-    } else { price.value = '0.00'; info.textContent = 'Jenis & harga auto.'; }
+    } else {
+        price.value = '0.00';
+        info.textContent = 'Jenis & harga auto.';
+    }
     calculateGrandTotal();
 }
+
+function handleCustomCalculation(rowId) {
+    const row = document.getElementById(rowId);
+    if (!row) return;
+
+    const sel = row.querySelector('.select-kod-karpet');
+    if (!sel || sel.value !== 'CUSTOM') {
+        // Bukan custom, hanya update total
+        calculateGrandTotal();
+        return;
+    }
+
+    const lebar = parseFloat(row.querySelector('.inp-lebar')?.value) || 0;
+    const panjang = parseFloat(row.querySelector('.inp-panjang')?.value) || 0;
+    const priceSqft = parseFloat(row.querySelector('.inp-price-sqft')?.value) || 0;
+
+    const luas = lebar * panjang;
+    const hargaUnit = luas * priceSqft;
+
+    // Update luas display
+    const viewLuas = row.querySelector('.view-luas');
+    if (viewLuas) {
+        viewLuas.value = luas.toFixed(1) + ' sqft';
+    }
+
+    // Update harga final (per unit)
+    const hargaFinal = row.querySelector('.inp-harga-final');
+    if (hargaFinal) {
+        hargaFinal.value = hargaUnit.toFixed(2);
+    }
+
+    // Update info
+    const info = row.querySelector('.jenis-vlookup-info');
+    if (info) {
+        info.innerHTML = `<strong>CUSTOM</strong><br>${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft = ${luas.toFixed(1)} sqft × ${formatMoney(priceSqft)}/sqft = ${formatMoney(hargaUnit)}`;
+    }
+
+    calculateGrandTotal();
+}
+
 function calculateGrandTotal() {
     let total = 0;
     document.querySelectorAll('.card-item-row').forEach(row => {
-        total += (parseInt(row.querySelector('.inp-qty')?.value) || 1) * (parseFloat(row.querySelector('.inp-harga-final')?.value) || 0);
+        const qty = parseInt(row.querySelector('.inp-qty')?.value) || 1;
+        const price = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
+        total += qty * price;
     });
     document.getElementById('grandTotalLabel').textContent = formatMoney(total);
 }
+
 function removeCarpetRow(rowId) {
     if (document.getElementById('carpetItemsContainer').querySelectorAll('.card-item-row').length <= 1) { toast('Perlu sekurang-kurangnya satu item.'); return; }
-    document.getElementById(rowId)?.remove(); calculateGrandTotal();
+    document.getElementById(rowId)?.remove();
+    calculateGrandTotal();
 }
 
-    async function simpanTempahan() {
+async function simpanTempahan() {
     const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
     let custId, custNama, custTel, custAlamat, custDaerah;
     if (isBaru) {
@@ -1259,24 +1468,40 @@ function removeCarpetRow(rowId) {
         if (!cust) { toast('Pelanggan tidak ditemui.'); return; }
         STATE.lastCustomer = cust;
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
+        custNama = getField(cust, ['NAMA'], '');
+        custAlamat = getField(cust, ['ALAMAT'], '');
+        custDaerah = getField(cust, ['DAERAH'], '');
     }
 
     // Kumpul item karpet
-    const items = []; let valid = true;
+    const items = [];
+    let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
         const sel = row.querySelector('.select-kod-karpet');
         if (!sel || !sel.value) { valid = false; return; }
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
-        const harga = parseFloat(opt.dataset.harga) || 0;
-        items.push({ kod: sel.value, jenis: opt.dataset.jenis || '', harga, qty, subtotal: qty * harga });
+
+        let harga, jenis;
+        if (sel.value === 'CUSTOM') {
+            // Baca harga dari inp-harga-final
+            harga = parseFloat(row.querySelector('.inp-harga-final').value) || 0;
+            // Bina nama dinamik
+            const lebar = parseFloat(row.querySelector('.inp-lebar').value) || 0;
+            const panjang = parseFloat(row.querySelector('.inp-panjang').value) || 0;
+            jenis = `CUSTOM CARPET (${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft)`;
+        } else {
+            harga = parseFloat(opt.dataset.harga) || 0;
+            jenis = opt.dataset.jenis || '';
+        }
+        items.push({ kod: sel.value, jenis, harga, qty, subtotal: qty * harga });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
     const today = getToday();
     const tarikhSiap = addDays(today, 7);
 
-    // ★ PENTING: Muat data terkini dari GAS sebelum menjana invois
+    // ★ Muat data terkini dari GAS sebelum menjana invois
     showLoading(true);
     await new Promise((resolve) => {
         fetchData(() => {
@@ -1285,10 +1510,8 @@ function removeCarpetRow(rowId) {
     });
     showLoading(false);
 
-    // Sekarang STATE.tempahan sudah dikemaskini, jana invois
     const invNo = generateInvoiceNumber();
 
-    // Hantar tempahan ke GAS
     showLoading(true);
     await postData({
         action: 'createOrder',
@@ -1311,7 +1534,7 @@ function removeCarpetRow(rowId) {
     STATE.lastOrderMsg = msg;
     fetchData(null, true);
 }
-    
+
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
@@ -1320,13 +1543,13 @@ function hantarWhatsAppTempahan() {
     if (!msg) { toast('Tiada mesej.'); return; }
     bukaWhatsApp(tel, msg);
 }
-// Tambah event listener untuk semak telefon pelanggan baru
+
+// Event listener untuk semak telefon pelanggan baru
 const telBaruInput = document.getElementById('custTelBaru');
 if (telBaruInput) {
     telBaruInput.addEventListener('blur', function() {
         const phone = this.value.trim().replace(/[- ]/g, '');
         if (!phone) return;
-        // Cari pelanggan dengan nombor telefon ini
         const existingCust = STATE.pelanggan.find(c => {
             const dbPhone = String(getField(c, ['TELEFON','NO TELEFON'])).replace(/[- ]/g, '');
             return normalize(dbPhone) === normalize(phone);
@@ -1335,13 +1558,10 @@ if (telBaruInput) {
             const custId = getField(existingCust, ['CUSTOMER ID','CUSTOMER_ID']);
             const nama = getField(existingCust, ['NAMA'], '-');
             if (confirm(`Nombor telefon ini telah didaftarkan sebagai ${custId} – ${nama}. Adakah anda mahu guna ID ini? (Klik OK untuk guna, Batal untuk teruskan baru)`)) {
-                // Tukar kepada mod pelanggan sedia ada
                 document.querySelector('input[name="custType"][value="lama"]').checked = true;
                 toggleCustType();
-                // Pilih ID pelanggan dalam dropdown
                 const optPelanggan = document.getElementById('optPelanggan');
                 if (optPelanggan) {
-                    // Cari option dengan ID tersebut
                     const options = optPelanggan.options;
                     for (let i = 0; i < options.length; i++) {
                         if (options[i].value === custId) {
@@ -1352,7 +1572,6 @@ if (telBaruInput) {
                     }
                 }
                 toast(`Menggunakan ID ${custId} – ${nama}`);
-                // Kosongkan input pelanggan baru supaya tidak keliru
                 document.getElementById('custNamaBaru').value = '';
                 document.getElementById('custTelBaru').value = '';
                 document.getElementById('custAlamatBaru').value = '';
