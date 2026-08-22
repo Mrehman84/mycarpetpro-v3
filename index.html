@@ -2591,13 +2591,15 @@ function buildExpenseRows() {
     const now = new Date();
     const currentMM = String(now.getMonth() + 1).padStart(2, '0');
     const currentYYYY = now.getFullYear();
-    const filtered = data.filter(item => {
-        const t = getField(item, ['TARIKH']);
-        if (!t) return false;
-        const parts = t.split('/');
-        if (parts.length !== 3) return false;
-        return parts[1] === currentMM && parts[2] == currentYYYY;
-    });
+   const filtered = data.filter(item => {
+    const t = getField(item, ['TARIKH']);
+    if (!t) return false;
+    const parts = t.split('/');
+    if (parts.length !== 3) return false;
+    // PEMBETULAN: Pastikan menggunakan indeks array parts[1] dan parts[2] dengan betul
+    return parts[1] === currentMM && parts[2] == currentYYYY;
+});
+
     if (!filtered.length) return '<tr><td colspan="5" class="text-center muted">Tiada rekod bulan ini.</td></tr>';
     filtered.sort((a, b) => (getField(b, ['TARIKH']) || '').localeCompare(getField(a, ['TARIKH']) || ''));
     let rows = '';
