@@ -194,7 +194,7 @@
 
 <script>
     
-    // ================================================================
+ // ================================================================
 //   BAHAGIAN 2A - KONFIGURASI, HELPERS, API, AUTH, INIT, SIDEBAR
 // ================================================================
 
@@ -490,6 +490,7 @@ function switchTab(tabId) {
     } else {
         document.getElementById('halaman-menu-utama').style.display = 'none';
     }
+    // Panggil fungsi mengikut tab
     if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
@@ -523,7 +524,8 @@ function refreshAllUI() {
         if (ct) switchTab(ct.dataset.tab);
     }
 }
-    // ================================================================
+    
+  // ================================================================
 //   BAHAGIAN 2B - DASHBOARD, CUSTOMER PORTAL, TEMUJANJI
 // ================================================================
 
@@ -1447,7 +1449,271 @@ function manualDelivery() {
     updateStatuses(validIds, 'SELESAI DIHANTAR');
 }
     // ================================================================
-//                   BAHAGIAN 2E - PELANGGAN
+//                   BAHAGIAN 2E - PEMBAYARAN
+// ================================================================
+
+function renderPayment(container) {
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = getField(cust, ['NAMA'], '');
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, status, nama, alamat });
+    });
+    invList.sort((a, b) => {
+        if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
+        if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
+        return b.inv.localeCompare(a.inv);
+    });
+    const invoiceOptions = invList.map(item => {
+        const label = item.status === 'PENDING' ? '⏳ PENDING' : '✅ PAID';
+        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)} [${label}]</option>`;
+    }).join('');
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>Pengurusan Pembayaran</h1><p class="muted">Rekod bayaran pelanggan</p></div></header>
+        <div class="card">
+            <div class="form-group"><label>Pilih Invois</label><select id="paymentInvoiceSelect" class="form-control" onchange="loadPaymentData()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
+            <div id="paymentInfo" class="hidden">
+                <div class="row"><div class="col form-group"><label>Jumlah Keseluruhan (RM)</label><input id="payTotal" class="form-control" disabled></div><div class="col form-group"><label>Deposit Telah Dibayar (RM)</label><input id="payDeposit" class="form-control" disabled></div><div class="col form-group"><label>Baki (RM)</label><input id="payBalance" class="form-control" disabled style="font-weight:700;color:var(--primary-red);"></div></div>
+                <div class="row"><div class="col form-group"><label>Jumlah Bayaran Baru (RM)</label><input type="number" id="payAmount" class="form-control" min="0" step="0.01" placeholder="0.00"></div><div class="col form-group"><label>Kaedah Pembayaran</label><select id="payMethod" class="form-control"><option value="TUNAI">TUNAI (CASH)</option><option value="TRANSFER BANK">TRANSFER BANK</option><option value="DuitNow">DuitNow</option></select></div></div>
+                <div class="row"><div class="col form-group"><label>Diskaun / Potongan (RM)</label><input type="number" id="payDiscount" class="form-control" min="0" step="0.01" value="0.00" oninput="loadPaymentData()"></div></div>
+                <button class="btn btn-success" onclick="rekodBayaran()"><i class="fa-solid fa-check"></i> Rekod Bayaran</button>
+                <div id="paymentHistory" class="mt-16"></div>
+                <div id="paymentWhatsAppPreview" class="wa-preview hidden mt-16"></div>
+                <div id="paymentWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppPembayaran()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
+            </div>
+        </div>`;
+}
+
+function loadPaymentData() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    const infoDiv = document.getElementById('paymentInfo');
+    if (!inv) { infoDiv.classList.add('hidden'); return; }
+    infoDiv.classList.remove('hidden');
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const total = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+    const discount = getNumber(document.getElementById('payDiscount')?.value || 0);
+    const effectiveTotal = Math.max(0, total - discount);
+    let deposit = 0;
+    let baki = effectiveTotal;
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    if (payments.length > 0) { const lastP = payments[payments.length - 1]; const lb = getNumber(getField(lastP, ['BAKI'])); if (!isNaN(lb)) baki = lb; }
+    else { baki = Math.max(0, effectiveTotal - deposit); }
+    document.getElementById('payTotal').value = formatMoney(effectiveTotal);
+    document.getElementById('payDeposit').value = formatMoney(deposit);
+    document.getElementById('payBalance').value = formatMoney(baki);
+    const historyDiv = document.getElementById('paymentHistory');
+    if (payments.length) {
+        let html = '<strong>Sejarah Bayaran</strong><ul style="list-style:none;padding:0;margin-top:8px;">';
+        payments.forEach(p => { html += `<li style="padding:4px 0;border-bottom:1px solid #eee;">${escapeHtml(String(getField(p, ['TARIKH','DATE'], '-')))} — ${formatMoney(getField(p, ['AMAUN DIBAYAR','AMOUNT']))} (${escapeHtml(getField(p, ['KAEDAH PEMBAYARAN','METHOD'], 'TUNAI'))})</li>`; });
+        html += '</ul>'; historyDiv.innerHTML = html;
+    } else { historyDiv.innerHTML = '<p class="muted">Tiada rekod bayaran.</p>'; }
+}
+
+async function rekodBayaran() {
+    const inv = document.getElementById('paymentInvoiceSelect').value;
+    if (!inv) return toast('Sila pilih invois.');
+    const amount = getNumber(document.getElementById('payAmount').value);
+    if (amount <= 0) return toast('Masukkan jumlah bayaran yang sah.');
+    const method = document.getElementById('payMethod').value;
+    const date = getToday();
+    const discount = getNumber(document.getElementById('payDiscount')?.value || 0);
+    showLoading(true);
+    await postData({ action: 'addPayment', invNo: inv, amount, method, date, discount });
+    showLoading(false);
+    toast('Bayaran direkodkan.');
+    document.getElementById('payAmount').value = '';
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    fetchData(() => {
+        loadPaymentData();
+        const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        if (updatedOrder) {
+            let td = 0;
+            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) td += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+            if (td >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) { postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' }); }
+        }
+        const lps = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        let bt = 0;
+        if (lps.length > 0) { bt = getNumber(getField(lps[lps.length - 1], ['BAKI'])); }
+        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima.\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bt)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih! 🙏`;
+        const pe = document.getElementById('paymentWhatsAppPreview'), wb = document.getElementById('paymentWhatsAppBtn');
+        if (pe) { pe.textContent = msg; pe.classList.remove('hidden'); }
+        if (wb) wb.classList.remove('hidden');
+        STATE.paymentWhatsAppMsg = msg; STATE.paymentWhatsAppTel = tel;
+    }, true);
+}
+
+function hantarWhatsAppPembayaran() {
+    const tel = STATE.paymentWhatsAppTel, msg = STATE.paymentWhatsAppMsg;
+    if (!tel) return toast('Nombor telefon tidak dijumpai.');
+    if (!msg) return toast('Tiada mesej.');
+    bukaWhatsApp(tel, msg);
+}
+    // ================================================================
+//            BAHAGIAN 2F - INVOIS & RESIT (DENGAN DISKAUN)
+// ================================================================
+
+function renderInvoiceTab(container) {
+    const invList = [];
+    STATE.tempahan.forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = getField(cust, ['NAMA'], '');
+        const alamat = getField(cust, ['ALAMAT'], '');
+        invList.push({ inv, status, nama, alamat });
+    });
+    invList.sort((a, b) => b.inv.localeCompare(a.inv));
+    const invoiceOptions = invList.map(item => {
+        const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
+        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
+    }).join('');
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
+        <div class="card no-print">
+            <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
+            <div class="row">
+                <div class="col form-group"><label>Servis Tambahan</label><input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()"></div>
+                <div class="col form-group"><label>Harga (RM)</label><input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()"></div>
+            </div>
+            <div class="row">
+                <div class="col form-group"><label>Diskaun (RM)</label><input type="number" id="diskaunAmount" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()"></div>
+                <div class="col form-group"><label>Nota Diskaun (pilihan)</label><input type="text" id="diskaunNote" class="form-control" placeholder="Promosi / Rujukan" oninput="renderInvoicePreview()"></div>
+            </div>
+            <div class="flex">
+                <button class="btn btn-secondary" onclick="downloadInvoicePDF()"><i class="fa-solid fa-file-pdf"></i> Muat Turun PDF</button>
+                <button class="btn btn-warning" onclick="shareInvoiceWithAttachment()"><i class="fa-solid fa-paper-plane"></i> Hantar Invois (Gambar/PDF)</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppInvoice()"><i class="fa-brands fa-whatsapp"></i> Hantar Mesej WhatsApp</button>
+            </div>
+        </div>
+        <div id="invoicePreviewContainer"></div>`;
+}
+
+function renderInvoicePreview() {
+    const inv = document.getElementById('invoiceSelect').value;
+    const container = document.getElementById('invoicePreviewContainer');
+    if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+    const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
+    const custId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID']) || getField(order, ['CUSTOMER ID','CUSTOMER_ID']) || '';
+    const telefon = getField(cust, ['TELEFON','NO TELEFON'], getField(order, ['TELEFON'], '-'));
+    const alamat = getField(cust, ['ALAMAT'], getField(order, ['ALAMAT'], '-'));
+    const daerah = getField(cust, ['DAERAH'], getField(order, ['DAERAH'], '-'));
+    const tarikhAmbil = getField(order, ['TARIKH AMBIL','TARIKH','DATE'], getToday()).split('T')[0];
+    const tarikhSiap = getField(order, ['TARIKH SIAP','TARIKH_SIAP'], addDays(tarikhAmbil, 7)).split('T')[0];
+    const status = normalize(getField(order, ['STATUS'], 'PENDING'));
+    const isPaid = status === 'PAID' || status === 'LUNAS' || status === 'SELESAI';
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    let items = carpets.map(k => ({ nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'), qr: getField(k, ['QR ID','QR_ID'], ''), qty: 1, harga: getNumber(getField(k, ['HARGA'])), total: getNumber(getField(k, ['HARGA'])) }));
+    if (!items.length) { const to = getNumber(getField(order, ['JUMLAH HARGA'], 0)); if (to > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: to, total: to }]; }
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    let deposit = 0; payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    const diskaun = getNumber(document.getElementById('diskaunAmount')?.value || 0);
+    const diskaunNote = document.getElementById('diskaunNote')?.value.trim() || 'DISKAUN';
+    const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
+    const extraPrice = getNumber(document.getElementById('extraServicePrice')?.value || 0);
+    const subtotal = items.reduce((s, i) => s + i.total, 0);
+    const totalSelepasTambahan = subtotal + extraPrice;
+    const totalSelepasDiskaun = Math.max(0, totalSelepasTambahan - diskaun);
+    const total = totalSelepasDiskaun;
+    let baki = 0;
+    if (payments.length > 0) {
+        const lp = payments[payments.length - 1];
+        baki = getNumber(getField(lp, ['BAKI']));
+        if (baki === 0 && total > 0) baki = total - deposit;
+    } else {
+        baki = Math.max(0, total - deposit);
+    }
+    const brandColor = isPaid ? '#28a745' : '#ff6d00';
+    let itemsHTML = items.map((item, i) => `<tr><td style="width:5%;">${i+1}</td><td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td><td style="width:5%;">${item.qty}</td><td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td><td style="width:22%;text-align:right;">${formatMoney(item.total)}</td></tr>`).join('');
+    if (extraName && extraPrice > 0) {
+        itemsHTML += `<tr><td style="width:5%;">${items.length+1}</td><td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td><td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td></tr>`;
+    }
+    if (diskaun > 0) {
+        itemsHTML += `<tr><td style="width:5%;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">-${formatMoney(diskaun)}</td><td style="width:22%;text-align:right;">-${formatMoney(diskaun)}</td></tr>`;
+    }
+
+    const html = `
+        <div class="card print-area" id="invoicePrintArea"><div style="max-width:210mm;margin:0 auto;padding:10mm;font-family:'Inter',sans-serif;color:#1a1a1a;">
+        <div style="margin-bottom:6mm;"><img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm;" onerror="this.style.display='none'"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;"><div><div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">WESTBERRY ENTERPRISE</div><div style="font-size:10px;color:#555;line-height:1.4;">LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>PAYA BESAR 09600 LUNAS KEDAH.<br>TEL: 017-4050336</div></div><div style="text-align:right;"><h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1><table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;"><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">TARIKH AMBIL</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikhAmbil)}</td></tr><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">TARIKH SIAP</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikhSiap)}</td></tr></table></div></div>
+        <div style="text-align:right;margin-bottom:6mm;"><span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span></div>
+        <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
+        <div style="margin-bottom:8mm;"><div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div><div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div><div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div></div>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;"><thead><tr style="background:${brandColor};color:#fff;"><th style="padding:4px;text-align:center;width:5%;">BIL</th><th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th><th style="padding:4px;text-align:center;width:5%;">UNIT</th><th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th><th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th></tr></thead><tbody>${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}</tbody></table>
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8mm;"><table style="border-collapse:collapse;font-size:10px;width:50%;">
+            <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(subtotal)}</td></tr>
+            ${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
+            ${diskaun > 0 ? `<tr><td style="border:1px solid #ddd;padding:3px 8px;color:#d32f2f;font-weight:600;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:#d32f2f;">-${formatMoney(diskaun)}</td></tr>` : ''}
+            <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">TOTAL</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;font-weight:700;">${formatMoney(total)}</td></tr>
+            <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr>
+            <tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
+        </table></div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;"><div><strong>UNTUK PEMBAYARAN:</strong><br><strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br><span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span></div><div style="text-align:center;"><strong>DISEDIAKAN OLEH / COP:</strong><br><img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'"><div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div></div></div>
+        <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;"><strong>TERMA & SYARAT PEMBAYARAN:</strong><br>1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br><em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em></div>
+        <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">Thank you for your business! We look forward to serving you again.<br>~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~</div></div></div>`;
+    container.innerHTML = html;
+    let msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n📅 Tarikh Ambil: ${formatDateMY(tarikhAmbil)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}`;
+    if (diskaun > 0) {
+        msgWa += `\n💰 *Diskaun:* -${formatMoney(diskaun)} (${escapeHtml(diskaunNote)})`;
+    }
+    msgWa += `\n💵 *Jumlah Selepas Diskaun:* ${formatMoney(total)}`;
+    msgWa += `\n📌 *Status/Baki Semasa:* ${formatMoney(baki)}`;
+    msgWa += `\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
+    STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid, diskaun, diskaunNote };
+}
+
+async function shareInvoiceWithAttachment() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+    const isPaid = data.isPaid;
+    const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
+    const mimeType = isPaid ? 'application/pdf' : 'image/png';
+    toast('Menyediakan lampiran...');
+    let fileBlob;
+    try {
+        if (isPaid) { const pdfBlob = await html2pdf().set({ margin: [5,5,5,5], filename: fileName, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(element).outputPdf('blob'); fileBlob = pdfBlob; }
+        else { const canvas = await html2canvas(element, { scale: 2, useCORS: true }); fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); }
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            const file = new File([fileBlob], fileName, { type: mimeType });
+            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
+            toast('Invois berjaya dikongsi!');
+            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
+            return;
+        }
+    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
+    try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
+    bukaWhatsApp(data.telefon, data.msg);
+}
+
+function downloadInvoicePDF() {
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+    if (typeof html2pdf === 'undefined') { toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.'); const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; script.onload = () => { toast('Pustaka PDF siap. Sila cuba lagi.'); }; document.head.appendChild(script); return; }
+    const opt = { margin: [5,5,5,5], filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    toast('Sedang menjana PDF...');
+    html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch((err) => { console.error('PDF error:', err); toast('Gagal menjana PDF. Sila cuba lagi.'); });
+}
+
+function hantarWhatsAppInvoice() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
+    bukaWhatsApp(data.telefon, data.msg);
+}
+    // ================================================================
+//                   BAHAGIAN 2G - PELANGGAN
 // ================================================================
 
 function renderPelanggan(container) {
@@ -1636,7 +1902,7 @@ function lihatSejarahPelanggan(customerId) {
     container.scrollIntoView({ behavior: 'smooth' });
 }
     // ================================================================
-//                   BAHAGIAN 2F - PEKERJA
+//                   BAHAGIAN 2H - PEKERJA
 // ================================================================
 
 function renderPekerja(container) {
@@ -1879,7 +2145,7 @@ async function tambahRunnerTask() {
     setTimeout(() => renderWorkerRunner(document.getElementById('workerTabContent')), 1500);
 }
     // ================================================================
-//                   BAHAGIAN 2G - PRICE MATRIX
+//                   BAHAGIAN 2I - PRICE MATRIX
 // ================================================================
 
 function renderPriceMatrix(container) {
@@ -2033,7 +2299,7 @@ async function saveBulkPrices() {
     setTimeout(() => renderBulkPrice(document.getElementById('priceTabContent')), 1500);
 }
     // ================================================================
-//                    BAHAGIAN 2H - BARCODE
+//                    BAHAGIAN 2J - BARCODE
 // ================================================================
 
 function renderBarcode(container) {
@@ -2144,7 +2410,7 @@ function simpanGambarStikers() {
     });
 }
     // ================================================================
-//          BAHAGIAN 2I - PERBELANJAAN (DENGAN OCR RESIT)
+//          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
 // ================================================================
 
 function renderExpenses(container) {
@@ -2514,7 +2780,7 @@ function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
     });
 }
     // ================================================================
-//      BAHAGIAN 2J - SERVICE WORKER, TOGGLE SIDEBAR & PENUTUP
+//      BAHAGIAN 2L - SERVICE WORKER, TOGGLE SIDEBAR & PENUTUP
 // ================================================================
 
 // ==================== GLOBAL EVENTS ====================
