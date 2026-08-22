@@ -14,9 +14,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Pustaka OCR & QR -->
+    <!-- Tesseract.js untuk OCR resit -->
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <!-- html5-qrcode untuk imbasan QR yang stabil -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <style>
         :root {
             --primary-red: #ff4b4b;
@@ -335,6 +336,47 @@
             font-weight: 600;
         }
         .qc-image-options label:hover { background: #e0e0e0; }
+        /* Gaya tab untuk pelbagai modul */
+        .tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background: none;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: .2s;
+        }
+        .tab-btn.active {
+            color: var(--primary-red);
+            border-bottom-color: var(--primary-red);
+        }
+        /* Stiker barcode */
+        .stiker-box {
+            width: 40mm;
+            height: 30mm;
+            border: 1px dashed #000;
+            padding: 1mm;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            margin: 1mm;
+            page-break-after: always;
+            background: #fff;
+        }
+        .stiker-box .qr-placeholder img {
+            width: 10mm !important;
+            height: 10mm !important;
+            object-fit: contain;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .stiker-box { border: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -439,7 +481,7 @@
 <div id="toastContainer" class="toast-container"></div>
 
 <script>
-// ==================== CONFIG & STATE ====================
+    // ==================== CONFIG & STATE ====================
 const CONFIG = {
     GAS_API_URL: "https://script.google.com/macros/s/AKfycbxB8-ENhS_pe4I1Uw5ulQZA-fiXJ2hBbIIKI_yOel_5OwG1YGEof6k1TILpVP0OOlMd/exec",
     FINANCE_GAS_URL: "https://script.google.com/macros/s/AKfycbyJ2T-3MApoYIAjwLcOo4xLHV2h6CGzOOGmCkMa8J-17jhmh2n3UBp7_jhhoIeJzhO8oA/exec",
@@ -450,7 +492,7 @@ let STATE = {
     pekerja: [], komisen: [], runnerTugasan: [], expenses: [], rawExpenses: [],
     currentUser: null, isLoading: false, lastCustomer: null, lastOrderMsg: '',
     paymentWhatsAppMsg: '', paymentWhatsAppTel: '',
-    offlineQueue: []  // untuk simpan status yang tertunda
+    offlineQueue: [], currentInvoiceData: null
 };
 
 // ==================== HELPERS ====================
@@ -490,8 +532,6 @@ function toast(msg) {
     container.appendChild(div);
     setTimeout(() => div.remove(), 3000);
 }
-
-// === FUNGSI UMUM UNTUK BUKA WHATSAPP ===
 function bukaWhatsApp(phone, message) {
     if (!phone) return;
     const clean = String(phone).replace(/\D/g, '').replace(/^0+/, '');
@@ -544,7 +584,6 @@ function fetchData(callback, skipRefresh = false) {
     document.body.appendChild(script);
 }
 
-// ==================== API (POST DENGAN NO-CORS UNTUK TULIS) ====================
 async function postData(data) {
   try {
     const response = await fetch(CONFIG.GAS_API_URL, {
@@ -567,14 +606,13 @@ function cleanupJsonp(name) {
     try { delete window[name]; } catch(e) {}
 }
 
-// ==================== OFFLINE QUEUE FUNCTIONS ====================
+// ==================== OFFLINE QUEUE ====================
 function saveToOfflineQueue(qrIds, status) {
     let queue = JSON.parse(localStorage.getItem('mycarpet_offline_queue') || '[]');
     queue.push({ qrIds, status, timestamp: new Date().toISOString() });
     localStorage.setItem('mycarpet_offline_queue', JSON.stringify(queue));
     STATE.offlineQueue = queue;
 }
-
 function loadOfflineQueue() {
     const stored = localStorage.getItem('mycarpet_offline_queue');
     if (stored) {
@@ -585,7 +623,6 @@ function loadOfflineQueue() {
         }
     }
 }
-
 async function processOfflineQueue() {
     if (STATE.offlineQueue.length === 0) return;
     if (!navigator.onLine) {
@@ -597,7 +634,6 @@ async function processOfflineQueue() {
     for (let item of queue) {
         try {
             await postData({ action: 'updateBatchStatus', qrIds: item.qrIds, status: item.status });
-            // berjaya, tidak perlu simpan
         } catch (e) {
             newQueue.push(item);
         }
@@ -611,12 +647,8 @@ async function processOfflineQueue() {
         toast('Sync gagal. Cuba lagi nanti.');
     }
 }
-
-// Panggil processOfflineQueue apabila internet kembali
 window.addEventListener('online', () => {
-    if (STATE.offlineQueue && STATE.offlineQueue.length > 0) {
-        processOfflineQueue();
-    }
+    if (STATE.offlineQueue && STATE.offlineQueue.length > 0) processOfflineQueue();
 });
 
 // ==================== AUTH ====================
@@ -632,58 +664,28 @@ function loginAdmin() {
     } else { showLoginError('Username atau password salah.'); }
 }
 function loginCustomer() {
-    // 1. Ambil input telefon dan bersihkan daripada segala simbol sengkang, jarak atau +
     let phoneInput = document.getElementById('custPhone').value.trim().replace(/[^0-9]/g, '');
-    
-    if (!phoneInput) { 
-        showLoginError('Sila masukkan nombor telefon.'); 
-        return; 
-    }
-    
-    // 2. Seragamkan input telefon pengguna supaya bermula dengan kod negara 60
-    if (phoneInput.startsWith('0')) {
-        phoneInput = '60' + phoneInput.substring(1);
-    } else if (!phoneInput.startsWith('60')) {
-        phoneInput = '60' + phoneInput;
-    }
-
-    // 3. Lakukan carian data pelanggan secara fleksibel di dalam pangkalan data
+    if (!phoneInput) { showLoginError('Sila masukkan nombor telefon.'); return; }
+    if (phoneInput.startsWith('0')) phoneInput = '60' + phoneInput.substring(1);
+    else if (!phoneInput.startsWith('60')) phoneInput = '60' + phoneInput;
     const cust = STATE.pelanggan.find(c => {
-        // Ambil data telefon daripada baris sheet secara selamat tanpa bergantung tegar kepada tajuk lajur C
         let dbPhone = getField(c, ['TELEFON', 'NO TELEFON', 'PHONE', 'NO. TELEFON', 'NO_TELEFON']);
-        
-        // Jika getField gagal, cuba scan kunci objek lajur ke-3 secara manual
         if (!dbPhone) {
             const keys = Object.keys(c);
-            if (keys.length >= 3) dbPhone = c[keys[2]]; // Mengambil lajur ke-3 (Lajur C) secara langsung
+            if (keys.length >= 3) dbPhone = c[keys[2]];
         }
-        
         if (!dbPhone) return false;
-        
-        // Bersihkan data telefon dari Google Sheets untuk perbandingan yang adil
         let cleanDbPhone = String(dbPhone).replace(/[^0-9]/g, '');
         if (cleanDbPhone.startsWith('0')) cleanDbPhone = '60' + cleanDbPhone.substring(1);
         if (!cleanDbPhone.startsWith('60')) cleanDbPhone = '60' + cleanDbPhone;
-        
         return cleanDbPhone === phoneInput;
     });
-
     if (cust) {
-        // Berjaya jumpa! Simpan sesi log masuk pelanggan
-        STATE.currentUser = { 
-            role: 'customer', 
-            customerId: getField(cust, ['CUSTOMER ID', 'CUSTOMER_ID', 'ID']), 
-            telefon: phoneInput 
-        };
-        saveSession(); 
-        afterLogin();
-    } else { 
-        showLoginError('Nombor telefon tidak dijumpai dalam pangkalan data. Sila pastikan lajur C di Google Sheets adalah betul.'); 
-    }
+        STATE.currentUser = { role: 'customer', customerId: getField(cust, ['CUSTOMER ID', 'CUSTOMER_ID', 'ID']), telefon: phoneInput };
+        saveSession(); afterLogin();
+    } else { showLoginError('Nombor telefon tidak dijumpai dalam pangkalan data.'); }
 }
-function saveSession() {
-    localStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser));
-}
+function saveSession() { localStorage.setItem('mycarpet_user', JSON.stringify(STATE.currentUser)); }
 function showLoginError(msg) { const el = document.getElementById('loginError'); el.textContent = msg; el.classList.remove('hidden'); }
 function afterLogin() { document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); initApp(); }
 function logout() {
@@ -696,27 +698,16 @@ function logout() {
     document.getElementById('custPhone').value = '';
     document.getElementById('loginError').classList.add('hidden');
 }
-document.getElementById('adminUser').addEventListener('input', function() {
-    this.value = this.value.trim();
-});
-document.getElementById('adminPass').addEventListener('input', function() {
-    this.value = this.value.trim();
-});
-// =======================================================================
+
+// Login tabs event
 document.addEventListener("DOMContentLoaded", function() {
     const butangTabs = document.querySelectorAll('.login-tab');
-    
     butangTabs.forEach(tab => {
         tab.addEventListener('click', function() {
             butangTabs.forEach(b => b.classList.remove('active'));
             this.classList.add('active');
-            
-            document.querySelectorAll('.login-form').forEach(form => {
-                form.classList.remove('active');
-            });
-            
+            document.querySelectorAll('.login-form').forEach(form => form.classList.remove('active'));
             const peranan = this.getAttribute('data-role');
-            
             if (peranan === 'admin') {
                 const borangAdmin = document.getElementById('loginFormAdmin');
                 if (borangAdmin) borangAdmin.classList.add('active');
@@ -727,21 +718,20 @@ document.addEventListener("DOMContentLoaded", function() {
                 const borangAppt = document.getElementById('loginFormAppointment');
                 if (borangAppt) {
                     borangAppt.classList.add('active');
-                    if (typeof renderAppointmentForm === 'function') {
-                        renderAppointmentForm();
-                    }
+                    if (typeof renderAppointmentForm === 'function') renderAppointmentForm();
                 }
             }
         });
     });
 });
+
 // ==================== APP INIT & SIDEBAR ====================
 function initApp() {
     renderSidebar();
     fetchData(() => {
         const defaultTab = STATE.currentUser.role === 'admin' ? 'menu' : 'customer-portal';
         switchTab(defaultTab);
-        loadOfflineQueue(); // muat queue jika ada
+        loadOfflineQueue();
     });
 }
 function renderSidebar() {
@@ -770,15 +760,12 @@ function renderSidebar() {
     });
 }
 
-// ==================== SWITCH TAB ====================
 function switchTab(tabId) {
     $$('.menu-item').forEach(el => el.classList.remove('active'));
     const activeMenu = $(`.menu-item[data-tab="${tabId}"]`);
     if (activeMenu) activeMenu.classList.add('active');
-    
     const container = document.getElementById('tabContainer');
     container.innerHTML = '';
-
     if (tabId === 'menu') {
         document.getElementById('halaman-menu-utama').style.display = 'block';
         if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
@@ -786,7 +773,6 @@ function switchTab(tabId) {
     } else {
         document.getElementById('halaman-menu-utama').style.display = 'none';
     }
-
     if (tabId === 'dashboard') renderDashboard(container);
     else if (tabId === 'customer-portal') renderCustomerPortal(container);
     else if (tabId === 'temujanji') renderTemujanji(container);
@@ -800,27 +786,20 @@ function switchTab(tabId) {
     else if (tabId === 'barcode') renderBarcode(container);
     else if (tabId === 'expenses') renderExpenses(container);
     else container.innerHTML = `<div class="card text-center"><h2>🛠️ Modul Akan Datang</h2><p>${escapeHtml(tabId)} akan dibina.</p></div>`;
-
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
 
-// ==================== NAVIGASI MENU GRID ====================
 function tukarHalamanSistem(pilihanMenu) {
-    console.log('📌 tukarHalamanSistem dipanggil dengan:', pilihanMenu);
     document.getElementById('halaman-menu-utama').style.display = 'none';
     switchTab(pilihanMenu);
     if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-    
 function kembaliKeMenuUtama() {
     document.getElementById('halaman-menu-utama').style.display = 'block';
     document.getElementById('tabContainer').innerHTML = '';
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-    if (window.innerWidth <= 992) {
-        document.body.classList.remove('sidebar-open');
-    }
+    if (window.innerWidth <= 992) document.body.classList.remove('sidebar-open');
 }
-
 function refreshAllUI() {
     if (STATE.currentUser) {
         const ct = document.querySelector('.menu-item.active');
@@ -828,7 +807,7 @@ function refreshAllUI() {
     }
 }
 
-// ==================== FORM TEMUJANJI TANPA LOGIN (BUTANG KETIGA) ====================
+// ==================== APPOINTMENT FORM (Tanpa Login) ====================
 function renderAppointmentForm() {
     const container = document.getElementById('appointmentFormContainer');
     container.innerHTML = `
@@ -851,32 +830,23 @@ function renderAppointmentForm() {
     `;
     document.getElementById('apptTarikh').value = getToday();
 }
-
 function janaMesejApptTanpaLogin() {
     const nama = document.getElementById('apptNama').value.trim();
     const alamat = document.getElementById('apptAlamat').value.trim();
     const tarikh = document.getElementById('apptTarikh').value;
     const masa = document.getElementById('apptMasa').value;
-    if (!nama || !alamat || !tarikh || !masa) {
-        toast('Sila lengkapkan semua maklumat.');
-        return;
-    }
+    if (!nama || !alamat || !tarikh || !masa) { toast('Sila lengkapkan semua maklumat.'); return; }
     const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan: ${nama}\nMohon slot janji temu untuk pengambilan karpet:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila sahkan slot ini. Terima kasih! 🙏`;
     document.getElementById('apptPreviewTanpaLogin').textContent = msg;
     document.getElementById('apptPreviewTanpaLogin').classList.remove('hidden');
     navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
 }
-
 function hantarWhatsAppApptTanpaLogin() {
     const telefon = document.getElementById('apptTelefon').value.trim().replace(/[- ]/g, '');
     if (!telefon) { toast('Sila masukkan nombor telefon untuk dihubungi.'); return; }
     const preview = document.getElementById('apptPreviewTanpaLogin');
     let msg = preview.textContent;
-    if (!msg || preview.classList.contains('hidden')) {
-        janaMesejApptTanpaLogin();
-        msg = preview.textContent;
-    }
-    // Hantar ke admin 0174050336
+    if (!msg || preview.classList.contains('hidden')) { janaMesejApptTanpaLogin(); msg = preview.textContent; }
     bukaWhatsApp('0174050336', msg);
 }
 
@@ -904,7 +874,7 @@ function renderDashboard(container) {
         </tbody></table></div></div>`;
 }
 
-// ==================== CUSTOMER PORTAL (DUA TAB) ====================
+// ==================== CUSTOMER PORTAL ====================
 function renderCustomerPortal(container) {
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
@@ -917,35 +887,8 @@ function renderCustomerPortal(container) {
             <div id="customerTabContent"></div>
         </div>
     `;
-    // Default to status tab
     switchCustomerTab('cust-status', document.querySelector('.tab-btn.active'));
 }
-
-// Gaya tab untuk customer
-const custTabStyle = `
-    .tab-btn {
-        padding: 10px 20px;
-        border: none;
-        background: none;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        color: var(--text-muted);
-        border-bottom: 2px solid transparent;
-        transition: .2s;
-    }
-    .tab-btn.active {
-        color: var(--primary-red);
-        border-bottom-color: var(--primary-red);
-    }
-`;
-if (!document.getElementById('custTabStyles')) {
-    const styleTag = document.createElement('style');
-    styleTag.id = 'custTabStyles';
-    styleTag.textContent = custTabStyle;
-    document.head.appendChild(styleTag);
-}
-
 function switchCustomerTab(tabId, btn) {
     document.querySelectorAll('#customerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
@@ -953,8 +896,6 @@ function switchCustomerTab(tabId, btn) {
     if (tabId === 'cust-status') renderCustomerStatus(content);
     else if (tabId === 'cust-appointment') renderCustomerAppointment(content);
 }
-
-// ---------- TAB 1: SEMAK STATUS ----------
 function renderCustomerStatus(container) {
     const isLoggedIn = STATE.currentUser && STATE.currentUser.role === 'customer';
     const phone = isLoggedIn ? STATE.currentUser.telefon : '';
@@ -969,7 +910,6 @@ function renderCustomerStatus(container) {
         <div id="statusResult" class="mt-16"></div>
     `;
 }
-
 function semakStatusPelanggan() {
     const phone = document.getElementById('custStatusPhone').value.trim().replace(/[- ]/g, '');
     if (!phone) { toast('Sila masukkan nombor telefon.'); return; }
@@ -984,7 +924,6 @@ function semakStatusPelanggan() {
     const custId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID']);
     const invNos = STATE.tempahan.filter(o => normalize(getField(o,['CUSTOMER ID','CUSTOMER_ID'])) === normalize(custId)).map(o => normalize(getField(o,['INV NO','INV_NO','NO INVOIS'])));
     const carpets = STATE.karpet.filter(k => invNos.includes(normalize(getField(k,['INV NO','INV_NO']))));
-    // Filter out SELESAI DIHANTAR
     const activeCarpets = carpets.filter(k => normalize(getField(k,['STATUS'])) !== 'SELESAI DIHANTAR');
     if (!activeCarpets.length) {
         document.getElementById('statusResult').innerHTML = '<p class="muted">Tiada karpet yang sedang dalam proses.</p>';
@@ -999,8 +938,6 @@ function semakStatusPelanggan() {
     html += '</tbody></table></div>';
     document.getElementById('statusResult').innerHTML = html;
 }
-
-// ---------- TAB 2: MOHON TEMUJANJI (WhatsApp ke Admin) ----------
 function renderCustomerAppointment(container) {
     container.innerHTML = `
         <h3 class="card-title">Mohon Temujanji Ambil Karpet</h3>
@@ -1022,32 +959,23 @@ function renderCustomerAppointment(container) {
     `;
     document.getElementById('custApptTarikh').value = getToday();
 }
-
 function janaMesejApptPelanggan() {
     const nama = document.getElementById('custApptNama').value.trim();
     const alamat = document.getElementById('custApptAlamat').value.trim();
     const tarikh = document.getElementById('custApptTarikh').value;
     const masa = document.getElementById('custApptMasa').value;
-    if (!nama || !alamat || !tarikh || !masa) {
-        toast('Sila lengkapkan semua maklumat.');
-        return;
-    }
+    if (!nama || !alamat || !tarikh || !masa) { toast('Sila lengkapkan semua maklumat.'); return; }
     const msg = `🧺 Pusat Cucian Karpet MyCarpetPro v3.0\n\nPelanggan: ${nama}\nMohon slot janji temu untuk pengambilan karpet:\n🗓️ Tarikh: ${formatDateMY(tarikh)}\n⏰ Masa: ${masa}\n📍 Alamat: ${alamat}\n\nSila sahkan slot ini. Terima kasih! 🙏`;
     document.getElementById('apptPreview').textContent = msg;
     document.getElementById('apptPreview').classList.remove('hidden');
     navigator.clipboard?.writeText(msg).then(() => toast('Mesej disalin')).catch(()=>{});
 }
-
 function hantarWhatsAppApptPelanggan() {
     const telefon = document.getElementById('custApptTelefon').value.trim().replace(/[- ]/g, '');
     if (!telefon) { toast('Sila masukkan nombor telefon untuk dihubungi.'); return; }
     const preview = document.getElementById('apptPreview');
     let msg = preview.textContent;
-    if (!msg || preview.classList.contains('hidden')) {
-        janaMesejApptPelanggan();
-        msg = preview.textContent;
-    }
-    // Hantar ke admin 0174050336
+    if (!msg || preview.classList.contains('hidden')) { janaMesejApptPelanggan(); msg = preview.textContent; }
     bukaWhatsApp('0174050336', msg);
 }
 
@@ -1082,6 +1010,7 @@ function hantarWhatsAppJanji() {
     bukaWhatsApp(telefon, msg);
 }
 
+// ==================== TEMPAHAN BARU (dengan KATEGORI CUSTOM & TARIKH) ====================
 function renderTempahan(container) {
     let pelangganOptions = '<option value="">-- Pilih --</option>';
     STATE.pelanggan.forEach(c => {
@@ -1096,7 +1025,6 @@ function renderTempahan(container) {
             <div id="secCustLama"><div class="form-group"><label>Pilih Pelanggan</label><select id="optPelanggan" class="form-control" onchange="loadCustomerDetails()">${pelangganOptions}</select></div><div class="row"><div class="col form-group"><label>Nama</label><input id="custNama" class="form-control" readonly></div><div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control" readonly></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control" readonly></div><div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control" readonly></div></div></div>
             <div id="secCustBaru" style="display:none;"><div class="row"><div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div><div class="col form-group"><label>No. Telefon</label><input id="custTelBaru" class="form-control" placeholder="60123456789"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div></div>
         </div>
-        <!-- ===== TAMBAHAN: Tarikh Ambil ===== -->
         <div class="card">
             <h3 class="card-title">📅 Tarikh Ambil</h3>
             <div class="form-group">
@@ -1197,7 +1125,6 @@ function addCarpetRow() {
     div.id = rowId;
     div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;flex-wrap:wrap;';
 
-    // --- KOD (col1) ---
     const col1 = document.createElement('div');
     col1.className = 'col form-group';
     col1.style.flex = '1.5';
@@ -1236,7 +1163,6 @@ function addCarpetRow() {
     info.textContent = 'Jenis & harga auto.';
     col1.appendChild(info);
 
-    // --- QTY (col2) ---
     const col2 = document.createElement('div');
     col2.className = 'col form-group';
     col2.style.maxWidth = '80px';
@@ -1250,7 +1176,6 @@ function addCarpetRow() {
     qty.oninput = function() { handleCustomCalculation(rowId); };
     col2.appendChild(qty);
 
-    // --- HARGA (col4) ---
     const col4 = document.createElement('div');
     col4.className = 'col form-group';
     col4.style.maxWidth = '140px';
@@ -1263,7 +1188,6 @@ function addCarpetRow() {
     price.readOnly = true;
     col4.appendChild(price);
 
-    // --- DELETE (col5) ---
     const col5 = document.createElement('div');
     col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
     const del = document.createElement('button');
@@ -1273,7 +1197,7 @@ function addCarpetRow() {
     del.onclick = () => removeCarpetRow(rowId);
     col5.appendChild(del);
 
-    // --- CUSTOM CONTAINER (baris baru, lebar penuh) ---
+    // --- CUSTOM CONTAINER ---
     const customContainer = document.createElement('div');
     customContainer.className = 'box-custom-container';
     customContainer.style.cssText = 'display:none; width:100%; margin-top:12px; padding-top:12px; border-top:1px dashed #d0dbe8;';
@@ -1282,7 +1206,6 @@ function addCarpetRow() {
     customRow.className = 'row';
     customRow.style.cssText = 'gap:8px; align-items:end;';
 
-    // Lebar (ft)
     const colLebar = document.createElement('div');
     colLebar.className = 'col form-group';
     colLebar.style.minWidth = '80px';
@@ -1297,7 +1220,6 @@ function addCarpetRow() {
     colLebar.appendChild(inpLebar);
     customRow.appendChild(colLebar);
 
-    // Panjang (ft)
     const colPanjang = document.createElement('div');
     colPanjang.className = 'col form-group';
     colPanjang.style.minWidth = '80px';
@@ -1312,7 +1234,6 @@ function addCarpetRow() {
     colPanjang.appendChild(inpPanjang);
     customRow.appendChild(colPanjang);
 
-    // Harga/Sqft (RM)
     const colPriceSqft = document.createElement('div');
     colPriceSqft.className = 'col form-group';
     colPriceSqft.style.minWidth = '80px';
@@ -1327,7 +1248,6 @@ function addCarpetRow() {
     colPriceSqft.appendChild(inpPriceSqft);
     customRow.appendChild(colPriceSqft);
 
-    // Jumlah Luas (readonly)
     const colLuas = document.createElement('div');
     colLuas.className = 'col form-group';
     colLuas.style.minWidth = '100px';
@@ -1343,12 +1263,10 @@ function addCarpetRow() {
 
     customContainer.appendChild(customRow);
 
-    // Pasang oninput untuk ketiga input custom
     inpLebar.oninput = function() { handleCustomCalculation(rowId); };
     inpPanjang.oninput = function() { handleCustomCalculation(rowId); };
     inpPriceSqft.oninput = function() { handleCustomCalculation(rowId); };
 
-    // Susun semua ke dalam div utama
     div.appendChild(col1);
     div.appendChild(col2);
     div.appendChild(col4);
@@ -1369,13 +1287,11 @@ function handleCodeSelection(rowId) {
 
     const isCustom = (sel && sel.value === 'CUSTOM');
 
-    // Toggle custom container
     if (customContainer) {
         customContainer.style.display = isCustom ? 'block' : 'none';
     }
 
     if (isCustom) {
-        // Reset custom inputs to 0
         const lebar = row.querySelector('.inp-lebar');
         const panjang = row.querySelector('.inp-panjang');
         const priceSqft = row.querySelector('.inp-price-sqft');
@@ -1390,7 +1306,6 @@ function handleCodeSelection(rowId) {
         return;
     }
 
-    // Bukan CUSTOM: ambil dari dataset
     const opt = sel.options[sel.selectedIndex];
     if (opt && opt.dataset.harga) {
         const harga = parseFloat(opt.dataset.harga);
@@ -1409,7 +1324,6 @@ function handleCustomCalculation(rowId) {
 
     const sel = row.querySelector('.select-kod-karpet');
     if (!sel || sel.value !== 'CUSTOM') {
-        // Bukan custom, hanya update total
         calculateGrandTotal();
         return;
     }
@@ -1421,19 +1335,16 @@ function handleCustomCalculation(rowId) {
     const luas = lebar * panjang;
     const hargaUnit = luas * priceSqft;
 
-    // Update luas display
     const viewLuas = row.querySelector('.view-luas');
     if (viewLuas) {
         viewLuas.value = luas.toFixed(1) + ' sqft';
     }
 
-    // Update harga final (per unit)
     const hargaFinal = row.querySelector('.inp-harga-final');
     if (hargaFinal) {
         hargaFinal.value = hargaUnit.toFixed(2);
     }
 
-    // Update info
     const info = row.querySelector('.jenis-vlookup-info');
     if (info) {
         info.innerHTML = `<strong>CUSTOM</strong><br>${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft = ${luas.toFixed(1)} sqft × ${formatMoney(priceSqft)}/sqft = ${formatMoney(hargaUnit)}`;
@@ -1481,19 +1392,17 @@ async function simpanTempahan() {
         custDaerah = getField(cust, ['DAERAH'], '');
     }
 
-    // --- BACA TARIKH AMBIL DARI INPUT ---
     const tarikhInput = document.getElementById('tarikhAmbil');
     let today;
     if (tarikhInput && tarikhInput.value) {
         const parts = tarikhInput.value.split('-');
         today = new Date(parts[0], parts[1]-1, parts[2]);
-        today = today.toISOString().split('T')[0]; // format YYYY-MM-DD
+        today = today.toISOString().split('T')[0];
     } else {
         today = getToday();
     }
     const tarikhSiap = addDays(today, 7);
 
-    // Kumpul item karpet
     const items = [];
     let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
@@ -1504,9 +1413,7 @@ async function simpanTempahan() {
 
         let harga, jenis;
         if (sel.value === 'CUSTOM') {
-            // Baca harga dari inp-harga-final
             harga = parseFloat(row.querySelector('.inp-harga-final').value) || 0;
-            // Bina nama dinamik
             const lebar = parseFloat(row.querySelector('.inp-lebar').value) || 0;
             const panjang = parseFloat(row.querySelector('.inp-panjang').value) || 0;
             jenis = `CUSTOM CARPET (${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft)`;
@@ -1519,7 +1426,6 @@ async function simpanTempahan() {
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
 
-    // ★ Muat data terkini dari GAS sebelum menjana invois
     showLoading(true);
     await new Promise((resolve) => {
         fetchData(() => {
@@ -1530,7 +1436,6 @@ async function simpanTempahan() {
 
     const invNo = generateInvoiceNumber();
 
-    // Hantar ke GAS termasuk tarikh ambil & tarikh siap
     showLoading(true);
     await postData({
         action: 'createOrder',
@@ -1539,8 +1444,8 @@ async function simpanTempahan() {
         customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
         items,
         total,
-        tarikhAmbil: today,      // <--- tarikh ambil
-        tarikhSiap: tarikhSiap   // <--- tarikh siap
+        tarikhAmbil: today,
+        tarikhSiap: tarikhSiap
     });
     showLoading(false);
 
@@ -1601,35 +1506,30 @@ if (telBaruInput) {
         }
     });
 }
-// ==================== PENJANA INVOIS (YYMMDD + SIRI BERMULA 500) ====================
-// ==================== PENJANA INVOIS (MENYOKONG FORMAT LAMA & BARU) ====================
+
+// ==================== PENJANA INVOIS ====================
 function generateInvoiceNumber() {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
     const mm = ('0' + (now.getMonth() + 1)).slice(-2);
     const dd = ('0' + now.getDate()).slice(-2);
-    const prefix = yy + mm + dd; // Contoh: "260820" untuk invois baru
-
-    // Cari siri tertinggi di seluruh sistem
-    let maxSeq = 499; // supaya siri pertama menjadi 500
-
+    const prefix = yy + mm + dd;
+    let maxSeq = 499;
     STATE.tempahan.forEach(t => {
         const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']).toString().trim();
-        // Semak jika invois bermula dengan "INV" - ambil 4 digit terakhir sebagai siri
         if (inv.startsWith('INV')) {
-            // Ambil 4 digit terakhir (selagi ia berakhir dengan nombor)
             const suffix = parseInt(inv.slice(-4), 10);
             if (!isNaN(suffix) && suffix > maxSeq) {
                 maxSeq = suffix;
             }
         }
     });
-
     const nextSeq = maxSeq + 1;
-    return 'INV' + prefix + nextSeq; // Contoh: INV2608200500, INV2608210501...
+    return 'INV' + prefix + nextSeq;
 }
+    // ==================== TRACKING (dengan HTML5 QR Scanner yang diperbaiki) ====================
+let html5QrCodeInstance = null;
 
-// ==================== TRACKING (DENGAN KAMERA QR + MANUAL + TORCH + BEEP + OFFLINE QUEUE) ====================
 function renderTracking(container) {
     const invSet = new Set();
     STATE.karpet.forEach(k => {
@@ -1663,7 +1563,7 @@ function renderTracking(container) {
                     <button class="btn btn-secondary btn-sm torch-btn" onclick="toggleTorch()"><i class="fa-solid fa-lightbulb"></i> Lampu</button>
                 </div>
             </div>
-            <div id="cameraPreview" class="camera-preview"><video id="qrVideo" autoplay playsinline></video></div>
+            <div id="cameraPreview" class="camera-preview"><div id="qrReader"></div></div>
             <div id="scanStatus" class="scan-status"></div>
             <div class="table-wrap"><table class="data-table" id="trackingTable"><thead><tr><th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAll(this)"></th><th>QR / Invois</th><th>Pelanggan / Alamat</th><th>Jenis</th><th>Harga</th><th>Status</th><th>Rak</th><th>Tindakan</th></tr></thead><tbody id="trackingTableBody"><tr><td colspan="8" class="text-center muted">Tiada data</td></tr></tbody></table></div>
         </div>`;
@@ -1672,72 +1572,104 @@ function renderTracking(container) {
     executeTrackingSearch();
 }
 
-let qrScannerStream = null;
-let qrScanning = false;
-
+// Fungsi untuk membuka kamera QR menggunakan html5-qrcode
 function openQRScanner() {
-    const video = document.getElementById('qrVideo');
     const preview = document.getElementById('cameraPreview');
     const status = document.getElementById('scanStatus');
-    if (!video) return;
+    const readerElement = document.getElementById('qrReader');
+    if (!readerElement) return;
+
+    // Tutup instance sebelumnya jika ada
+    if (html5QrCodeInstance) {
+        html5QrCodeInstance.stop().then(() => {
+            html5QrCodeInstance.clear();
+            html5QrCodeInstance = null;
+        }).catch(() => {});
+    }
+
     preview.style.display = 'block';
     status.innerText = 'Membuka kamera...';
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-        .then(stream => {
-            qrScannerStream = stream;
-            video.srcObject = stream;
-            video.play();
-            status.innerText = 'Scan QR...';
-            qrScanning = true;
-            scanQRContinuously();
-        })
-        .catch(err => {
-            status.innerText = 'Gagal buka kamera: ' + err.message;
-        });
-}
 
-function scanQRContinuously() {
-    const video = document.getElementById('qrVideo');
-    const status = document.getElementById('scanStatus');
-    if (!video || video.paused || !qrScannerStream || !qrScanning) return;
-    // Tunggu video siap loadedmetadata
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-        requestAnimationFrame(scanQRContinuously);
-        return;
-    }
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "dontInvert" });
-    if (code && code.data) {
-        const qrId = code.data.trim();
-        status.innerText = 'QR dijumpai: ' + qrId;
-        const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
-        if (k) {
-            updateStatuses([qrId], 'SELESAI DIHANTAR');
-            playBeep();
-            closeQRScanner();
-        } else {
-            status.innerText = 'QR ID tidak dijumpai dalam sistem.';
+    html5QrCodeInstance = new Html5Qrcode("qrReader");
+
+    const config = {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0
+    };
+
+    html5QrCodeInstance.start(
+        { facingMode: "environment" },
+        config,
+        function onScanSuccess(decodedText, decodedResult) {
+            // Scan berjaya
+            const qrId = decodedText.trim();
+            status.innerText = 'QR dijumpai: ' + qrId;
+            const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === qrId);
+            if (k) {
+                playBeep();
+                updateStatuses([qrId], 'SELESAI DIHANTAR');
+                closeQRScanner();
+            } else {
+                status.innerText = 'QR ID tidak dijumpai dalam sistem.';
+            }
+        },
+        function onScanError(errorMessage) {
+            // Abaikan ralat biasa
+            // console.warn(errorMessage);
         }
-    } else {
-        requestAnimationFrame(scanQRContinuously);
-    }
+    ).then(() => {
+        status.innerText = 'Scan QR... Arahkan kamera ke QR code.';
+    }).catch((err) => {
+        status.innerText = 'Gagal buka kamera: ' + err.message;
+        preview.style.display = 'none';
+        toast('Gagal buka kamera: ' + err.message);
+    });
 }
 
 function closeQRScanner() {
-    qrScanning = false;
-    if (qrScannerStream) {
-        qrScannerStream.getTracks().forEach(track => track.stop());
-        qrScannerStream = null;
+    if (html5QrCodeInstance) {
+        html5QrCodeInstance.stop().then(() => {
+            html5QrCodeInstance.clear();
+            html5QrCodeInstance = null;
+        }).catch(() => {});
     }
     document.getElementById('cameraPreview').style.display = 'none';
     document.getElementById('scanStatus').innerText = '';
 }
 
+// Fungsi untuk menghidupkan lampu suluh (torch)
+let torchOn = false;
+async function toggleTorch() {
+    if (!html5QrCodeInstance) {
+        toast('Sila buka kamera dahulu.');
+        return;
+    }
+    try {
+        torchOn = !torchOn;
+        await html5QrCodeInstance.applyVideoConstraints({
+            advanced: [{ torch: torchOn }]
+        });
+        toast('Lampu suluh ' + (torchOn ? 'ON' : 'OFF'));
+    } catch (e) {
+        toast('Peranti tidak menyokong lampu suluh atau kamera belum dibuka.');
+    }
+}
+
+// Fungsi untuk membunyikan beep
+function playBeep() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = 800;
+        osc.connect(ctx.destination);
+        osc.start();
+        setTimeout(() => { osc.stop(); }, 200);
+    } catch (e) { console.warn('Beep gagal:', e); }
+}
+
+// Fungsi manual delivery
 function manualDelivery() {
     const checkboxes = document.querySelectorAll('.tracking-row-checkbox:checked');
     if (!checkboxes.length) {
@@ -1764,36 +1696,108 @@ function manualDelivery() {
     playBeep();
 }
 
-// ==================== FUNGSI KAMERA / OCR / TORCH / BEEP / WATERMARK / OFFLINE ====================
-function playBeep() {
+// Fungsi update status pukal
+async function updateStatuses(qrIds, status) {
+    showLoading(true);
     try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.value = 800;
-        osc.connect(ctx.destination);
-        osc.start();
-        setTimeout(() => { osc.stop(); }, 200);
-    } catch (e) { console.warn('Beep gagal:', e); }
+        await postData({ action: 'updateBatchStatus', qrIds: qrIds, status: status });
+        toast(qrIds.length + ' item dikemaskini ke ' + status);
+        fetchData(null, true);
+        setTimeout(() => {
+            closeQRScanner();
+            executeTrackingSearch();
+        }, 1000);
+    } catch (e) {
+        toast('Gagal kemaskini status. Cuba lagi.');
+    }
+    showLoading(false);
 }
 
-let torchOn = false;
-async function toggleTorch() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        const track = stream.getVideoTracks()[0];
-        const capabilities = track.getCapabilities ? track.getCapabilities() : {};
-        if (capabilities.torch) {
-            await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
-            torchOn = !torchOn;
-            toast('Lampu suluh ' + (torchOn ? 'ON' : 'OFF'));
-        } else {
-            toast('Peranti tidak menyokong lampu suluh.');
-        }
-        stream.getTracks().forEach(t => t.stop());
-    } catch (e) {
-        toast('Gagal kawal lampu: ' + e.message);
+// Fungsi untuk toggle select all
+function toggleSelectAll(master) {
+    document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = master.checked);
+    updateCheckedCount();
+}
+
+function updateCheckedCount() {
+    const count = document.querySelectorAll('.tracking-row-checkbox:checked').length;
+    document.getElementById('trackingCheckedCount').textContent = count + ' item dipilih';
+}
+
+// Fungsi carian tracking
+function executeTrackingSearch() {
+    const invFilter = document.getElementById('trackingInvoiceSelect').value;
+    const searchTerm = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
+    const tbody = document.getElementById('trackingTableBody');
+    if (!tbody) return;
+
+    let filtered = STATE.karpet.filter(k => {
+        const st = normalize(getField(k, ['STATUS']));
+        if (st === 'SELESAI DIHANTAR') return false;
+        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
+        if (invFilter && inv !== invFilter) return false;
+        const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim().toLowerCase();
+        if (searchTerm && !qrId.includes(searchTerm) && !inv.toLowerCase().includes(searchTerm)) return false;
+        return true;
+    });
+
+    if (!filtered.length) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada data</td></tr>';
+        document.getElementById('trackingCheckedCount').textContent = '0 item dipilih';
+        return;
     }
+
+    // Susun mengikut tarikh
+    filtered.sort((a, b) => {
+        const da = getField(a, ['TARIKH'], '');
+        const db = getField(b, ['TARIKH'], '');
+        return db.localeCompare(da);
+    });
+
+    let html = '';
+    filtered.forEach(k => {
+        const qrId = escapeHtml(String(getField(k, ['QR ID','QR_ID'], '')));
+        const inv = escapeHtml(String(getField(k, ['INV NO','INV_NO'], '')));
+        const jenis = escapeHtml(String(getField(k, ['JENIS','JENIS CARPET'], '')));
+        const harga = formatMoney(getField(k, ['HARGA'], 0));
+        const st = normalize(getField(k, ['STATUS']));
+        const badge = st==='READY TO DELIVER'?'badge-ready':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+        const tarikh = escapeHtml(String(getField(k, ['TARIKH'], '')).split('T')[0] || '-');
+
+        // Cari pelanggan
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const nama = escapeHtml(getField(cust, ['NAMA'], '-'));
+        const alamat = escapeHtml(getField(cust, ['ALAMAT'], '-'));
+
+        html += `<tr>
+            <td><input type="checkbox" class="tracking-row-checkbox" value="${qrId}" onchange="updateCheckedCount()"></td>
+            <td><strong>${qrId}</strong><br><small>${inv}</small></td>
+            <td>${nama}<br><small>${alamat}</small></td>
+            <td>${jenis}</td>
+            <td>${harga}</td>
+            <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
+            <td><input type="text" class="form-control" style="width:60px;padding:4px;font-size:11px;" placeholder="Rak" value="${escapeHtml(String(getField(k, ['RAK'], '')))}"></td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${qrId}','PENGERINGAN')">Pengeringan</button>
+                <button class="btn btn-secondary btn-sm" onclick="updateSingleStatus('${qrId}','READY TO DELIVER')">Ready</button>
+                <button class="btn btn-success btn-sm" onclick="updateSingleStatus('${qrId}','SELESAI DIHANTAR')"><i class="fa-solid fa-check"></i></button>
+            </td>
+        </tr>`;
+    });
+    tbody.innerHTML = html;
+    updateCheckedCount();
+}
+
+// Fungsi update status single
+async function updateSingleStatus(qrId, status) {
+    if (!confirm('Tukar status ' + qrId + ' ke ' + status + '?')) return;
+    if (!navigator.onLine) {
+        saveToOfflineQueue([qrId], status);
+        toast('Disimpan dalam offline queue.');
+        return;
+    }
+    await updateStatuses([qrId], status);
 }
 
 // ==================== PEMBAYARAN ====================
@@ -1902,7 +1906,7 @@ function hantarWhatsAppPembayaran() {
     bukaWhatsApp(tel, msg);
 }
 
-// ==================== INVOIS & RESIT (dengan tambahan tarikh ambil, siap & DISKAUN) ====================
+// ==================== INVOIS & RESIT (dengan diskaun) ====================
 function renderInvoiceTab(container) {
     const invList = [];
     STATE.tempahan.forEach(t => {
@@ -1961,7 +1965,6 @@ function renderInvoicePreview() {
     if (!items.length) { const to = getNumber(getField(order, ['JUMLAH HARGA'], 0)); if (to > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: to, total: to }]; }
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     let deposit = 0; payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
-    // Baca diskaun dari input
     const diskaun = getNumber(document.getElementById('diskaunAmount')?.value || 0);
     const diskaunNote = document.getElementById('diskaunNote')?.value.trim() || 'DISKAUN';
     const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
@@ -1970,12 +1973,10 @@ function renderInvoicePreview() {
     const totalSelepasTambahan = subtotal + extraPrice;
     const totalSelepasDiskaun = Math.max(0, totalSelepasTambahan - diskaun);
     const total = totalSelepasDiskaun;
-    // Baki selepas deposit
     let baki = 0;
     if (payments.length > 0) {
         const lp = payments[payments.length - 1];
         baki = getNumber(getField(lp, ['BAKI']));
-        // Jika tiada baki tersimpan, kira semula
         if (baki === 0 && total > 0) baki = total - deposit;
     } else {
         baki = Math.max(0, total - deposit);
@@ -1985,7 +1986,6 @@ function renderInvoicePreview() {
     if (extraName && extraPrice > 0) {
         itemsHTML += `<tr><td style="width:5%;">${items.length+1}</td><td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td><td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td></tr>`;
     }
-    // Baris diskaun (sebagai item negatif) - ditunjukkan di bawah item
     if (diskaun > 0) {
         itemsHTML += `<tr><td style="width:5%;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">-${formatMoney(diskaun)}</td><td style="width:22%;text-align:right;">-${formatMoney(diskaun)}</td></tr>`;
     }
@@ -2010,7 +2010,6 @@ function renderInvoicePreview() {
         <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;"><strong>TERMA & SYARAT PEMBAYARAN:</strong><br>1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br><em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em></div>
         <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">Thank you for your business! We look forward to serving you again.<br>~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~</div></div></div>`;
     container.innerHTML = html;
-    // Mesej WhatsApp dengan diskaun
     let msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n📅 Tarikh Ambil: ${formatDateMY(tarikhAmbil)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}`;
     if (diskaun > 0) {
         msgWa += `\n💰 *Diskaun:* -${formatMoney(diskaun)} (${escapeHtml(diskaunNote)})`;
@@ -2060,6 +2059,7 @@ function hantarWhatsAppInvoice() {
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
     bukaWhatsApp(data.telefon, data.msg);
 }
+
 // ==================== PELANGGAN ====================
 function renderPelanggan(container) {
     container.innerHTML = `
@@ -2263,29 +2263,7 @@ function renderPekerja(container) {
     `;
     switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
 }
-const workerTabStyle = `
-    .tab-btn {
-        padding: 10px 20px;
-        border: none;
-        background: none;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        color: var(--text-muted);
-        border-bottom: 2px solid transparent;
-        transition: .2s;
-    }
-    .tab-btn.active {
-        color: var(--primary-red);
-        border-bottom-color: var(--primary-red);
-    }
-`;
-if (!document.getElementById('workerTabStyles')) {
-    const styleTag = document.createElement('style');
-    styleTag.id = 'workerTabStyles';
-    styleTag.textContent = workerTabStyle;
-    document.head.appendChild(styleTag);
-}
+
 function switchWorkerTab(tabId, btn) {
     document.querySelectorAll('#workerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -2294,6 +2272,7 @@ function switchWorkerTab(tabId, btn) {
     else if (tabId === 'workercommission') renderWorkerCommission(content);
     else if (tabId === 'workerrunner') renderWorkerRunner(content);
 }
+
 function renderWorkerList(container) {
     const workers = STATE.pekerja || [];
     let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
@@ -2326,6 +2305,7 @@ function renderWorkerList(container) {
     }
     container.innerHTML = html;
 }
+
 function showAddWorker() {
     const content = document.getElementById('workerTabContent');
     content.innerHTML = `
@@ -2341,6 +2321,7 @@ function showAddWorker() {
         </div>
     `;
 }
+
 async function simpanTambahPekerja() {
     const nama = document.getElementById('workerNama').value.trim();
     const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
@@ -2351,6 +2332,7 @@ async function simpanTambahPekerja() {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
+
 async function deleteWorker(id) {
     if (!confirm('Padam pekerja ini?')) return;
     await postData({ action: 'deleteWorker', id });
@@ -2358,6 +2340,7 @@ async function deleteWorker(id) {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
+
 function editWorker(id) {
     const w = (STATE.pekerja || []).find(x => normalize(getField(x, ['ID','WORKER_ID'])) === normalize(id));
     if (!w) return;
@@ -2375,6 +2358,7 @@ function editWorker(id) {
         </div>
     `;
 }
+
 async function simpanEditPekerja(id) {
     const nama = document.getElementById('workerNama').value.trim();
     const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
@@ -2384,6 +2368,7 @@ async function simpanEditPekerja(id) {
     fetchData(null, true);
     setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
 }
+
 function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
@@ -2432,6 +2417,7 @@ function renderWorkerCommission(container) {
         ${laporanHtml}
     `;
 }
+
 async function tambahKomisen() {
     const workerId = document.getElementById('komisenWorkerSelect').value;
     const qrId = document.getElementById('komisenQrSelect').value;
@@ -2447,6 +2433,7 @@ async function tambahKomisen() {
     fetchData(null, true);
     setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
+
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
@@ -2494,6 +2481,7 @@ function renderWorkerRunner(container) {
         ${tasksHtml}
     `;
 }
+
 async function tambahRunnerTask() {
     const workerId = document.getElementById('runnerSelect').value;
     const alamat = document.getElementById('runnerAlamat').value.trim();
@@ -2527,16 +2515,7 @@ function renderPriceMatrix(container) {
     `;
     switchPriceTab('pricelist', document.querySelector('.tab-btn.active'));
 }
-const priceTabStyle = `
-    .tab-btn { padding: 10px 20px; border: none; background: none; font-weight: 600; font-size: 14px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: .2s; }
-    .tab-btn.active { color: var(--primary-red); border-bottom-color: var(--primary-red); }
-`;
-if (!document.getElementById('priceTabStyles')) {
-    const styleTag = document.createElement('style');
-    styleTag.id = 'priceTabStyles';
-    styleTag.textContent = priceTabStyle;
-    document.head.appendChild(styleTag);
-}
+
 function switchPriceTab(tabId, btn) {
     document.querySelectorAll('#priceTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -2545,6 +2524,7 @@ function switchPriceTab(tabId, btn) {
     else if (tabId === 'addprice') renderAddPriceForm(content);
     else if (tabId === 'bulkprice') renderBulkPrice(content);
 }
+
 function renderPriceList(container) {
     const data = STATE.senaraiHarga || [];
     if (!data.length) { container.innerHTML = '<p class="muted">⚠️ Tiada data dijumpai dalam senarai harga.</p>'; return; }
@@ -2558,6 +2538,7 @@ function renderPriceList(container) {
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
+
 function renderAddPriceForm(container) {
     container.innerHTML = `
         <h3 class="card-title">➕ Pendaftaran Gred/Jenis Karpet Baru</h3>
@@ -2570,6 +2551,7 @@ function renderAddPriceForm(container) {
         <div id="addPriceMsg" class="mt-16"></div>
     `;
 }
+
 async function addNewPrice() {
     const kod = document.getElementById('newPriceKod').value.trim().toUpperCase();
     const jenis = document.getElementById('newPriceJenis').value.trim();
@@ -2585,11 +2567,13 @@ async function addNewPrice() {
     fetchData(null, true);
     setTimeout(() => renderPriceList(document.getElementById('priceTabContent')), 1500);
 }
+
 function showPriceMsg(containerId, msg, type) {
     const el = document.getElementById(containerId);
     el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
     setTimeout(() => { el.innerHTML = ''; }, 4000);
 }
+
 function renderBulkPrice(container) {
     const mult = { CK: 1.20, CN: 0.50, CS: 0.50, HP: 1.30, LP: 1.00, CSG: 1.30 };
     container.innerHTML = `
@@ -2642,6 +2626,7 @@ function renderBulkPrice(container) {
     document.querySelectorAll('#multCK, #multCN, #multCS, #multHP, #multLP, #multCSG').forEach(inp => inp.addEventListener('input', updatePreview));
     setTimeout(updatePreview, 50);
 }
+
 async function saveBulkPrices() {
     const inputs = document.querySelectorAll('.bulk-input');
     if (inputs.length === 0) return toast('Tiada data harga.');
@@ -2694,17 +2679,14 @@ function generateBarcodePreview() {
     const cusId = getField(cust, ['CUSTOMER ID','CUSTOMER_ID'], '');
     const nama = getField(cust, ['NAMA'], '');
     const alamat = getField(cust, ['ALAMAT'], '');
-
-    // ★ Takrifkan trackingUrl di sini, di luar gelung
     const trackingUrl = `https://mycarpetpro-v3.onrender.com/?phone=${encodeURIComponent(telefon)}`;
 
     let stikersHTML = '';
     carpets.forEach((k, idx) => {
         const qrId = String(getField(k, ['QR ID','QR_ID'], '')).trim();
         const kod = String(getField(k, ['KOD'], '')).trim();
-        // BUANG baris const trackingUrl = ... dari sini
         stikersHTML += `
-            <div class="stiker-box" style="width:40mm;height:30mm;border:1px dashed #000;padding:1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
+            <div class="stiker-box">
                 <div style="font-size:7px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v2.0</div>
                 <div style="font-size:7px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
                 <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:10mm;display:flex;align-items:center;justify-content:center;"></div>
@@ -2732,7 +2714,7 @@ function generateBarcodePreview() {
                 qrContainer.innerHTML = '';
                 try {
                     new QRCode(qrContainer, {
-                        text: trackingUrl, // ✅ trackingUrl kini wujud
+                        text: trackingUrl,
                         width: 40,
                         height: 40,
                         colorDark: "#000",
@@ -2742,12 +2724,11 @@ function generateBarcodePreview() {
                 } catch (e) {
                     console.error('Gagal jana QR untuk stiker', idx, e);
                 }
-            } else {
-                console.warn('qr-stiker-' + idx + ' tidak dijumpai');
             }
         });
     }, 50);
 }
+
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2772,7 +2753,7 @@ function simpanGambarStikers() {
     });
 }
 
-// ==================== PERBELANJAAN (DENGAN OCR) ====================
+// ==================== PERBELANJAAN (dengan OCR Resit) ====================
 function renderExpenses(container) {
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
@@ -2874,7 +2855,7 @@ function renderExpenses(container) {
     kiraAmount();
 }
 
-// --- OCR Functions ---
+// --- OCR Functions untuk Resit ---
 async function prosesOcrResit(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -2887,13 +2868,13 @@ async function prosesOcrResit(event) {
         const text = result.data.text;
         console.log("OCR text:", text);
 
-        // 1. Cari Tarikh (DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD, DD/MM/YY)
+        // 1. Cari Tarikh
         let dateFound = null;
         const dateRegexes = [
-            /(\d{2})\/(\d{2})\/(\d{4})/, // DD/MM/YYYY
-            /(\d{2})-(\d{2})-(\d{4})/,   // DD-MM-YYYY
-            /(\d{4})-(\d{2})-(\d{2})/,   // YYYY-MM-DD
-            /(\d{2})\/(\d{2})\/(\d{2})/  // DD/MM/YY
+            /(\d{2})\/(\d{2})\/(\d{4})/,
+            /(\d{2})-(\d{2})-(\d{4})/,
+            /(\d{4})-(\d{2})-(\d{2})/,
+            /(\d{2})\/(\d{2})\/(\d{2})/
         ];
         for (let regex of dateRegexes) {
             const match = text.match(regex);
@@ -2911,13 +2892,13 @@ async function prosesOcrResit(event) {
             document.getElementById('expDate').value = dateFound;
         }
 
-        // 2. Cari Pembekal (perkataan selepas "Kedai:" atau "Supplier:")
+        // 2. Cari Pembekal
         const supplierMatch = text.match(/(?:Kedai|Supplier)[:\s]*([^\n\r]+)/i);
         if (supplierMatch) {
             document.getElementById('expPembekal').value = supplierMatch[1].trim();
         }
 
-        // 3. Cari Jumlah (RM / TOTAL / JUMLAH)
+        // 3. Cari Jumlah
         const amountMatch = text.match(/(?:RM|TOTAL|JUMLAH)[\s:]*([\d.,]+)/i);
         if (amountMatch && amountMatch[1]) {
             let amount = amountMatch[1].replace(',', '');
@@ -2959,7 +2940,7 @@ function compressImage(file, maxWidth = 1080, maxHeight = 1080, quality = 0.8) {
     });
 }
 
-// --- Fungsi Expenses lain (kiraAmount, autoKodPerbelanjaan, buildExpenseRows, editExpense, deleteExpense, simpanPerbelanjaan, showPriceMsg) ---
+// --- Fungsi Expenses lain ---
 function kiraAmount() {
     const qty = parseInt(document.getElementById('expQty')?.value) || 0;
     const price = getNumber(document.getElementById('expPrice')?.value);
@@ -3141,20 +3122,12 @@ function simpanPerbelanjaan() {
     });
 }
 
-function showPriceMsg(containerId, msg, type) {
-    const el = document.getElementById(containerId);
-    el.innerHTML = `<div class="${type === 'success' ? 'badge-selesai' : 'badge-proses'}">${msg}</div>`;
-    setTimeout(() => { el.innerHTML = ''; }, 4000);
-}
-
 // ==================== GLOBAL EVENTS ====================
 function toggleSidebar() {
     document.body.classList.toggle('sidebar-open');
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Login tabs sudah dikendalikan di Bahagian 2 (event listener)
-    // Kita hanya perlu pastikan session dipulihkan
     const stored = localStorage.getItem('mycarpet_user');
     if (stored) {
         try {
@@ -3167,7 +3140,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 document.addEventListener('click', function(e) {
-    // Tutup sidebar jika klik di luar sidebar dan bukan butang menu
     if (window.innerWidth <= 992 && !e.target.closest('aside') && !e.target.closest('.mobile-menu')) {
         document.body.classList.remove('sidebar-open');
     }
