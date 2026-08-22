@@ -1377,21 +1377,39 @@ function onScanSuccess(decodedText, decodedResult) {
     const status = document.getElementById('scanStatus');
     const qrId = decodedText.trim();
     
-    console.log("QR Dijumpai teks asal:", qrId);
+    console.log("QR Berjaya Diimbas:", qrId);
     status.innerText = 'QR dijumpai: ' + qrId;
     
-    // Membersihkan teks daripada sebarang simbol tersembunyi (\r, \n, \t)
+    // 1. Bersihkan teks daripada sebarang simbol putih (whitespace/linebreaks)
     const cleanQrId = qrId.replace(/[\r\n\t]/g, "").trim();
 
+    // 2. Cari data karpet di dalam pangkalan data STATE
     const k = STATE.karpet.find(x => String(getField(x, ['QR ID','QR_ID'])).trim() === cleanQrId);
+    
     if (k) {
-        updateStatuses([cleanQrId], 'SELESAI DIHANTAR');
-        playBeep();
+        playBeep(); // Bunyikan isyarat bip tanda data ditemui
+        
+        // 3. MASUKKAN DETAIL KE DALAM KOTAK CARIAN QR ID ANDA
+        // Sila pastikan ID elemen input carian anda adalah 'inputCariQr' (sesuaikan jika berbeza)
+        const inputCarian = document.getElementById('inputCariQr') || document.getElementById('searchQrId');
+        if (inputCarian) {
+            inputCarian.value = cleanQrId;
+            
+            // Cergaskan event input secara manual jika sistem anda memerlukan pemicu fungsi cari
+            inputCarian.dispatchEvent(new Event('input'));
+        }
+        
+        status.innerHTML = `<span style="color:green; font-weight:bold;">Data disuap ke kotak carian. Sila pilih tindakan status di bawah.</span>`;
+        
+        // 4. Tutup kamera scanner secara automatik supaya pengguna boleh melihat borang dropdown status
         closeQRScanner();
+        
     } else {
-        status.innerHTML = `<span style="color:red; font-weight:bold;">ID: "${cleanQrId}" tiada dalam sistem!</span>`;
+        // Jika QR Code dibaca tetapi tiada dalam rekod pangkalan data sheet
+        status.innerHTML = `<span style="color:red; font-weight:bold;">ID: "${cleanQrId}" tiada dalam rekod sistem!</span>`;
     }
 }
+
 
 function onScanError(err) {
     // Diabaikan bagi mengelakkan limpahan log sampah dalam konsol
