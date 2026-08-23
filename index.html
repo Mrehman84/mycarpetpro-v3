@@ -1241,13 +1241,20 @@ function renderTracking(container) {
 }
 
 function executeTrackingSearch() {
-    const inv = document.getElementById('trackingInvoiceSelect').value;
+    // 1. Ambil nilai input dengan bersih tanpa aksara putih tersembunyi
+    const invSelect = document.getElementById('trackingInvoiceSelect');
+    const inv = invSelect ? invSelect.value.trim().toUpperCase() : '';
     const search = document.getElementById('trackingSearchBox').value.trim().toLowerCase();
+    
     let filtered = STATE.karpet.filter(k => {
         const st = normalize(getField(k, ['STATUS']));
         if (st === 'SELESAI DIHANTAR') return false;
+        
         const invNo = normalize(getField(k, ['INV NO','INV_NO']));
-        if (inv && invNo !== normalize(inv)) return false;
+        
+        // Pembetulan penapisan: Pastikan perbandingan invois dibuat secara fleksibel/bersih
+        if (inv && invNo !== inv) return false;
+        
         if (search) {
             const qr = String(getField(k, ['QR ID','QR_ID'])).toLowerCase();
             const jenis = String(getField(k, ['JENIS','JENIS CARPET'])).toLowerCase();
@@ -1255,12 +1262,14 @@ function executeTrackingSearch() {
         }
         return true;
     });
+    
     const tbody = document.getElementById('trackingTableBody');
     if (!filtered.length) {
         tbody.innerHTML = '<tr><td colspan="8" class="text-center muted">Tiada data</td></tr>';
         document.getElementById('trackingCheckedCount').textContent = '0 item dipilih';
         return;
     }
+    
     let html = '';
     filtered.forEach(k => {
         const qrId = escapeHtml(getField(k, ['QR ID','QR_ID']));
@@ -1269,14 +1278,20 @@ function executeTrackingSearch() {
         const harga = formatMoney(getField(k, ['HARGA']));
         const st = normalize(getField(k, ['STATUS']));
         const badge = st==='READY TO DELIVER'?'badge-ready':st==='SELESAI'?'badge-selesai':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(k, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
+        const rak = escapeHtml(getField(k, ['RAK'], '-'));
+        
+        // PEMBETULAN UTAMA: Hubungkan Karpet -> Tempahan -> Pelanggan untuk dapatkan Alamat Sahih
+        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(invNo)) || {};
+        const orderCustId = getField(order, ['CUSTOMER ID','CUSTOMER_ID']);
+        
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(orderCustId).trim()) || {};
         const nama = escapeHtml(getField(cust, ['NAMA'], '-'));
         const alamat = escapeHtml(getField(cust, ['ALAMAT'], '-'));
-        const rak = escapeHtml(getField(k, ['RAK'], '-'));
+        
         html += `<tr>
             <td><input type="checkbox" class="tracking-row-checkbox" value="${qrId}" onchange="updateTrackingCount()"></td>
             <td><strong>${qrId}</strong><br><small>${invNo}</small></td>
-            <td>${nama}<br><small>${alamat}</small></td>
+            <td>${nama}<br><small style="color: #4a5568; font-weight: 500;">${alamat}</small></td>
             <td>${jenis}</td>
             <td>${harga}</td>
             <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
@@ -1287,6 +1302,7 @@ function executeTrackingSearch() {
     tbody.innerHTML = html;
     updateTrackingCount();
 }
+
 // ================================================================
 //  BAHAGIAN 2: ENJIN IMBASAN KAMERA QR (html5-qrcode)
 // ================================================================
