@@ -1124,28 +1124,54 @@ function removeCarpetRow(rowId) {
 }
 
 async function simpanTempahan() {
-    const isBaru = document.querySelector('input[name="custType"]:checked').value === 'baru';
+    const isBaru = document.querySelector('input[name="custType"]:checked')?.value === 'baru';
     let custId, custNama, custTel, custAlamat, custDaerah;
+
     if (isBaru) {
-        custNama = document.getElementById('custNamaBaru').value.trim();
-        custTel = document.getElementById('custTelBaru').value.trim().replace(/[- ]/g, '');
-        custAlamat = document.getElementById('custAlamatBaru').value.trim();
-        custDaerah = document.getElementById('custDaerahBaru').value.trim();
-        if (!custNama || !custTel || !custAlamat) { toast('Sila lengkapkan maklumat pelanggan baru.'); return; }
+        custNama = document.getElementById('custNamaBaru')?.value.trim() || '';
+        custTel = document.getElementById('custTelBaru')?.value.trim().replace(/[- ]/g, '') || '';
+        custAlamat = document.getElementById('custAlamatBaru')?.value.trim() || '';
+        custDaerah = document.getElementById('custDaerahBaru')?.value.trim() || '';
+
+        // Hanya ALAMAT wajib diisi
+        if (!custAlamat) {
+            toast('Sila isi ALAMAT pelanggan (wajib).');
+            return;
+        }
+
+        // Medan lain diisi "-" jika kosong
+        custNama = custNama || '-';
+        custTel = custTel || '-';
+        custDaerah = custDaerah || '-';
+
         custId = '';
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
-        custId = document.getElementById('optPelanggan').value;
+        custId = document.getElementById('optPelanggan')?.value;
         if (!custId) { toast('Sila pilih pelanggan.'); return; }
+
         const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
         if (!cust) { toast('Pelanggan tidak ditemui.'); return; }
-        STATE.lastCustomer = cust;
+
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
         custNama = getField(cust, ['NAMA'], '');
         custAlamat = getField(cust, ['ALAMAT'], '');
         custDaerah = getField(cust, ['DAERAH'], '');
+
+        // Alamat wajib – jika kosong, tunjuk ralat
+        if (!custAlamat) {
+            toast('Pelanggan ini tiada ALAMAT. Sila kemaskini rekod pelanggan terlebih dahulu.');
+            return;
+        }
+
+        custNama = custNama || '-';
+        custTel = custTel || '-';
+        custDaerah = custDaerah || '-';
+
+        STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     }
 
+    // Tarikh ambil
     const tarikhInput = document.getElementById('tarikhAmbil');
     let today;
     if (tarikhInput && tarikhInput.value) {
@@ -1157,32 +1183,51 @@ async function simpanTempahan() {
     }
     const tarikhSiap = addDays(today, 7);
 
+    // Kumpul item
     const items = [];
     let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
         const sel = row.querySelector('.select-kod-karpet');
         if (!sel || !sel.value) { valid = false; return; }
+
         const opt = sel.options[sel.selectedIndex];
-        const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
+        const qty = Math.max(1, parseInt(row.querySelector('.inp-qty')?.value) || 1);
 
         let harga, jenis, kod;
         if (sel.value === 'CUSTOM') {
-            harga = parseFloat(row.querySelector('.inp-harga-final').value) || 0;
+            harga = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
             
-            // Baca input teks yang ditaip bebas oleh pengguna mengikut model Streamlit lama
-            const customKodTxt = row.querySelector('.inp-custom-kod').value.trim() || 'CUSTOM';
-            const customJenisTxt = row.querySelector('.inp-custom-jenis').value.trim() || 'CUSTOM CARPET';
-            
-            kod = customKodTxt;
-            jenis = customJenisTxt;
+            // Ambil mod custom dengan selamat
+            const modKiraSelect = row.querySelector('.select-mod-custom-kira');
+            const modCustom = modKiraSelect ? modKiraSelect.value : 'HARGA_TERUS';
+
+            if (modCustom === 'HARGA_TERUS') {
+                const jenisInput = row.querySelector('.inp-custom-jenis-terus');
+                const jenisTxt = jenisInput ? jenisInput.value.trim() : 'CUSTOM CARPET';
+                kod = 'CUSTOM';
+                jenis = jenisTxt;
+            } else {
+                // KIRA_SQFT
+                const jenisInput = row.querySelector('.inp-custom-jenis-sqft');
+                const jenisTxt = jenisInput ? jenisInput.value.trim() : 'CUSTOM CARPET';
+                const lebar = parseFloat(row.querySelector('.inp-lebar')?.value) || 0;
+                const panjang = parseFloat(row.querySelector('.inp-panjang')?.value) || 0;
+                kod = 'CUSTOM_SQFT';
+                jenis = `${jenisTxt} (${lebar} x ${panjang})`;
+            }
         } else {
-            harga = parseFloat(opt.dataset.harga) || 0;
-            jenis = opt.dataset.jenis || '';
+            // Kod standard
+            harga = parseFloat(opt?.dataset?.harga) || 0;
+            jenis = opt?.dataset?.jenis || '';
             kod = sel.value;
         }
         items.push({ kod, jenis, harga, qty, subtotal: qty * harga });
     });
-    if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
+
+    if (!valid || !items.length) {
+        toast('Pastikan semua kod karpet dipilih.');
+        return;
+    }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
 
     showLoading(true);
@@ -1217,7 +1262,6 @@ async function simpanTempahan() {
     STATE.lastOrderMsg = msg;
     fetchData(null, true);
 }
-
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
