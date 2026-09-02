@@ -804,12 +804,13 @@ function addCarpetRow() {
     const div = document.createElement('div');
     div.className = 'row card-item-row';
     div.id = rowId;
-    div.style.cssText = 'padding:12px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:8px;margin-bottom:12px;flex-wrap:wrap;';
+    div.style.cssText = 'padding:16px;background:#fcfcfc;border:1px solid #edf2f7;border-radius:10px;margin-bottom:16px;flex-wrap:wrap;box-shadow:0 2px 4px rgba(0,0,0,0.02);';
 
+    // 1. Lajur Pilihan Kod Utama
     const col1 = document.createElement('div');
     col1.className = 'col form-group';
     col1.style.flex = '1.5';
-    col1.innerHTML = '<label>Kod</label>';
+    col1.innerHTML = `<label style="font-weight:600;font-size:13px;color:#4a5568;">Pilih Kod/Gred Karpet #${carpetRowCount}</label>`;
     const sel = document.createElement('select');
     sel.className = 'form-control select-kod-karpet';
     sel.innerHTML = '<option value="">-- Pilih Kod --</option>';
@@ -831,7 +832,7 @@ function addCarpetRow() {
 
     const customOpt = document.createElement('option');
     customOpt.value = 'CUSTOM';
-    customOpt.textContent = 'CUSTOM - (Saiz Sendiri / Kira Luas)';
+    customOpt.textContent = 'CUSTOM (Saiz Sendiri)';
     sel.appendChild(customOpt);
 
     sel.onchange = function() { handleCodeSelection(rowId); };
@@ -839,114 +840,175 @@ function addCarpetRow() {
 
     const info = document.createElement('div');
     info.className = 'jenis-vlookup-info';
-    info.style.cssText = 'margin-top:6px;padding:6px 10px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;';
+    info.style.cssText = 'margin-top:6px;padding:6px 12px;border-radius:6px;background:#edf6ff;color:#2b6cb0;font-size:13px;min-height:32px;font-weight:500;';
     info.textContent = 'Jenis & harga auto.';
     col1.appendChild(info);
 
+    // 2. Lajur Kuantiti (Qty)
     const col2 = document.createElement('div');
     col2.className = 'col form-group';
-    col2.style.maxWidth = '80px';
-    col2.innerHTML = '<label>Qty</label>';
+    col2.style.maxWidth = '100px';
+    col2.innerHTML = `<label style="font-weight:600;font-size:13px;color:#4a5568;">Kuantiti #${carpetRowCount}</label>`;
     const qty = document.createElement('input');
     qty.type = 'number';
     qty.min = 1;
     qty.step = 1;
     qty.value = 1;
     qty.className = 'form-control inp-qty';
-    qty.oninput = function() { handleCustomCalculation(rowId); };
+    qty.oninput = function() { 
+        handleCustomCalculation(rowId); 
+        calculateGrandTotal();
+    };
     col2.appendChild(qty);
 
+    // 3. Lajur Harga Akhir (RM) - Tempat masukkan harga terus atau auto
     const col4 = document.createElement('div');
     col4.className = 'col form-group';
-    col4.style.maxWidth = '140px';
-    col4.innerHTML = '<label>Harga (RM)</label>';
+    col4.style.maxWidth = '160px';
+    col4.innerHTML = `<label class="label-harga-dinamik" style="font-weight:600;font-size:13px;color:#4a5568;">Harga (RM) #${carpetRowCount}</label>`;
     const price = document.createElement('input');
-    price.type = 'text';
+    price.type = 'number';
+    price.step = '0.01';
     price.value = '0.00';
     price.className = 'form-control inp-harga-final';
     price.style.fontWeight = '600';
-    price.readOnly = false; // Membolehkan harga ditaip secara manual
-    col4.appendChild(price);
-    price.oninput = function() { calculateGrandTotal(); }; // Kemas kini jumlah besar semasa menaip
+    price.readOnly = false;
+    price.dataset.isManualOverride = "false"; // Penanda jika pengguna taip manual
 
+    price.oninput = function() { 
+        this.dataset.isManualOverride = "true"; // Kunci jika ditaip manual
+        const selKod = div.querySelector('.select-kod-karpet').value;
+        if (selKod === 'CUSTOM') {
+            const infoBox = div.querySelector('.jenis-vlookup-info');
+            const customJenisText = div.querySelector('.inp-custom-jenis')?.value.trim() || 'CUSTOM CARPET';
+            if (infoBox) {
+                infoBox.innerHTML = `<strong>${customJenisText.toUpperCase()}</strong><br><span style="color:#e67e22;"><i class="fa-solid fa-pen"></i> Harga Terus Dimasukkan Manual (Tanpa Sqft)</span>`;
+            }
+        }
+        calculateGrandTotal(); 
+    }; 
+    col4.appendChild(price);
+
+    // 4. Lajur Butang Padam
     const col5 = document.createElement('div');
-    col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
+    col5.style.cssText = 'display:flex;align-items:center;margin-top:6px;margin-left:8px;';
     const del = document.createElement('button');
     del.type = 'button';
     del.className = 'btn btn-danger btn-sm';
+    del.style.padding = '10px 14px';
     del.innerHTML = '<i class="fa-solid fa-trash"></i>';
     del.onclick = () => removeCarpetRow(rowId);
     col5.appendChild(del);
 
-    // --- CUSTOM CONTAINER ---
+    // --- KONTENA KUSTOM INTERAKTIF (IKUT REKABENTUK STREAMLIT LAMA) ---
     const customContainer = document.createElement('div');
     customContainer.className = 'box-custom-container';
-    customContainer.style.cssText = 'display:none; width:100%; margin-top:12px; padding-top:12px; border-top:1px dashed #d0dbe8;';
+    customContainer.style.cssText = 'display:none; width:100%; margin-top:14px; padding-top:14px; border-top:1px dashed #cbd5e0;';
 
-    const customRow = document.createElement('div');
-    customRow.className = 'row';
-    customRow.style.cssText = 'gap:8px; align-items:end;';
+    const subTitle = document.createElement('div');
+    subTitle.style.cssText = 'font-size:13px; font-weight:700; color:#dd6b20; margin-bottom:12px; display:flex; align-items:center; gap:6px;';
+    subTitle.innerHTML = `<i class="fa-solid fa-gear"></i> Konfigurasi Karpet Custom #${carpetRowCount}`;
+    customContainer.appendChild(subTitle);
+
+    // Baris Kustom Atas: Input Teks Bebas Kod Baru & Jenis Karpet Baru
+    const customRowTop = document.createElement('div');
+    customRowTop.className = 'row';
+    customRowTop.style.marginBottom = '12px';
+
+    const colNewKod = document.createElement('div');
+    colNewKod.className = 'col form-group';
+    colNewKod.innerHTML = `<label style="font-size:12px;color:#4a5568;">Masukkan Kod Baru #${carpetRowCount} (Contoh: CT 4X6)</label>`;
+    const inpNewKod = document.createElement('input');
+    inpNewKod.type = 'text';
+    inpNewKod.className = 'form-control inp-custom-kod';
+    inpNewKod.placeholder = 'CUSTOM-KOD';
+    colNewKod.appendChild(inpNewKod);
+    customRowTop.appendChild(colNewKod);
+
+    const colNewJenis = document.createElement('div');
+    colNewJenis.className = 'col form-group';
+    colNewJenis.innerHTML = `<label style="font-size:12px;color:#4a5568;">Masukkan Jenis Karpet #${carpetRowCount} (Contoh: Carpet Tenun)</label>`;
+    const inpNewJenis = document.createElement('input');
+    inpNewJenis.type = 'text';
+    inpNewJenis.className = 'form-control inp-custom-jenis';
+    inpNewJenis.placeholder = 'SEJADAH / KARPET UKURAN KHAS';
+    inpNewJenis.oninput = function() {
+        if (price.dataset.isManualOverride === "true") return;
+        handleCustomCalculation(rowId);
+    };
+    colNewJenis.appendChild(inpNewJenis);
+    customRowTop.appendChild(colNewJenis);
+
+    customContainer.appendChild(customRowTop);
+
+    // Baris Kustom Bawah: Lebar, Panjang, Harga Per Sqft, Jumlah Luas
+    const customRowBottom = document.createElement('div');
+    customRowBottom.className = 'row';
+    customRowBottom.style.cssText = 'gap:12px; align-items:end;';
 
     const colLebar = document.createElement('div');
     colLebar.className = 'col form-group';
-    colLebar.style.minWidth = '80px';
-    colLebar.innerHTML = '<label style="font-size:12px;">Lebar (ft)</label>';
+    colLebar.innerHTML = `<label style="font-size:12px;color:#4a5568;">Lebar (Kaki) #${carpetRowCount}</label>`;
     const inpLebar = document.createElement('input');
     inpLebar.type = 'number';
     inpLebar.step = '0.1';
     inpLebar.min = '0';
-    inpLebar.value = '0';
+    inpLebar.value = '4.0';
     inpLebar.className = 'form-control inp-lebar';
-    inpLebar.style.fontSize = '14px';
     colLebar.appendChild(inpLebar);
-    customRow.appendChild(colLebar);
+    customRowBottom.appendChild(colLebar);
 
     const colPanjang = document.createElement('div');
     colPanjang.className = 'col form-group';
-    colPanjang.style.minWidth = '80px';
-    colPanjang.innerHTML = '<label style="font-size:12px;">Panjang (ft)</label>';
+    colPanjang.innerHTML = `<label style="font-size:12px;color:#4a5568;">Panjang (Kaki) #${carpetRowCount}</label>`;
     const inpPanjang = document.createElement('input');
     inpPanjang.type = 'number';
     inpPanjang.step = '0.1';
     inpPanjang.min = '0';
-    inpPanjang.value = '0';
+    inpPanjang.value = '6.0';
     inpPanjang.className = 'form-control inp-panjang';
-    inpPanjang.style.fontSize = '14px';
     colPanjang.appendChild(inpPanjang);
-    customRow.appendChild(colPanjang);
+    customRowBottom.appendChild(colPanjang);
 
     const colPriceSqft = document.createElement('div');
     colPriceSqft.className = 'col form-group';
-    colPriceSqft.style.minWidth = '80px';
-    colPriceSqft.innerHTML = '<label style="font-size:12px;">Harga/Sqft (RM)</label>';
+    colPriceSqft.innerHTML = `<label style="font-size:12px;color:#4a5568;">Harga Per Sqft (RM) #${carpetRowCount}</label>`;
     const inpPriceSqft = document.createElement('input');
     inpPriceSqft.type = 'number';
     inpPriceSqft.step = '0.01';
     inpPriceSqft.min = '0';
-    inpPriceSqft.value = '0';
+    inpPriceSqft.value = '1.50'; // Contoh nilai awal asas rujukan
     inpPriceSqft.className = 'form-control inp-price-sqft';
-    inpPriceSqft.style.fontSize = '14px';
     colPriceSqft.appendChild(inpPriceSqft);
-    customRow.appendChild(colPriceSqft);
+    customRowBottom.appendChild(colPriceSqft);
 
     const colLuas = document.createElement('div');
     colLuas.className = 'col form-group';
-    colLuas.style.minWidth = '100px';
-    colLuas.innerHTML = '<label style="font-size:12px;">Jumlah Luas</label>';
+    colLuas.innerHTML = `<label style="font-size:12px;color:#4a5568;">Jumlah Luas #${carpetRowCount}</label>`;
     const viewLuas = document.createElement('input');
     viewLuas.type = 'text';
     viewLuas.className = 'form-control view-luas';
-    viewLuas.style.cssText = 'font-weight:600; background:#f0f4f9; font-size:14px;';
+    viewLuas.style.cssText = 'font-weight:600; background:#f7fafc; color:#2d3748;';
     viewLuas.readOnly = true;
     viewLuas.placeholder = '0.0 sqft';
     colLuas.appendChild(viewLuas);
-    customRow.appendChild(colLuas);
+    customRowBottom.appendChild(colLuas);
 
-    customContainer.appendChild(customRow);
+    customContainer.appendChild(customRowBottom);
 
-    inpLebar.oninput = function() { handleCustomCalculation(rowId); };
-    inpPanjang.oninput = function() { handleCustomCalculation(rowId); };
-    inpPriceSqft.oninput = function() { handleCustomCalculation(rowId); };
+    // Pemicu input saiz
+    inpLebar.oninput = function() { 
+        price.dataset.isManualOverride = "false"; // Reset kunci jika saiz diusik semula
+        handleCustomCalculation(rowId); 
+    };
+    inpPanjang.oninput = function() { 
+        price.dataset.isManualOverride = "false";
+        handleCustomCalculation(rowId); 
+    };
+    inpPriceSqft.oninput = function() { 
+        price.dataset.isManualOverride = "false";
+        handleCustomCalculation(rowId); 
+    };
 
     div.appendChild(col1);
     div.appendChild(col2);
@@ -958,36 +1020,39 @@ function addCarpetRow() {
     calculateGrandTotal();
 }
 
+
+
+    
 function handleCodeSelection(rowId) {
     const row = document.getElementById(rowId);
     if (!row) return;
     const sel = row.querySelector('.select-kod-karpet');
     const price = row.querySelector('.inp-harga-final');
-    const info = row.querySelector('.jenis-vlookup-info');
+    const labelHarga = row.querySelector('.label-harga-dinamik');
     const customContainer = row.querySelector('.box-custom-container');
 
     const isCustom = (sel && sel.value === 'CUSTOM');
 
+    // Papar atau sembunyikan kotak konfigurasi mengikut model Streamlit lama
     if (customContainer) {
         customContainer.style.display = isCustom ? 'block' : 'none';
     }
 
+    // Set semula flag manual override kepada false setiap kali pilihan kod ditukar
+    if (price) {
+        price.dataset.isManualOverride = "false";
+    }
+
     if (isCustom) {
-        const lebar = row.querySelector('.inp-lebar');
-        const panjang = row.querySelector('.inp-panjang');
-        const priceSqft = row.querySelector('.inp-price-sqft');
-        const viewLuas = row.querySelector('.view-luas');
-        if (lebar) lebar.value = '0';
-        if (panjang) panjang.value = '0';
-        if (priceSqft) priceSqft.value = '0';
-        if (viewLuas) viewLuas.value = '0.0 sqft';
-        price.value = '0.00';
-        info.innerHTML = '<strong>CUSTOM</strong><br>Sila isi saiz & harga/sqft';
-        calculateGrandTotal();
+        if (labelHarga) labelHarga.textContent = `Harga Jualan (RM) #${rowId.split('_')[1]}`;
+        price.value = '28.80'; // Contoh nilai rujukan lalai sistem asal anda
+        handleCustomCalculation(rowId);
         return;
     }
 
+    if (labelHarga) labelHarga.textContent = `Harga (RM) #${rowId.split('_')[1]}`;
     const opt = sel.options[sel.selectedIndex];
+    const info = row.querySelector('.jenis-vlookup-info');
     if (opt && opt.dataset.harga) {
         const harga = parseFloat(opt.dataset.harga);
         price.value = harga.toFixed(2);
@@ -1012,23 +1077,32 @@ function handleCustomCalculation(rowId) {
     const lebar = parseFloat(row.querySelector('.inp-lebar')?.value) || 0;
     const panjang = parseFloat(row.querySelector('.inp-panjang')?.value) || 0;
     const priceSqft = parseFloat(row.querySelector('.inp-price-sqft')?.value) || 0;
+    const priceFinalInput = row.querySelector('.inp-harga-final');
 
+    // Kira saiz luas kaki persegi (Sqft)
     const luas = lebar * panjang;
-    const hargaUnit = luas * priceSqft;
+    const hargaUnitFormula = luas * priceSqft;
 
     const viewLuas = row.querySelector('.view-luas');
     if (viewLuas) {
         viewLuas.value = luas.toFixed(1) + ' sqft';
     }
 
-    const hargaFinal = row.querySelector('.inp-harga-final');
-    if (hargaFinal) {
-        hargaFinal.value = hargaUnit.toFixed(2);
+    // LOGIK OVERRIDE: Jika pekerja belum/tidak menaip harga bulat secara terus, masukkan harga sqft
+    if (priceFinalInput && priceFinalInput.dataset.isManualOverride !== "true") {
+        priceFinalInput.value = hargaUnitFormula.toFixed(2);
     }
 
+    // Kemaskini label maklumat teks panduan di bawah kotak
     const info = row.querySelector('.jenis-vlookup-info');
     if (info) {
-        info.innerHTML = `<strong>CUSTOM</strong><br>${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft = ${luas.toFixed(1)} sqft × ${formatMoney(priceSqft)}/sqft = ${formatMoney(hargaUnit)}`;
+        const customJenisText = row.querySelector('.inp-custom-jenis')?.value.trim() || 'CUSTOM CARPET';
+        
+        if (priceFinalInput && priceFinalInput.dataset.isManualOverride === "true") {
+            info.innerHTML = `<strong>${escapeHtml(customJenisText.toUpperCase())}</strong><br><span style="color:#e67e22;"><i class="fa-solid fa-pen"></i> Harga Terus Dimasukkan Manual (Tanpa Sqft)</span>`;
+        } else {
+            info.innerHTML = `<strong>${escapeHtml(customJenisText.toUpperCase())}</strong><br>${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft = ${luas.toFixed(1)} sqft × ${formatMoney(priceSqft)}/sqft = Kos Unit: ${formatMoney(hargaUnitFormula)}`;
+        }
     }
 
     calculateGrandTotal();
@@ -1039,9 +1113,15 @@ function calculateGrandTotal() {
     document.querySelectorAll('.card-item-row').forEach(row => {
         const qty = parseInt(row.querySelector('.inp-qty')?.value) || 1;
         const price = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
+        
+        // PENGIRAAN SAHIH: Harga mutlak yang tertera di kotak final akan didarab terus dengan kuantiti
         total += qty * price;
     });
-    document.getElementById('grandTotalLabel').textContent = formatMoney(total);
+    
+    const grandTotalLabel = document.getElementById('grandTotalLabel');
+    if (grandTotalLabel) {
+        grandTotalLabel.textContent = formatMoney(total);
+    }
 }
 
 function removeCarpetRow(rowId) {
@@ -1092,17 +1172,22 @@ async function simpanTempahan() {
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty').value) || 1);
 
-        let harga, jenis;
+        let harga, jenis, kod;
         if (sel.value === 'CUSTOM') {
             harga = parseFloat(row.querySelector('.inp-harga-final').value) || 0;
-            const lebar = parseFloat(row.querySelector('.inp-lebar').value) || 0;
-            const panjang = parseFloat(row.querySelector('.inp-panjang').value) || 0;
-            jenis = `CUSTOM CARPET (${lebar.toFixed(1)}ft × ${panjang.toFixed(1)}ft)`;
+            
+            // Baca input teks yang ditaip bebas oleh pengguna mengikut model Streamlit lama
+            const customKodTxt = row.querySelector('.inp-custom-kod').value.trim() || 'CUSTOM';
+            const customJenisTxt = row.querySelector('.inp-custom-jenis').value.trim() || 'CUSTOM CARPET';
+            
+            kod = customKodTxt;
+            jenis = customJenisTxt;
         } else {
             harga = parseFloat(opt.dataset.harga) || 0;
             jenis = opt.dataset.jenis || '';
+            kod = sel.value;
         }
-        items.push({ kod: sel.value, jenis, harga, qty, subtotal: qty * harga });
+        items.push({ kod, jenis, harga, qty, subtotal: qty * harga });
     });
     if (!valid || !items.length) { toast('Pastikan semua kod karpet dipilih.'); return; }
     const total = items.reduce((sum, i) => sum + i.subtotal, 0);
