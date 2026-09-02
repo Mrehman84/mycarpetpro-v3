@@ -1998,18 +1998,28 @@ async function simpanTambahPelanggan() {
     const tel = document.getElementById('plgTelefon').value.trim().replace(/[- ]/g, '');
     const alamat = document.getElementById('plgAlamat').value.trim();
     const daerah = document.getElementById('plgDaerah').value.trim();
-    if (!nama || !tel || !alamat) {
-        toast('Sila lengkapkan Nama, Telefon dan Alamat.');
+    
+    // HANYA NAMA YANG DIWAJIBKAN SEKARANG
+    if (!nama) {
+        toast('Sila isi ruangan Nama Pelanggan.');
         return;
     }
+    
     showLoading(true);
-    await postData({ action: 'addCustomer', nama, telefon: tel, alamat, daerah });
+    await postData({ 
+        action: 'addCustomer', 
+        nama, 
+        telefon: tel || '-', 
+        alamat: alamat || '-', 
+        daerah: daerah || '-' 
+    });
     showLoading(false);
     toast('Pelanggan baru berjaya ditambah!');
     document.getElementById('pelangganFormContainer').classList.add('hidden');
     fetchData(null, true);
     setTimeout(() => renderPelangganList(), 1500);
 }
+
 
 function showEditPelanggan(customerId) {
     const cust = STATE.pelanggan.find(c => normalize(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === normalize(customerId));
