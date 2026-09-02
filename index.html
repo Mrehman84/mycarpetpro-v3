@@ -865,8 +865,9 @@ function addCarpetRow() {
     price.value = '0.00';
     price.className = 'form-control inp-harga-final';
     price.style.fontWeight = '600';
-    price.readOnly = true;
+    price.readOnly = false;
     col4.appendChild(price);
+    price.oninput = function() { calculateGrandTotal(); }; 
 
     const col5 = document.createElement('div');
     col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
