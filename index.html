@@ -865,9 +865,9 @@ function addCarpetRow() {
     price.value = '0.00';
     price.className = 'form-control inp-harga-final';
     price.style.fontWeight = '600';
-    price.readOnly = false;
+    price.readOnly = false; // Membolehkan harga ditaip secara manual
     col4.appendChild(price);
-    price.oninput = function() { calculateGrandTotal(); }; 
+    price.oninput = function() { calculateGrandTotal(); }; // Kemas kini jumlah besar semasa menaip
 
     const col5 = document.createElement('div');
     col5.style.cssText = 'display:flex;align-items:center;margin-top:5px';
