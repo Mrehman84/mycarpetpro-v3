@@ -1133,7 +1133,7 @@ async function simpanTempahan() {
         custAlamat = document.getElementById('custAlamatBaru')?.value.trim() || '';
         custDaerah = document.getElementById('custDaerahBaru')?.value.trim() || '';
 
-        // Hanya ALAMAT wajib diisi
+        // Hanya ALAMAT wajib diisi mengikut spesifikasi anda
         if (!custAlamat) {
             toast('Sila isi ALAMAT pelanggan (wajib).');
             return;
@@ -1192,12 +1192,14 @@ async function simpanTempahan() {
 
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty')?.value) || 1);
+        
+        // PEMBERSIHAN LOGIK UTAMA: Ambil nilai input harga jualan semasa dari skrin borang jualan
+        const hargaSkrinSemasa = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
 
         let harga, jenis, kod;
         if (sel.value === 'CUSTOM') {
-            harga = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
+            harga = hargaSkrinSemasa; // Mengambil harga semasa dari skrin (Sama ada harga bulat terus atau formula)
             
-            // Ambil mod custom dengan selamat
             const modKiraSelect = row.querySelector('.select-mod-custom-kira');
             const modCustom = modKiraSelect ? modKiraSelect.value : 'HARGA_TERUS';
 
@@ -1217,7 +1219,7 @@ async function simpanTempahan() {
             }
         } else {
             // Kod standard
-            harga = parseFloat(opt?.dataset?.harga) || 0;
+            harga = hargaSkrinSemasa; // <-- PERBAIKAN: Kini kod standard juga membaca harga edit RM 35.00 anda dengan tepat!
             jenis = opt?.dataset?.jenis || '';
             kod = sel.value;
         }
@@ -1262,6 +1264,7 @@ async function simpanTempahan() {
     STATE.lastOrderMsg = msg;
     fetchData(null, true);
 }
+
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
