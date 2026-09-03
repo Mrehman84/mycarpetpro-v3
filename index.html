@@ -1133,41 +1133,31 @@ async function simpanTempahan() {
         custAlamat = document.getElementById('custAlamatBaru')?.value.trim() || '';
         custDaerah = document.getElementById('custDaerahBaru')?.value.trim() || '';
 
-        // Hanya ALAMAT wajib diisi mengikut spesifikasi anda
         if (!custAlamat) {
             toast('Sila isi ALAMAT pelanggan (wajib).');
             return;
         }
-
-        // Medan lain diisi "-" jika kosong
         custNama = custNama || '-';
         custTel = custTel || '-';
         custDaerah = custDaerah || '-';
-
         custId = '';
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     } else {
         custId = document.getElementById('optPelanggan')?.value;
         if (!custId) { toast('Sila pilih pelanggan.'); return; }
-
         const cust = STATE.pelanggan.find(p => String(getField(p, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === custId);
         if (!cust) { toast('Pelanggan tidak ditemui.'); return; }
-
         custTel = getField(cust, ['TELEFON','NO TELEFON'], '');
         custNama = getField(cust, ['NAMA'], '');
         custAlamat = getField(cust, ['ALAMAT'], '');
         custDaerah = getField(cust, ['DAERAH'], '');
-
-        // Alamat wajib – jika kosong, tunjuk ralat
         if (!custAlamat) {
             toast('Pelanggan ini tiada ALAMAT. Sila kemaskini rekod pelanggan terlebih dahulu.');
             return;
         }
-
         custNama = custNama || '-';
         custTel = custTel || '-';
         custDaerah = custDaerah || '-';
-
         STATE.lastCustomer = { NAMA: custNama, TELEFON: custTel, ALAMAT: custAlamat, DAERAH: custDaerah };
     }
 
@@ -1183,33 +1173,27 @@ async function simpanTempahan() {
     }
     const tarikhSiap = addDays(today, 7);
 
-    // Kumpul item
-    const items = [];
+    // Kumpul item mentah (dengan qty mungkin > 1)
+    const rawItems = [];
     let valid = true;
     document.querySelectorAll('.card-item-row').forEach(row => {
         const sel = row.querySelector('.select-kod-karpet');
         if (!sel || !sel.value) { valid = false; return; }
-
         const opt = sel.options[sel.selectedIndex];
         const qty = Math.max(1, parseInt(row.querySelector('.inp-qty')?.value) || 1);
-        
-        // PEMBERSIHAN LOGIK UTAMA: Ambil nilai input harga jualan semasa dari skrin borang jualan
         const hargaSkrinSemasa = parseFloat(row.querySelector('.inp-harga-final')?.value) || 0;
 
         let harga, jenis, kod;
         if (sel.value === 'CUSTOM') {
-            harga = hargaSkrinSemasa; // Mengambil harga semasa dari skrin (Sama ada harga bulat terus atau formula)
-            
+            harga = hargaSkrinSemasa;
             const modKiraSelect = row.querySelector('.select-mod-custom-kira');
             const modCustom = modKiraSelect ? modKiraSelect.value : 'HARGA_TERUS';
-
             if (modCustom === 'HARGA_TERUS') {
                 const jenisInput = row.querySelector('.inp-custom-jenis-terus');
                 const jenisTxt = jenisInput ? jenisInput.value.trim() : 'CUSTOM CARPET';
                 kod = 'CUSTOM';
                 jenis = jenisTxt;
             } else {
-                // KIRA_SQFT
                 const jenisInput = row.querySelector('.inp-custom-jenis-sqft');
                 const jenisTxt = jenisInput ? jenisInput.value.trim() : 'CUSTOM CARPET';
                 const lebar = parseFloat(row.querySelector('.inp-lebar')?.value) || 0;
@@ -1218,37 +1202,51 @@ async function simpanTempahan() {
                 jenis = `${jenisTxt} (${lebar} x ${panjang})`;
             }
         } else {
-            // Kod standard
-            harga = hargaSkrinSemasa; // <-- PERBAIKAN: Kini kod standard juga membaca harga edit RM 35.00 anda dengan tepat!
+            harga = hargaSkrinSemasa;
             jenis = opt?.dataset?.jenis || '';
             kod = sel.value;
         }
-        items.push({ kod, jenis, harga, qty, subtotal: qty * harga });
+        rawItems.push({ kod, jenis, harga, qty });
     });
 
-    if (!valid || !items.length) {
+    if (!valid || !rawItems.length) {
         toast('Pastikan semua kod karpet dipilih.');
         return;
     }
-    const total = items.reduce((sum, i) => sum + i.subtotal, 0);
+
+    // PENTING: Pecahkan setiap item mengikut kuantiti menjadi item individu (qty=1)
+    const expandedItems = [];
+    rawItems.forEach(item => {
+        for (let i = 0; i < item.qty; i++) {
+            expandedItems.push({
+                kod: item.kod,
+                jenis: item.jenis,
+                harga: item.harga,
+                qty: 1,
+                subtotal: item.harga   // kerana qty=1
+            });
+        }
+    });
+
+    // Kira jumlah keseluruhan berdasarkan expandedItems
+    const total = expandedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
     showLoading(true);
     await new Promise((resolve) => {
-        fetchData(() => {
-            resolve();
-        }, true);
+        fetchData(() => resolve(), true);
     });
     showLoading(false);
 
     const invNo = generateInvoiceNumber();
 
     showLoading(true);
+    // Hantar expandedItems (setiap satu qty=1) ke backend
     await postData({
         action: 'createOrder',
         invNo,
         isNewCustomer: isBaru,
         customer: { id: custId, nama: custNama, telefon: custTel, alamat: custAlamat, daerah: custDaerah },
-        items,
+        items: expandedItems,          // <-- Guna expandedItems
         total,
         tarikhAmbil: today,
         tarikhSiap: tarikhSiap
@@ -1256,15 +1254,29 @@ async function simpanTempahan() {
     showLoading(false);
 
     toast('Tempahan berjaya disimpan! No Invois: ' + invNo);
-    const itemsText = items.map((item, i) => ` ${i+1}. *${item.jenis}* (${item.kod}) x${item.qty} = *${formatMoney(item.subtotal)}*`).join('\n');
-    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 *No Invoice:* ${invNo}\n📅 Tarikh Ambil: ${formatDateMY(today)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${items.length} keping\n\n📝 *Butiran Jenis Karpet:*\n${itemsText}\n\n💰 *Jumlah Harga:* *${formatMoney(total)}*\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
+
+    // Mesej WhatsApp: senaraikan setiap unit secara individu
+    const itemsText = expandedItems.map((item, i) =>
+        ` ${i+1}. *${item.jenis}* (${item.kod}) = *${formatMoney(item.subtotal)}*`
+    ).join('\n');
+
+    const msg = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\n` +
+        `Pelanggan yang dihormati, karpet anda telah selamat diambil.\n\n` +
+        `🧾 *No Invoice:* ${invNo}\n` +
+        `📅 Tarikh Ambil: ${formatDateMY(today)}\n` +
+        `📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n` +
+        `📦 Jumlah Karpet: ${expandedItems.length} unit\n\n` +
+        `📝 *Butiran Setiap Karpet:*\n${itemsText}\n\n` +
+        `💰 *Jumlah Harga:* *${formatMoney(total)}*\n` +
+        `📌 Status: Pickup & Proses Cucian\n\n` +
+        `Terima kasih! 🙏`;
+
     document.getElementById('tempahanPreview').textContent = msg;
     document.getElementById('tempahanPreview').classList.remove('hidden');
     document.getElementById('tempahanWhatsAppBtn').classList.remove('hidden');
     STATE.lastOrderMsg = msg;
     fetchData(null, true);
 }
-
 function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
