@@ -1849,13 +1849,14 @@ function renderInvoicePreview() {
     }
 
  
-const html = `
-    <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important;">
-    <div style="max-width:210mm; margin:0 auto; padding: 2mm 5mm 5mm 5mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
-    <div style="margin-bottom:3mm; margin-top:0px; padding-top:0px;"><img src="https://githubusercontent.com" alt="Logo" style="height:14mm; margin-top:0px;" onerror="this.style.display='none'"></div>
-
+  const html = `
+        <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important; box-shadow: none !important; border: none !important;">
+        <div style="max-width:210mm; margin:0 auto; padding: 6mm 6mm 6mm 6mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
+        <div style="margin-bottom:4mm; margin-top:0px; padding-top:4mm; display:block; text-align:left;">
+            <img src="https://githubusercontent.com" alt="Logo" style="height:14mm; display:inline-block; vertical-align:middle;" crossorigin="anonymous" onerror="this.src='icon-512.png'">
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10mm;"><div><div style="font-size:13px;font-weight:700;color:#1a1a1a;line-height:1.4;">WESTBERRY ENTERPRISE</div><div style="font-size:10px;color:#555;line-height:1.4;">LOT 52 JALAN PERUSAHAAN, KG SIAM,<br>PAYA BESAR 09600 LUNAS KEDAH.<br>TEL: 017-4050336</div></div><div style="text-align:right;"><h1 style="font-size:20px;color:${brandColor};margin:0;font-weight:700;">INVOICE</h1><table style="border-collapse:collapse;font-size:9px;margin-top:5px;margin-left:auto;"><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">INVOICE NO</td><td style="border:1px solid #ddd;padding:2px 6px;">${escapeHtml(inv)}</td></tr><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">TARIKH AMBIL</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikhAmbil)}</td></tr><tr><td style="border:1px solid #ddd;padding:2px 6px;font-weight:600;">TARIKH SIAP</td><td style="border:1px solid #ddd;padding:2px 6px;">${formatDateMY(tarikhSiap)}</td></tr></table></div></div>
-        <div style="text-align:right;margin-bottom:6mm;"><span style="font-weight:700;font-size:20px;color:${brandColor};">${isPaid ? 'PAID' : 'PENDING'}</span></div>
+        <div style="text-align:right;margin-bottom:6mm;"><span style="font-weight:700;font-size:20px;color:${brandColor}; border: 2px solid ${brandColor}; padding: 2px 10px; border-radius: 4px;">${isPaid ? 'PAID' : 'PENDING'}</span></div>
         <div style="background:${brandColor};color:#fff;padding:4px 8px;font-weight:700;font-size:10px;margin-bottom:3mm;">INVOICE TO</div>
         <div style="margin-bottom:8mm;"><div style="font-weight:700;font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div><div style="font-size:10px;color:#555;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div><div style="font-size:10px;color:#555;">No. Telefon: ${escapeHtml(telefon)}</div></div>
         <table style="width:100%;border-collapse:collapse;font-size:10px;margin-bottom:6mm;"><thead><tr style="background:${brandColor};color:#fff;"><th style="padding:4px;text-align:center;width:5%;">BIL</th><th style="padding:4px;width:50%;">KETERANGAN SERVIS / JENIS CARPET</th><th style="padding:4px;text-align:center;width:5%;">UNIT</th><th style="padding:4px;text-align:right;width:18%;">HARGA SEUNIT (RM)</th><th style="padding:4px;text-align:right;width:22%;">TOTAL (RM)</th></tr></thead><tbody>${itemsHTML || '<tr><td colspan="5" style="padding:4px;text-align:center;">Tiada item</td></tr>'}</tbody></table>
@@ -1867,9 +1868,10 @@ const html = `
             <tr><td style="border:1px solid #ddd;padding:3px 8px;font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;">${formatMoney(deposit)}</td></tr>
             <tr style="background:#f5f5f5;font-weight:700;"><td style="border:1px solid #ddd;padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd;padding:3px 8px;text-align:right;color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
         </table></div>
-        <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;"><div><strong>UNTUK PEMBAYARAN:</strong><br><strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br><span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span></div><div style="text-align:center;"><strong>DISEDIAKAN OLEH / COP:</strong><br><img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" onerror="this.style.display='none'"><div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;color:#555;border-top:1px solid #eee;padding-top:5mm;margin-bottom:6mm;"><div><strong>UNTUK PEMBAYARAN:</strong><br><strong style="font-size:12px;">MAYBANK-MATI-UR REHMAN</strong><br><span style="color:#b42828;font-size:14px;font-weight:900;">15-203-142-4070</span></div><div style="text-align:center;"><strong>DISEDIAKAN OLEH / COP:</strong><br><img src="https://githubusercontent.com" alt="Tandatangan" style="height:15mm;margin:3mm auto;display:block;" crossorigin="anonymous" onerror="this.style.display='none'"><div style="border-top:1px solid #aaa;padding-top:1mm;">( MYCARPETPRO MANAGEMENT )</div></div></div>
         <div style="font-size:7.5px;color:#777;border-top:1px solid #eee;padding-top:3mm;"><strong>TERMA & SYARAT PEMBAYARAN:</strong><br>1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br><em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em></div>
         <div style="text-align:center;margin-top:5mm;font-size:8px;color:${brandColor};font-weight:700;">Thank you for your business! We look forward to serving you again.<br>~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~</div></div></div>`;
+    
     container.innerHTML = html;
     let msgWa = `Salam *${escapeHtml(nama)}*, semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.0* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* ${inv}\n📅 Tarikh Ambil: ${formatDateMY(tarikhAmbil)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}`;
     if (diskaun > 0) {
@@ -1880,7 +1882,6 @@ const html = `
     msgWa += `\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Jika ada sebarang pertanyaan, sila maklumkan pada kami ya. Terima kasih! 🧺 clean & fresh!`;
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid, diskaun, diskaunNote };
 }
-
 async function prepareInvoiceForExport() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) throw new Error('Tiada invois dipilih.');
