@@ -1915,7 +1915,7 @@ async function shareInvoiceWithAttachment() {
         if (isPaid) { 
             // PEMBETULAN: Nilai margin diletakkan array yang sah [10, 10, 10, 10]
             const pdfBlob = await html2pdf().set({ 
-                margin:, 
+                margin: 10, 
                 filename: fileName, 
                 image: { type: 'jpeg', quality: 0.98 }, 
                 html2canvas: { scale: 2, useCORS: true, logging: false }, 
