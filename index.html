@@ -1904,82 +1904,73 @@ async function prepareInvoiceForExport() {
 async function shareInvoiceWithAttachment() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
-
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
     const isPaid = data.isPaid;
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
     toast('Menyediakan lampiran...');
-
+    let fileBlob;
     try {
-        const clone = await prepareInvoiceForExport();
-
-        if (isPaid) {
-            const pdfBlob = await html2pdf()
-                .set({
-                    margin: [5, 5, 5, 5],
-                    filename: fileName,
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: {
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        windowWidth: clone.scrollWidth,
-                        scrollY: 0,
-                    },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                })
-                .from(clone)
-                .outputPdf('blob');
-
-            if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName, { type: mimeType })] })) {
-                const file = new File([pdfBlob], fileName, { type: mimeType });
-                await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
-                toast('Invois berjaya dikongsi!');
-                setTimeout(() => bukaWhatsApp(data.telefon, data.msg), 800);
-                return;
-            }
-            // fallback download
-            const url = URL.createObjectURL(pdfBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast('PDF dimuat turun. Sila lampirkan manual di WhatsApp.');
-        } else {
-            const canvas = await html2canvas(clone, {
-                scale: 2,
-                useCORS: true,
-                logging: false,
-                windowWidth: clone.scrollWidth,
-                scrollY: 0,
-            });
-            const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: mimeType })] })) {
-                const file = new File([blob], fileName, { type: mimeType });
-                await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
-                toast('Invois berjaya dikongsi!');
-                setTimeout(() => bukaWhatsApp(data.telefon, data.msg), 800);
-                return;
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-            toast('Gambar dimuat turun. Sila lampirkan manual di WhatsApp.');
+        if (isPaid) { 
+            // PEMBETULAN UTAMA: Tetapan margin diubah ke format auto-layout bersama mod pagebreak avoid
+            const pdfBlob = await html2pdf().set({ 
+                margin:, // Margin yang lebih selamat untuk saiz kertas A4
+                filename: fileName, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, logging: false }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } // Mengelakkan elemen bawah terpotong
+            }).from(element).outputPdf('blob'); 
+            fileBlob = pdfBlob; 
         }
-        bukaWhatsApp(data.telefon, data.msg);
-    } catch (err) {
-        console.error('Share invoice error:', err);
-        toast('Gagal menyediakan lampiran.');
-    } finally {
-        const oldClone = document.querySelector('body > [style*="position: absolute; left: -9999px;"]');
-        if (oldClone) oldClone.remove();
-    }
+        else { 
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true }); 
+            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); 
+        }
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            const file = new File([fileBlob], fileName, { type: mimeType });
+            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
+            toast('Invois berjaya dikongsi!');
+            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
+            return;
+        }
+    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
+    try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
+    bukaWhatsApp(data.telefon, data.msg);
 }
+
+function downloadInvoicePDF() {
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+    if (typeof html2pdf === 'undefined') { 
+        toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.'); 
+        const script = document.createElement('script'); 
+        script.src = 'https://cloudflare.com'; 
+        script.onload = () => { toast('Pustaka PDF siap. Sila cuba lagi.'); }; 
+        document.head.appendChild(script); 
+        return; 
+    }
+    
+    // PEMBETULAN UTAMA: Konfigurasi html2pdf ditambah kawalan sempadan (avoid page break)
+    const opt = { 
+        margin:, // Dibesarkan sedikit supaya jarak elemen seimbang dan tidak terkeluar sempadan A4
+        filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true, logging: false }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } // Memaksa bahagian bank/tandatangan sentiasa rapat ke atas
+    };
+    
+    toast('Sedang menjana PDF...');
+    html2pdf().set(opt).from(element).save().then(() => { 
+        toast('PDF berjaya dimuat turun!'); 
+    }).catch((err) => { 
+        console.error('PDF error:', err); 
+        toast('Gagal menjana PDF. Sila cuba lagi.'); 
+    });
+}
+
 
 async function downloadInvoicePDF() {
     try {
