@@ -128,15 +128,18 @@
     </style>
     <style>
 @media print {
-  .print-area {
-    width: 100% !important;
-    margin: 0 !important;
-    box-shadow: none !important;
-  }
-  .no-print {
-    display: none !important;
-  }
+    .print-area {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 5mm !important; /* Kurangkan padding daripada 10mm kepada 5mm untuk menjimatkan ruang */
+        box-shadow: none !important;
+        height: auto !important; /* Paksa tinggian fleksibel mengikut kandungan sahaja */
+    }
+    .no-print {
+        display: none !important;
+    }
 }
+
 </style>
 </head>
 
