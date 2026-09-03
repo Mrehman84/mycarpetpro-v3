@@ -2182,9 +2182,34 @@ function lihatSejarahPelanggan(customerId) {
     `;
     container.scrollIntoView({ behavior: 'smooth' });
 }
-    // ================================================================
-//                   BAHAGIAN 2H - PEKERJA
+   // ================================================================
+//                   BAHAGIAN 2H - PEKERJA (LENGKAP)
 // ================================================================
+
+function renderPekerja(container) {
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>👷 Pengurusan Pekerja</h1><p class="muted">Senarai, komisen, dan tugasan runner</p></div></header>
+        <div class="card">
+            <div class="flex" style="border-bottom:1px solid var(--border-color);margin-bottom:16px;">
+                <button class="tab-btn active" data-tab="workerlist" onclick="switchWorkerTab('workerlist', this)">👥 Senarai Pekerja</button>
+                <button class="tab-btn" data-tab="workercommission" onclick="switchWorkerTab('workercommission', this)">💰 Komisen</button>
+                <button class="tab-btn" data-tab="workerrunner" onclick="switchWorkerTab('workerrunner', this)">🚚 Runner</button>
+            </div>
+            <div id="workerTabContent"></div>
+        </div>
+    `;
+    switchWorkerTab('workerlist', document.querySelector('.tab-btn.active'));
+}
+
+function switchWorkerTab(tabId, btn) {
+    document.querySelectorAll('#workerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const content = document.getElementById('workerTabContent');
+    if (tabId === 'workerlist') renderWorkerList(content);
+    else if (tabId === 'workercommission') renderWorkerCommission(content);
+    else if (tabId === 'workerrunner') renderWorkerRunner(content);
+}
 
 function renderWorkerList(container) {
     const workers = STATE.pekerja || [];
@@ -2193,13 +2218,12 @@ function renderWorkerList(container) {
         <button class="btn btn-primary btn-sm" onclick="showAddWorker()"><i class="fa-solid fa-plus"></i> Tambah Pekerja</button>
     </div>`;
     if (!workers.length) {
-        html += '<p class="muted">Tiada pekerja.</p>';
+        html += '<p class="muted">Tiada pekerja dijumpai dalam sistem.</p>';
     } else {
         html += `<div class="table-wrap"><table class="data-table">
             <thead><tr><th>ID</th><th>Nama</th><th>Telefon</th><th>Peranan</th><th>Tindakan</th></tr></thead>
             <tbody>`;
         workers.forEach(w => {
-            // PEMBETULAN UTAMA: Memastikan pengisian kunci padan mengikut Google Sheets anda
             const id = escapeHtml(getField(w, ['ID','WORKER_ID','WORKER ID'], '-'));
             const nama = escapeHtml(getField(w, ['NAMA'], '-'));
             const tel = escapeHtml(String(getField(w, ['NO TELEFON', 'NO. TELEFON', 'TELEFON', 'PHONE'], '-')));
@@ -2220,14 +2244,75 @@ function renderWorkerList(container) {
     container.innerHTML = html;
 }
 
-function switchWorkerTab(tabId, btn) {
-    document.querySelectorAll('#workerTabContent .tab-btn, .tab-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+function showAddWorker() {
     const content = document.getElementById('workerTabContent');
-    if (tabId === 'workerlist') renderWorkerList(content);
-    else if (tabId === 'workercommission') renderWorkerCommission(content);
-    else if (tabId === 'workerrunner') renderWorkerRunner(content);
+    content.innerHTML = `
+        <h3 class="card-title">Tambah Pekerja Baru</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" placeholder="Nama pekerja"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" placeholder="60123456789"></div>
+        </div>
+        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja">Pekerja</option><option value="Pencuci">Pencuci</option><option value="Runner">Runner</option></select></div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanTambahPekerja()"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
+        </div>
+    `;
 }
+
+async function simpanTambahPekerja() {
+    const nama = document.getElementById('workerNama').value.trim();
+    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
+    const role = document.getElementById('workerRole').value;
+    if (!nama || !tel) { toast('Sila isi Nama dan Telefon.'); return; }
+    showLoading(true);
+    await postData({ action: 'addWorker', nama, telefon: tel, peranan: role });
+    showLoading(false);
+    toast('Pekerja ditambah!');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
+async function deleteWorker(id) {
+    if (!confirm('Padam pekerja ini?')) return;
+    showLoading(true);
+    await postData({ action: 'deleteWorker', id });
+    showLoading(false);
+    toast('Pekerja dipadam.');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
+function editWorker(id) {
+    const w = (STATE.pekerja || []).find(x => normalize(getField(x, ['ID','WORKER_ID','WORKER ID'])) === normalize(id));
+    if (!w) return;
+    const content = document.getElementById('workerTabContent');
+    content.innerHTML = `
+        <h3 class="card-title">Edit Pekerja (${escapeHtml(id)})</h3>
+        <div class="row">
+            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" value="${escapeHtml(getField(w, ['NAMA'], ''))}"></div>
+            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" value="${escapeHtml(String(getField(w, ['NO TELEFON', 'NO. TELEFON', 'TELEFON', 'PHONE'], '')))}"></div>
+        </div>
+        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja" ${getField(w, ['PERANAN'])==='Pekerja'?'selected':''}>Pekerja</option><option value="Pencuci" ${getField(w, ['PERANAN'])==='Pencuci'?'selected':''}>Pencuci</option><option value="Runner" ${getField(w, ['PERANAN'])==='Runner'?'selected':''}>Runner</option></select></div>
+        <div class="flex">
+            <button class="btn btn-success" onclick="simpanEditPekerja('${escapeHtml(id)}')"><i class="fa-solid fa-save"></i> Simpan</button>
+            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
+        </div>
+    `;
+}
+
+async function simpanEditPekerja(id) {
+    const nama = document.getElementById('workerNama').value.trim();
+    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
+    const role = document.getElementById('workerRole').value;
+    showLoading(true);
+    await postData({ action: 'updateWorker', id, nama, telefon: tel, peranan: role });
+    showLoading(false);
+    toast('Pekerja dikemaskini!');
+    fetchData(null, true);
+    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
+}
+
 function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
@@ -2279,134 +2364,32 @@ function renderWorkerCommission(container) {
     `;
 }
 
-function showAddWorker() {
-    const content = document.getElementById('workerTabContent');
-    content.innerHTML = `
-        <h3 class="card-title">Tambah Pekerja Baru</h3>
-        <div class="row">
-            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" placeholder="Nama pekerja"></div>
-            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" placeholder="60123456789"></div>
-        </div>
-        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja">Pekerja</option><option value="Pencuci">Pencuci</option><option value="Runner">Runner</option></select></div>
-        <div class="flex">
-            <button class="btn btn-success" onclick="simpanTambahPekerja()"><i class="fa-solid fa-save"></i> Simpan</button>
-            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
-        </div>
-    `;
-}
-async function simpanTambahPekerja() {
-    const nama = document.getElementById('workerNama').value.trim();
-    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
-    const role = document.getElementById('workerRole').value;
-    if (!nama || !tel) { toast('Sila isi Nama dan Telefon.'); return; }
-    await postData({ action: 'addWorker', nama, telefon: tel, peranan: role });
-    toast('Pekerja ditambah!');
-    fetchData(null, true);
-    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
-}
-async function deleteWorker(id) {
-    if (!confirm('Padam pekerja ini?')) return;
-    await postData({ action: 'deleteWorker', id });
-    toast('Pekerja dipadam.');
-    fetchData(null, true);
-    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
-}
-function editWorker(id) {
-    const w = (STATE.pekerja || []).find(x => normalize(getField(x, ['ID','WORKER_ID'])) === normalize(id));
-    if (!w) return;
-    const content = document.getElementById('workerTabContent');
-    content.innerHTML = `
-        <h3 class="card-title">Edit Pekerja (${escapeHtml(id)})</h3>
-        <div class="row">
-            <div class="col form-group"><label>Nama</label><input type="text" id="workerNama" class="form-control" value="${escapeHtml(getField(w, ['NAMA'], ''))}"></div>
-            <div class="col form-group"><label>No. Telefon</label><input type="text" id="workerTel" class="form-control" value="${escapeHtml(String(getField(w, ['TELEFON'], '')))}"></div>
-        </div>
-        <div class="form-group"><label>Peranan</label><select id="workerRole" class="form-control"><option value="Pekerja" ${getField(w, ['PERANAN'])==='Pekerja'?'selected':''}>Pekerja</option><option value="Pencuci" ${getField(w, ['PERANAN'])==='Pencuci'?'selected':''}>Pencuci</option><option value="Runner" ${getField(w, ['PERANAN'])==='Runner'?'selected':''}>Runner</option></select></div>
-        <div class="flex">
-            <button class="btn btn-success" onclick="simpanEditPekerja('${escapeHtml(id)}')"><i class="fa-solid fa-save"></i> Simpan</button>
-            <button class="btn btn-secondary" onclick="renderWorkerList(document.getElementById('workerTabContent'))">Batal</button>
-        </div>
-    `;
-}
-async function simpanEditPekerja(id) {
-    const nama = document.getElementById('workerNama').value.trim();
-    const tel = document.getElementById('workerTel').value.trim().replace(/[- ]/g, '');
-    const role = document.getElementById('workerRole').value;
-    await postData({ action: 'updateWorker', id, nama, telefon: tel, peranan: role });
-    toast('Pekerja dikemaskini!');
-    fetchData(null, true);
-    setTimeout(() => renderWorkerList(document.getElementById('workerTabContent')), 1500);
-}
-function renderWorkerCommission(container) {
-    const workers = STATE.pekerja || [];
-    const komisenData = STATE.komisen || [];
-    let workerOptions = '<option value="">-- Pilih Pekerja --</option>';
-    workers.forEach(w => {
-        const id = escapeHtml(getField(w, ['ID','WORKER_ID'], ''));
-        const nama = escapeHtml(getField(w, ['NAMA'], ''));
-        workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
-    });
-    let qrOptions = '<option value="">-- Pilih QR ID --</option>';
-    STATE.karpet.forEach(k => {
-        const st = normalize(getField(k, ['STATUS']));
-        if (st === 'DALAM PROSES') {
-            const qr = escapeHtml(String(getField(k, ['QR ID','QR_ID'], '')));
-            qrOptions += `<option value="${qr}">${qr}</option>`;
-        }
-    });
-    const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
-    const monthlyKomisen = {};
-    komisenData.forEach(k => {
-        const tgl = String(getField(k, ['TARIKH'], '')).substring(0, 7);
-        if (tgl === currentMonth) {
-            const wid = getField(k, ['ID PEKERJA'], '');
-            monthlyKomisen[wid] = (monthlyKomisen[wid] || 0) + getNumber(getField(k, ['KOMISEN (RM)'], 0));
-        }
-    });
-    let laporanHtml = '<h4>Komisen Bulan Ini</h4><ul>';
-    workers.forEach(w => {
-        const wid = getField(w, ['ID','WORKER_ID'], '');
-        const nama = getField(w, ['NAMA'], '-');
-        const total = monthlyKomisen[wid] || 0;
-        laporanHtml += `<li>${escapeHtml(nama)}: RM ${total.toFixed(2)}</li>`;
-    });
-    laporanHtml += '</ul>';
-    container.innerHTML = `
-        <h3 class="card-title">💰 Tambah Komisen Pekerja</h3>
-        <div class="row">
-            <div class="col form-group"><label>Pilih Pekerja</label><select id="komisenWorkerSelect" class="form-control">${workerOptions}</select></div>
-            <div class="col form-group"><label>Pilih QR ID (Status: DALAM PROSES)</label><select id="komisenQrSelect" class="form-control">${qrOptions}</select></div>
-        </div>
-        <button class="btn btn-success" onclick="tambahKomisen()"><i class="fa-solid fa-plus"></i> Tambah Komisen (RM 1.00)</button>
-        <div id="komisenMsg" class="mt-16"></div>
-        <hr style="margin:20px 0;">
-        <h3 class="card-title">📊 Laporan Komisen Bulanan</h3>
-        ${laporanHtml}
-    `;
-}
+
 async function tambahKomisen() {
     const workerId = document.getElementById('komisenWorkerSelect').value;
     const qrId = document.getElementById('komisenQrSelect').value;
     if (!workerId || !qrId) {
-        showPriceMsg('komisenMsg', '❌ Sila pilih Pekerja dan QR ID.', 'error');
+        toast('❌ Sila pilih Pekerja dan QR ID.');
         return;
     }
-    const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
+    const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID','WORKER ID'])) === normalize(workerId));
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
     const today = getToday();
+    showLoading(true);
     await postData({ action: 'addKomisen', workerId, workerName, qrId, date: today, amount: 1.00 });
-    showPriceMsg('komisenMsg', '✅ Komisen RM 1.00 berjaya direkodkan!', 'success');
+    showLoading(false);
+    toast('✅ Komisen RM 1.00 berjaya direkodkan!');
     fetchData(null, true);
     setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
+
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
     let workerOptions = '<option value="">-- Pilih Runner --</option>';
     workers.forEach(w => {
         if (getField(w, ['PERANAN'], '') === 'Runner') {
-            const id = escapeHtml(getField(w, ['ID','WORKER_ID'], ''));
+            const id = escapeHtml(getField(w, ['ID','WORKER_ID','WORKER ID'], ''));
             const nama = escapeHtml(getField(w, ['NAMA'], ''));
             workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
         }
@@ -2421,14 +2404,14 @@ function renderWorkerRunner(container) {
             const id = escapeHtml(getField(t, ['ID TUGASAN'], '-'));
             const nama = escapeHtml(getField(t, ['NAMA PEKERJA'], '-'));
             const alamat = escapeHtml(getField(t, ['ALAMAT'], '-'));
-            const tarikh = escapeHtml(String(getField(t, ['TARIKH'], '')).split('T')[0]);
+            const tarikh = escapeHtml(String(getField(t, ['TARIKH'], '')).split('T'));
             const status = normalize(getField(t, ['STATUS'], 'PENDING'));
             const badge = status === 'DELIVERED' || status === 'PICKED_UP' ? 'badge-selesai' : 'badge-proses';
             tasksHtml += `<tr><td><strong>${id}</strong></td><td>${nama}</td><td>${alamat}</td><td>${tarikh}</td><td><span class="badge ${badge}">${status}</span></td></tr>`;
         });
         tasksHtml += '</tbody></table></div>';
     } else {
-        tasksHtml = '<p class="muted">Tiada tugasan.</p>';
+        tasksHtml = '<p class="muted">Tiada tugasan runner dijumpai.</p>';
     }
     container.innerHTML = `
         <h3 class="card-title">🚚 Tambah Tugasan Runner</h3>
@@ -2447,22 +2430,26 @@ function renderWorkerRunner(container) {
         ${tasksHtml}
     `;
 }
+
 async function tambahRunnerTask() {
     const workerId = document.getElementById('runnerSelect').value;
     const alamat = document.getElementById('runnerAlamat').value.trim();
     const tarikh = document.getElementById('runnerTarikh').value;
     const status = document.getElementById('runnerStatus').value;
     if (!workerId || !alamat) {
-        showPriceMsg('runnerMsg', '❌ Sila pilih Runner dan isi Alamat.', 'error');
+        toast('❌ Sila pilih Runner dan isi Alamat.');
         return;
     }
-    const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID'])) === normalize(workerId));
+    const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID','WORKER ID'])) === normalize(workerId));
     const workerName = worker ? getField(worker, ['NAMA'], '') : '';
+    showLoading(true);
     await postData({ action: 'addRunnerTask', workerId, workerName, alamat, tarikh, status });
-    showPriceMsg('runnerMsg', '✅ Tugasan berjaya disimpan!', 'success');
+    showLoading(false);
+    toast('✅ Tugasan berjaya disimpan!');
     fetchData(null, true);
     setTimeout(() => renderWorkerRunner(document.getElementById('workerTabContent')), 1500);
 }
+
     // ================================================================
 //                   BAHAGIAN 2I - PRICE MATRIX
 // ================================================================
