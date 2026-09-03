@@ -126,6 +126,18 @@
         .stiker-box .qr-placeholder img { width: 10mm !important; height: 10mm !important; object-fit: contain; }
         @media print { .no-print { display: none !important; } .stiker-box { border: none !important; } }
     </style>
+    <style>
+@media print {
+  .print-area {
+    width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+</style>
 </head>
 
 
@@ -1863,38 +1875,146 @@ function renderInvoicePreview() {
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid, diskaun, diskaunNote };
 }
 
+async function prepareInvoiceForExport() {
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) throw new Error('Tiada invois dipilih.');
+
+    const clone = element.cloneNode(true);
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    clone.style.top = '0';
+    clone.style.width = '210mm';
+    clone.style.margin = '0 auto';
+    clone.style.padding = '0';
+    document.body.appendChild(clone);
+
+    const images = Array.from(clone.querySelectorAll('img'));
+    await Promise.all(images.map(img => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+            img.onload = resolve;
+            img.onerror = resolve;
+            if (img.src) img.src = img.src;
+        });
+    }));
+
+    return clone;
+}
+
 async function shareInvoiceWithAttachment() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
-    const element = document.getElementById('invoicePrintArea');
-    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+
     const isPaid = data.isPaid;
     const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
     const mimeType = isPaid ? 'application/pdf' : 'image/png';
     toast('Menyediakan lampiran...');
-    let fileBlob;
+
     try {
-        if (isPaid) { const pdfBlob = await html2pdf().set({ margin: [5,5,5,5], filename: fileName, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(element).outputPdf('blob'); fileBlob = pdfBlob; }
-        else { const canvas = await html2canvas(element, { scale: 2, useCORS: true }); fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); }
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
-            const file = new File([fileBlob], fileName, { type: mimeType });
-            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
-            toast('Invois berjaya dikongsi!');
-            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
-            return;
+        const clone = await prepareInvoiceForExport();
+
+        if (isPaid) {
+            const pdfBlob = await html2pdf()
+                .set({
+                    margin: [5, 5, 5, 5],
+                    filename: fileName,
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        windowWidth: clone.scrollWidth,
+                        scrollY: 0,
+                    },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                })
+                .from(clone)
+                .outputPdf('blob');
+
+            if (navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], fileName, { type: mimeType })] })) {
+                const file = new File([pdfBlob], fileName, { type: mimeType });
+                await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
+                toast('Invois berjaya dikongsi!');
+                setTimeout(() => bukaWhatsApp(data.telefon, data.msg), 800);
+                return;
+            }
+            // fallback download
+            const url = URL.createObjectURL(pdfBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('PDF dimuat turun. Sila lampirkan manual di WhatsApp.');
+        } else {
+            const canvas = await html2canvas(clone, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                windowWidth: clone.scrollWidth,
+                scrollY: 0,
+            });
+            const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+            if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: mimeType })] })) {
+                const file = new File([blob], fileName, { type: mimeType });
+                await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
+                toast('Invois berjaya dikongsi!');
+                setTimeout(() => bukaWhatsApp(data.telefon, data.msg), 800);
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('Gambar dimuat turun. Sila lampirkan manual di WhatsApp.');
         }
-    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
-    try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
-    bukaWhatsApp(data.telefon, data.msg);
+        bukaWhatsApp(data.telefon, data.msg);
+    } catch (err) {
+        console.error('Share invoice error:', err);
+        toast('Gagal menyediakan lampiran.');
+    } finally {
+        const oldClone = document.querySelector('body > [style*="position: absolute; left: -9999px;"]');
+        if (oldClone) oldClone.remove();
+    }
 }
 
-function downloadInvoicePDF() {
-    const element = document.getElementById('invoicePrintArea');
-    if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    if (typeof html2pdf === 'undefined') { toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.'); const script = document.createElement('script'); script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'; script.onload = () => { toast('Pustaka PDF siap. Sila cuba lagi.'); }; document.head.appendChild(script); return; }
-    const opt = { margin: [5,5,5,5], filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
-    toast('Sedang menjana PDF...');
-    html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch((err) => { console.error('PDF error:', err); toast('Gagal menjana PDF. Sila cuba lagi.'); });
+async function downloadInvoicePDF() {
+    try {
+        toast('Sedang menyediakan PDF...');
+        const clone = await prepareInvoiceForExport();
+        
+        const opt = {
+            margin: [5, 5, 5, 5],
+            filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                windowWidth: clone.scrollWidth,
+                scrollY: 0,
+                scrollX: 0,
+            },
+            jsPDF: {
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        await html2pdf().set(opt).from(clone).save();
+        toast('PDF berjaya dimuat turun!');
+    } catch (err) {
+        console.error('PDF error:', err);
+        toast('Gagal menjana PDF. Sila cuba lagi.');
+    } finally {
+        const oldClone = document.querySelector('body > [style*="position: absolute; left: -9999px;"]');
+        if (oldClone) oldClone.remove();
+    }
 }
 
 function hantarWhatsAppInvoice() {
