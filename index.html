@@ -2319,7 +2319,6 @@ function renderWorkerCommission(container) {
     
     let workerOptions = '<option value="">-- Pilih Pekerja --</option>';
     workers.forEach(w => {
-        // PEMBETULAN 1: Memastikan ID pekerja dibaca dengan tepat tanpa sensitif huruf besar/kecil
         const id = escapeHtml(getField(w, ['ID', 'WORKER_ID', 'WORKER ID', 'id', 'worker id'], ''));
         const nama = escapeHtml(getField(w, ['NAMA', 'nama'], ''));
         if (id) {
@@ -2332,24 +2331,21 @@ function renderWorkerCommission(container) {
         const st = normalize(getField(k, ['STATUS', 'status']));
         if (st === 'DALAM PROSES') {
             const qr = escapeHtml(String(getField(k, ['QR ID', 'QR_ID', 'qr id'], '')));
-            qrOptions += `<option value="${qr}">${qr}</option>';
+            qrOptions += `<option value="${qr}">${qr}</option>`;
         }
     });
     
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`; // Format: 2026-09
+    const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
     const monthlyKomisen = {};
     
     komisenData.forEach(k => {
-        // PEMBETULAN 2: Memastikan pembacaan tarikh menyokong pelbagai jenis format objek tarikh/string
         let tglRaw = getField(k, ['TARIKH', 'tarikh', 'DATE', 'date'], '');
         if (tglRaw) {
             let tglString = String(tglRaw).trim();
-            // Jika format tarikh adalah ISO (cth: 2026-09-03T00:00:00) atau standard YYYY-MM-DD
             let tglBulan = tglString.substring(0, 7); 
             
             if (tglBulan === currentMonth) {
-                // PEMBETULAN 3: Menyelaraskan ID PEKERJA mengikut huruf besar di Google Sheets anda
                 const wid = String(getField(k, ['ID PEKERJA', 'ID_PEKERJA', 'WORKER ID', 'WORKER_ID'], '')).trim().toUpperCase();
                 const amaun = getNumber(getField(k, ['KOMISEN (RM)', 'KOMISEN', 'komisen'], 0));
                 if (wid) {
@@ -2364,11 +2360,11 @@ function renderWorkerCommission(container) {
         const wid = String(getField(w, ['ID', 'WORKER_ID', 'WORKER ID', 'id'], '')).trim().toUpperCase();
         const nama = getField(w, ['NAMA', 'nama'], '-');
         const total = monthlyKomisen[wid] || 0;
-        laporanHtml += `<li><strong>${escapeHtml(nama)}</strong>: RM ${total.toFixed(2)}</li>`;
+        laporanHtml += '<li><strong>' + escapeHtml(nama) + '</strong>: RM ' + total.toFixed(2) + '</li>';
     });
     laporanHtml += '</ul>';
     
-    container.innerHTML = `
+    const html = `
         <h3 class="card-title">💰 Tambah Komisen Pekerja</h3>
         <div class="row">
             <div class="col form-group"><label>Pilih Pekerja</label><select id="komisenWorkerSelect" class="form-control">${workerOptions}</select></div>
@@ -2378,10 +2374,13 @@ function renderWorkerCommission(container) {
         <div id="komisenMsg" class="mt-16"></div>
         <hr style="margin:20px 0;">
         <h3 class="card-title">📊 Laporan Komisen Bulanan</h3>
-        ${laporanHtml}
+        <div id="laporanKomisenBox"></div>
     `;
+    
+    container.innerHTML = html;
+    const lBox = document.getElementById('laporanKomisenBox');
+    if (lBox) lBox.innerHTML = laporanHtml;
 }
-
 
 async function tambahKomisen() {
     const workerId = document.getElementById('komisenWorkerSelect').value;
