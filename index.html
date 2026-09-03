@@ -1848,8 +1848,7 @@ function renderInvoicePreview() {
         itemsHTML += `<tr><td style="width:5%;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">-${formatMoney(diskaun)}</td><td style="width:22%;text-align:right;">-${formatMoney(diskaun)}</td></tr>`;
     }
 
-    const html = `
-        // Gantikan dengan kod BARU yang nipis ruang atasnya:
+ 
 const html = `
     <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important;">
     <div style="max-width:210mm; margin:0 auto; padding: 2mm 5mm 5mm 5mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
