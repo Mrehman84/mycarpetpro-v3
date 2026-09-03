@@ -2316,40 +2316,58 @@ async function simpanEditPekerja(id) {
 function renderWorkerCommission(container) {
     const workers = STATE.pekerja || [];
     const komisenData = STATE.komisen || [];
+    
     let workerOptions = '<option value="">-- Pilih Pekerja --</option>';
     workers.forEach(w => {
-        const id = escapeHtml(getField(w, ['ID','WORKER_ID','WORKER ID'], ''));
-        const nama = escapeHtml(getField(w, ['NAMA'], ''));
+        // PEMBETULAN 1: Memastikan ID pekerja dibaca dengan tepat tanpa sensitif huruf besar/kecil
+        const id = escapeHtml(getField(w, ['ID', 'WORKER_ID', 'WORKER ID', 'id', 'worker id'], ''));
+        const nama = escapeHtml(getField(w, ['NAMA', 'nama'], ''));
         if (id) {
             workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
         }
     });
+    
     let qrOptions = '<option value="">-- Pilih QR ID --</option>';
     STATE.karpet.forEach(k => {
-        const st = normalize(getField(k, ['STATUS']));
+        const st = normalize(getField(k, ['STATUS', 'status']));
         if (st === 'DALAM PROSES') {
-            const qr = escapeHtml(String(getField(k, ['QR ID','QR_ID'], '')));
-            qrOptions += `<option value="${qr}">${qr}</option>`;
+            const qr = escapeHtml(String(getField(k, ['QR ID', 'QR_ID', 'qr id'], '')));
+            qrOptions += `<option value="${qr}">${qr}</option>';
         }
     });
+    
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`;
+    const currentMonth = `${now.getFullYear()}-${('0' + (now.getMonth() + 1)).slice(-2)}`; // Format: 2026-09
     const monthlyKomisen = {};
+    
     komisenData.forEach(k => {
-        const tgl = String(getField(k, ['TARIKH'], '')).substring(0, 7);
-        if (tgl === currentMonth) {
-            const wid = getField(k, ['ID PEKERJA', 'WORKER ID', 'WORKER_ID'], '');
-            monthlyKomisen[wid] = (monthlyKomisen[wid] || 0) + getNumber(getField(k, ['KOMISEN (RM)', 'KOMISEN'], 0));
+        // PEMBETULAN 2: Memastikan pembacaan tarikh menyokong pelbagai jenis format objek tarikh/string
+        let tglRaw = getField(k, ['TARIKH', 'tarikh', 'DATE', 'date'], '');
+        if (tglRaw) {
+            let tglString = String(tglRaw).trim();
+            // Jika format tarikh adalah ISO (cth: 2026-09-03T00:00:00) atau standard YYYY-MM-DD
+            let tglBulan = tglString.substring(0, 7); 
+            
+            if (tglBulan === currentMonth) {
+                // PEMBETULAN 3: Menyelaraskan ID PEKERJA mengikut huruf besar di Google Sheets anda
+                const wid = String(getField(k, ['ID PEKERJA', 'ID_PEKERJA', 'WORKER ID', 'WORKER_ID'], '')).trim().toUpperCase();
+                const amaun = getNumber(getField(k, ['KOMISEN (RM)', 'KOMISEN', 'komisen'], 0));
+                if (wid) {
+                    monthlyKomisen[wid] = (monthlyKomisen[wid] || 0) + amaun;
+                }
+            }
         }
     });
+    
     let laporanHtml = '<h4>Komisen Bulan Ini</h4><ul>';
     workers.forEach(w => {
-        const wid = getField(w, ['ID','WORKER_ID','WORKER ID'], '');
-        const nama = getField(w, ['NAMA'], '-');
+        const wid = String(getField(w, ['ID', 'WORKER_ID', 'WORKER ID', 'id'], '')).trim().toUpperCase();
+        const nama = getField(w, ['NAMA', 'nama'], '-');
         const total = monthlyKomisen[wid] || 0;
-        laporanHtml += `<li>${escapeHtml(nama)}: RM ${total.toFixed(2)}</li>`;
+        laporanHtml += `<li><strong>${escapeHtml(nama)}</strong>: RM ${total.toFixed(2)}</li>`;
     });
     laporanHtml += '</ul>';
+    
     container.innerHTML = `
         <h3 class="card-title">💰 Tambah Komisen Pekerja</h3>
         <div class="row">
