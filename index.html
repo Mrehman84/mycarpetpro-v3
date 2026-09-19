@@ -2737,7 +2737,7 @@ function generateBarcodePreview() {
     });
 
 
-        const html = `
+          const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
@@ -2757,7 +2757,6 @@ function generateBarcodePreview() {
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 try {
-                    // KOD ASAL ANDA YANG SEMPURNA: Parameter 120x120 dikekalkan untuk kestabilan penuh rendering library qrcodeJS
                     new QRCode(qrContainer, {
                         text: k.qrId, 
                         width: 120,
@@ -2767,8 +2766,6 @@ function generateBarcodePreview() {
                         correctLevel: QRCode.CorrectLevel.L
                     });
 
-                    // PENGKUNCIAN SAIZ PREVIEW: Menggunakan pengiraan milimeter statik (previewQrSizeMm) 
-                    // bagi memastikan kod QR kelihatan sempurna di skrin utama tanpa mengecil ke 0px
                     const qrImg = qrContainer.querySelector('img');
                     if (qrImg) {
                         const targetSize = (currentPaperHeight * 0.43).toFixed(1) + 'mm';
@@ -2786,27 +2783,29 @@ function generateBarcodePreview() {
         console.log("[DEBUG] Selesai rendering QRCode skrin preview utama.");
     }, 50);
 }
-// SENI BINA PINTAR: FUNGSI CETAKAN DIKEMAS KINI MENGGUNAKAN IMAGE DECODING PIPELINE & DOM ARTIFACT BRIDGING
+
 async function printStikers() {
     const grid = document.getElementById('stikerGrid');
     const previewStickers = document.querySelectorAll('#stikerGrid .stiker-box');
     
     if (!grid || !previewStickers.length) return toast('Tiada stiker aktif untuk dicetak.');
     
-    console.log("[DEBUG MODE] Memulakan Pipeline Pencetakan Silang Dokumen. Bilangan: " + previewStickers.length);
+    // Ambil nilai nombor invois aktif untuk dijadikan tajuk fail dokumen cetak
+    const invNo = document.getElementById('barcodeInvoiceSelect').value || 'INVOIS';
     
-    // Buka tetingkap cetakan kosong
+    console.log("[DEBUG MODE] Memulakan Pipeline Pencetakan Silang Dokumen untuk Invois: " + invNo);
+    
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (!printWindow) {
         return toast('Ralat: Sila benarkan tetapan Pop-up Blocker di pelayar web anda.');
     }
 
-    // Bina asas kerangka HTML dan tetapan CSS @page margin sifar mutlak ke dalam tetingkap baharu
+    // PEMBETULAN UTAMA: Tag <title> ditukar secara dinamik kepada format nama No Invois 
+    // supaya apabila disimpan ke PDF, Chrome auto-suggest nama fail mengikut kod invois tersebut.
     printWindow.document.write(`
         <html>
         <head>
             <title>Stiker_Barcode_${invNo}_(${currentPaperWidth}x${currentPaperHeight})</title>
-
             <style>
                 * { box-sizing: border-box; margin: 0 !important; padding: 0 !important; }
                 @page { size: ${currentPaperWidth}mm ${currentPaperHeight}mm; margin: 0 !important; }
@@ -2841,58 +2840,46 @@ async function printStikers() {
     const imageDecodePromises = [];
     const printQrSizeMm = (currentPaperHeight * 0.43).toFixed(1);
 
-    // Kitaran imbasan elemen: Memindahkan data bitmap asal skrin ke dalam tetingkap cetak secara tulen
     for (let i = 0; i < previewStickers.length; i++) {
         const sourceBox = previewStickers[i];
-        
-        // KUNCI UTAMA: Cari elemen canvas tulen yang memegang data piksel barcode asal di skrin preview
         const sourceCanvas = sourceBox.querySelector('canvas');
         if (!sourceCanvas) {
-            console.error(`[FAILURE HANDLING] Kegagalan Kritikal: Canvas tidak dijumpai pada stiker indeks ${i}`);
+            console.error(`[FAILURE HANDLING] Canvas tidak dijumpai pada stiker indeks ${i}`);
             toast(`Cetak Dibatalkan: Kegagalan grafik QRCode pada stiker karpet #${i+1}.`);
             printWindow.close();
             return;
         }
 
-        // Ekstraksi data piksel tulen kanvas ke format png Base64 DataURL
         const qrDataUrl = sourceCanvas.toDataURL("image/png");
-        console.log(`[DEBUG] Ekstraksi bitmap stiker #${i+1} berjaya. Ukuran DataURL: ${qrDataUrl.length} aksara`);
 
-        // Duplikasi elemen teks menggunakan DOM API tulen (Kalis ralat innerHTML)
         const printBox = printWindow.document.createElement('div');
         printBox.className = 'stiker-box';
 
         const titleDiv = printWindow.document.createElement('div');
+        titleDiv.className = 'stiker-title';
         titleDiv.textContent = sourceBox.querySelector('.stiker-title').textContent;
-        titleDiv.style.cssText = sourceBox.querySelector('.stiker-title').style.cssText;
 
         const invDiv = printWindow.document.createElement('div');
+        invDiv.className = 'stiker-inv';
         invDiv.textContent = sourceBox.querySelector('.stiker-inv').textContent;
-        invDiv.style.cssText = sourceBox.querySelector('.stiker-inv').style.cssText;
 
-        // PEMBETULAN MUTLAK: Bina objek Image baharu secara tulen ke dalam dokumen cetak
         const qrPlaceholder = printWindow.document.createElement('div');
         qrPlaceholder.className = 'qr-placeholder';
         qrPlaceholder.style.cssText = `width:100%; height:${printQrSizeMm}mm; display:block; text-align:center; margin:0 auto; overflow:hidden;`;
 
         const qrImg = printWindow.document.createElement('img');
         qrImg.className = 'qr-print';
-        
-        // MENGEMBALIKAN LOGIK KOD ASAL ANDA: Saiz dikunci mati menggunakan unit milimeter (mm) fizikal tetap
         qrImg.style.cssText = `width:${printQrSizeMm}mm !important; height:${printQrSizeMm}mm !important; max-width:${printQrSizeMm}mm !important; max-height:${printQrSizeMm}mm !important; display:block !important; margin:0 auto !important; object-fit:contain !important;`;
-        
-        // Suap data bitmap Base64 terus ke imej cetakan baharu tanpa bergantung pada cache pelayar
         qrImg.src = qrDataUrl; 
 
         const qridDiv = printWindow.document.createElement('div');
+        qridDiv.className = 'stiker-qrid';
         qridDiv.textContent = sourceBox.querySelector('.stiker-qrid').textContent;
-        qridDiv.style.cssText = sourceBox.querySelector('.stiker-qrid').style.cssText;
 
         const metaDiv = printWindow.document.createElement('div');
+        metaDiv.className = 'stiker-meta';
         metaDiv.innerHTML = sourceBox.querySelector('.stiker-meta').innerHTML;
-        metaDiv.style.cssText = sourceBox.querySelector('.stiker-meta').style.cssText;
 
-        // Satukan sub-elemen ke dalam kotak stiker cetak
         qrPlaceholder.appendChild(qrImg);
         printBox.appendChild(titleDiv);
         printBox.appendChild(invDiv);
@@ -2901,28 +2888,22 @@ async function printStikers() {
         printBox.appendChild(metaDiv);
         printContainer.appendChild(printBox);
 
-        // GERBANG JANJI PENYAHKODAN (Promise Image Decode Lifecycle)
-        // Memaksa pelayar web Blink/Chromium menunggu sehingga memori grafik imej selesai dinyahkod penuh
         const decodePromise = qrImg.decode().then(() => {
-            console.log(`[DEBUG] Penyahkodan Imej Berjaya. Stiker #${i+1}: naturalWidth = ${qrImg.naturalWidth}px, naturalHeight = ${qrImg.naturalHeight}px`);
             if (qrImg.naturalWidth === 0 || qrImg.naturalHeight === 0) {
-                throw new Error(`Dimensi hakiki runtuh (0px) pada stiker #${i+1}`);
+                throw new Error(`Dimensi hakiki runtuh pada stiker #${i+1}`);
             }
         });
         imageDecodePromises.push(decodePromise);
     }
 
     try {
-        // Tunggu sehingga kesemua imej stiker selesai dinyahkod secara 100% sempurna
         await Promise.all(imageDecodePromises);
-        console.log("[DEBUG MODE] Semua grafik stiker sedia dan disahkan selamat (Kalis Ralat Garisan 1px). Mencetuskan arahan Cetak.");
-        
         printWindow.focus();
         printWindow.print();
         printWindow.close();
     } catch (error) {
-        console.error("[FAILURE HANDLING] Kegagalan Proses Penyahkodan Dokumen Cetak:", error);
-        toast("Ralat Cetak: Proses grafik gagal di latar belakang peranti mudah alih.");
+        console.error("[FAILURE HANDLING] Kegagalan Penyahkodan:", error);
+        toast("Ralat Cetak: Proses grafik gagal di latar belakang peranti.");
         printWindow.close();
     }
 }
@@ -2931,7 +2912,6 @@ function simpanPDFStikers() {
     printStikers(); 
 }
 
-// PEMBETULAN KAWALAN GAMBAR TERPISAH PUKAL (NATIVE MULTI-DOWNLOAD):
 async function simpanGambarStikers() {
     const stickerBoxes = document.querySelectorAll('#stikerGrid .stiker-box');
     if (!stickerBoxes.length) return toast('Tiada stiker untuk disimpan.');
@@ -2944,7 +2924,7 @@ async function simpanGambarStikers() {
         
         try {
             const canvas = await html2canvas(box, { 
-                scale: 3, // Menggunakan skala resolusi tinggi 3x agar hasil cetakan telefon pintar tajam dan tidak pecah
+                scale: 3, 
                 useCORS: true,
                 backgroundColor: '#ffffff'
             });
@@ -2952,8 +2932,6 @@ async function simpanGambarStikers() {
             link.download = `Stiker_QR_${qrIdText}_(${currentPaperWidth}x${currentPaperHeight}).png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
-            
-            // Memberikan sela masa mikro 300ms bagi menghalang browser sandbox daripada menyekat muat turun pukal
             await new Promise(resolve => setTimeout(resolve, 300));
         } catch (err) {
             console.error('[ERROR] Gagal mengeksport fail gambar stiker indeks:', i, err);
@@ -2961,6 +2939,7 @@ async function simpanGambarStikers() {
     }
     toast('Semua gambar stiker terasing berjaya disimpan ke peranti!');
 }
+
 
 
     // ================================================================
