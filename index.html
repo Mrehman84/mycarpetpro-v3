@@ -2624,7 +2624,7 @@ async function saveBulkPrices() {
 
 
 // ================================================================
-//          BAHAGIAN 2J - BARCODE (SENI BINA BRIDGING GRAFIK TULEN)
+//          BAHAGIAN 2J - BARCODE (FORMULA MILIMETER TETAP)
 // ================================================================
 
 // Pembolehubah global untuk menyimpan dimensi saiz kertas semasa (Lalai mengikut dropdown)
@@ -2634,7 +2634,7 @@ let currentPaperHeight = 30;
 function renderBarcode(container) {
     const invSet = new Set();
     
-    // PENAPISAN DATA UTAMA: Hanya mengambil senarai karpet aktif (Belum selesai dihantar) untuk dropdown yang bersih
+    // PENAPISAN DATA: Semak senarai karpet aktif (Belum selesai dihantar) sahaja untuk dropdown yang bersih
     STATE.karpet.forEach(k => {
         if (!k) return;
         const st = normalize(getField(k, ['STATUS']));
@@ -2648,6 +2648,7 @@ function renderBarcode(container) {
 
     const invList = [];
     invSet.forEach(inv => {
+        // PEMBETULAN MUTLAK: Ralat sintaks 'STATE.tempapan =' telah dibuang sepenuhnya dari baris ini
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const nama = getField(cust, ['NAMA'], '');
@@ -2659,7 +2660,7 @@ function renderBarcode(container) {
     invList.sort((a, b) => b.inv.localeCompare(a.inv));
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)}</option>`).join('');
     
-    // MEMBACA MEMORI CACHE: Ambil saiz memori pilihan terakhir pengguna (jika ada, lalai 50x30)
+    // MEMBACA PERSISTENT CACHE: Ambil saiz memori pilihan terakhir pengguna (jika ada, lalai 50x30)
     const savedSize = localStorage.getItem('mycarpet_last_barcode_size') || "50x30";
     const [savedW, savedH] = savedSize.split('x');
     currentPaperWidth = parseInt(savedW);
@@ -2667,7 +2668,7 @@ function renderBarcode(container) {
 
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Seni Bina Gred Industri: Kalis ralat penyahkodan Chromium & Pembungkus PDF Stabil</p></div></header>
+        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Dioptimumkan untuk kawalan saiz kertas thermal pasaran secara dinamik</p></div></header>
         <div class="card">
             <div class="form-group"><label>Pilih Invois Aktif</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
             
@@ -2718,26 +2719,24 @@ function generateBarcodePreview() {
         };
     });
 
-    // DIAGNOSTIK PREVIEW: Hitung nisbah ideal ruang QR (43% daripada tinggi acuan kertas fizikal)
-    const previewQrSizeMm = (currentPaperHeight * 0.43).toFixed(1);
+    // PENGIRAAN NYATA PREVIEW: Menetapkan saiz milimeter tegar untuk ruang QR di skrin (42% dari tinggi kertas)
+    const previewQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
 
     let stikersHTML = '';
     carpetsData.forEach((k, idx) => {
         stikersHTML += `
-            <div class="stiker-box" data-idx="${idx}" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:calc(${currentPaperHeight}mm * 0.05) calc(${currentPaperWidth}mm * 0.04); box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; margin:1mm; page-break-after:always; background:#fff; overflow:hidden; flex-shrink:0;">
-                <div class="stiker-title" style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.1px; color:#333; text-align:center; width:100%; line-height:1;">MYCARPET PRO v3.3</div>
-                <div class="stiker-inv" style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.3px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
+            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:calc(${currentPaperHeight}mm * 0.05) calc(${currentPaperWidth}mm * 0.04); box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; margin:1mm; page-break-after:always; background:#fff; overflow:hidden; flex-shrink:0;">
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.1px; color:#333; text-align:center; width:100%; line-height:1;">MYCARPET PRO v3.3</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.3px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
                 
-                <!-- Bekas kontena QR di skrin preview dilukis menggunakan saiz milimeter statik anjal -->
+                <!-- Kawalan saiz menggunakan unit milimeter tetap statik yang selamat -->
                 <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:${previewQrSizeMm}mm; display:block; text-align:center; margin:0 auto; overflow:hidden;"></div>
                 
-                <div class="stiker-qrid" style="font-size:calc(${currentPaperHeight}mm * 0.065); font-weight:bold; font-family:monospace; letter-spacing:0.2px; text-align:center; width:100%; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
-                <div class="stiker-meta" style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.065); font-weight:bold; font-family:monospace; letter-spacing:0.2px; text-align:center; width:100%; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
-
-
-       const html = `
+    const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
@@ -2749,7 +2748,7 @@ function generateBarcodePreview() {
         <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:2mm; justify-content:center; align-items:flex-start;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
-    // PENGIRAAN NYATA PREVIEW: Menetapkan saiz milimeter tegar untuk ruang QR di skrin (42% dari tinggi kertas)
+    // Hitung semula baki milimeter bagi memastikan data rendering imej sepadan
     const previewQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
 
     setTimeout(() => {
@@ -2758,7 +2757,6 @@ function generateBarcodePreview() {
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 try {
-                    // KEKALKAN KOD ASAL: Parameter standard 120x120 qrcode.js dikembalikan penuh demi kestabilan preview
                     new QRCode(qrContainer, {
                         text: k.qrId, 
                         width: 120,
@@ -2768,7 +2766,6 @@ function generateBarcodePreview() {
                         correctLevel: QRCode.CorrectLevel.L
                     });
 
-                    // Kawalan saiz preview menggunakan unit milimeter tetap, kalis ralat hilang/mengecil ke 0px
                     const qrImg = qrContainer.querySelector('img');
                     if (qrImg) {
                         qrImg.style.width = previewQrSizeMm + 'mm';
@@ -2785,7 +2782,6 @@ function generateBarcodePreview() {
     }, 100);
 }
 
-// FUNGSI CETAKAN ASAL: Menggunakan konsep window.open() asal anda bersama suntikan ukuran milimeter tetap
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2796,12 +2792,10 @@ function printStikers() {
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
     // PENGIRAAN NYATA CETAKAN: Mengira saiz milimeter statik untuk imej QR semasa mencetak (42% dari tinggi kertas)
-    // Contoh: Jika tinggi kertas 30mm, saiz QR dikunci tegar pada 12.6mm. Jika tinggi 20mm, saiz QR dikunci tegar pada 8.4mm.
     const printQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
     
-    // PEMBETULAN MUTLAK: Menggunakan konsep asal innerHTML anda. Semua unit peratusan (%) dan vh/vw dibuang sepenuhnya.
-    // Aturan CSS dipaksa menggunakan unit milimeter (mm) statik tulen supaya Chrome laptop tidak melipat imej 
-    // dan Chrome telefon tidak menjadikannya bersaiz kertas besar A4.
+    // FORMAT ASAL DIKEMBALIKAN: Saiz kotak dan barcode dikunci mati menggunakan unit mm fizikal tegar 
+    // bagi mengelakkan Chromium laptop melipat imej dan Chromium telefon membesarkannya menjadi saiz A4 kosong.
     printWindow.document.write(`
         <html>
         <head>
@@ -2826,7 +2820,6 @@ function printStikers() {
                     box-sizing: border-box !important; 
                     overflow: hidden !important;
                 }
-                /* Kunci mati saiz imej dan kanvas menggunakan ukuran mm fizikal tegar mengikut formula printQrSizeMm */
                 .stiker-box table, .stiker-box canvas, .stiker-box img { 
                     width: ${printQrSizeMm}mm !important; 
                     height: ${printQrSizeMm}mm !important; 
@@ -2845,7 +2838,7 @@ function printStikers() {
     printWindow.document.close();
     printWindow.focus();
     
-    // Lenggangan masa 1200ms dikekalkan untuk memastikan pelayar selesai menyalin data grafik kanvas ke tab baharu
+    // Masa lenggangan selamat 1200ms bagi memastikan data grafik disalin sempurna
     setTimeout(() => { 
         printWindow.print(); 
         printWindow.close(); 
@@ -2856,7 +2849,6 @@ function simpanPDFStikers() {
     printStikers(); 
 }
 
-// KEKALKAN FUNGSI SIMPAN GAMBAR TERPISAH PUKAL YANG STABIL
 async function simpanGambarStikers() {
     const stickerBoxes = document.querySelectorAll('#stikerGrid .stiker-box');
     if (!stickerBoxes.length) return toast('Tiada stiker untuk disimpan.');
