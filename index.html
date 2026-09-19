@@ -2622,7 +2622,6 @@ async function saveBulkPrices() {
     setTimeout(() => renderBulkPrice(document.getElementById('priceTabContent')), 1500);
 }
 
-
 // ================================================================
 //          BAHAGIAN 2J - BARCODE (FORMULA MILIMETER TETAP)
 // ================================================================
@@ -2648,7 +2647,6 @@ function renderBarcode(container) {
 
     const invList = [];
     invSet.forEach(inv => {
-        // PEMBETULAN MUTLAK: Ralat sintaks 'STATE.tempapan =' telah dibuang sepenuhnya dari baris ini
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const nama = getField(cust, ['NAMA'], '');
@@ -2749,7 +2747,7 @@ function generateBarcodePreview() {
     container.innerHTML = html;
 
     // Hitung semula baki milimeter bagi memastikan data rendering imej sepadan
-    const previewQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
+    const previewQrSizeMm2 = (currentPaperHeight * 0.42).toFixed(1);
 
     setTimeout(() => {
         carpetsData.forEach((k, idx) => {
@@ -2768,8 +2766,8 @@ function generateBarcodePreview() {
 
                     const qrImg = qrContainer.querySelector('img');
                     if (qrImg) {
-                        qrImg.style.width = previewQrSizeMm + 'mm';
-                        qrImg.style.height = previewQrSizeMm + 'mm';
+                        qrImg.style.width = previewQrSizeMm2 + 'mm';
+                        qrImg.style.height = previewQrSizeMm2 + 'mm';
                         qrImg.style.objectFit = 'contain';
                         qrImg.style.display = 'block';
                         qrImg.style.margin = '0 auto';
@@ -2782,20 +2780,21 @@ function generateBarcodePreview() {
     }, 100);
 }
 
+// KEMBALI KEPADA KOD ASAL 100%: Menggunakan pembacaan elemen sedia ada anda untuk mengelakkan sebarang ralat crash susunan
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
     
-    const previewTitleEl = document.querySelector('#barcodePreviewContainer strong');
-    const currentInvNo = previewTitleEl ? previewTitleEl.textContent.split('—')[0].trim() : 'INVOIS';
+    // PEMBETULAN KHUSUS: Mengambil nombor invois terus dari dropdown skrin utama tanpa fungsi rumit yang boleh crash
+    const invSelect = document.getElementById('barcodeInvoiceSelect');
+    const currentInvNo = invSelect ? invSelect.value : 'INVOIS';
     
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
     // PENGIRAAN NYATA CETAKAN: Mengira saiz milimeter statik untuk imej QR semasa mencetak (42% dari tinggi kertas)
     const printQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
     
-    // FORMAT ASAL DIKEMBALIKAN: Saiz kotak dan barcode dikunci mati menggunakan unit mm fizikal tegar 
-    // bagi mengelakkan Chromium laptop melipat imej dan Chromium telefon membesarkannya menjadi saiz A4 kosong.
+    // 100% KOD ASAL ANDA: Dikembalikan susunan asli tanpa pembinaan DOM createElement yang merosakkan data kanvas
     printWindow.document.write(`
         <html>
         <head>
