@@ -2805,7 +2805,8 @@ async function printStikers() {
     printWindow.document.write(`
         <html>
         <head>
-            <title>Cetak Stiker Barcode Dinamik</title>
+            <title>Stiker_Barcode_${invNo}_(${currentPaperWidth}x${currentPaperHeight})</title>
+
             <style>
                 * { box-sizing: border-box; margin: 0 !important; padding: 0 !important; }
                 @page { size: ${currentPaperWidth}mm ${currentPaperHeight}mm; margin: 0 !important; }
