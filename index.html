@@ -2623,8 +2623,25 @@ async function saveBulkPrices() {
 }
 
 
+
+
+
+    // ================================================================
+//          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
 // ================================================================
-//          BAHAGIAN 2J - BARCODE (TEKNOLOGI IMEJ TULEN)
+
+// ================================================================
+//  BAHAGIAN 1: ANTARA MUKA HTML BORANG PERBELANJAAN (renderExpenses)
+// ================================================================
+
+function renderExpenses(container) {
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
+        <div class="card" id="expenseFormContainer">
+            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
+            <input type="hidden" id="expenseEditId">// ================================================================
+//          BAHAGIAN 2J - BARCODE (KEMAS KINI STRUKTUR PEMBETULAN)
 // ================================================================
 
 // Pembolehubah global untuk menyimpan dimensi saiz kertas semasa (Lalai mengikut dropdown)
@@ -2648,16 +2665,18 @@ function renderBarcode(container) {
 
     const invList = [];
     invSet.forEach(inv => {
-        const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
+        const order = STATE.tempapan = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const nama = getField(cust, ['NAMA'], '');
         const alamat = getField(cust, ['ALAMAT'], '');
         invList.push({ inv, nama, alamat });
     });
     
+    // Susun invois terkini sentiasa berada di bahagian atas senarai
     invList.sort((a, b) => b.inv.localeCompare(a.inv));
     const invoiceOptions = invList.map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)}</option>`).join('');
     
+    // MEMBACA PERSISTENT CACHE: Ambil saiz memori pilihan terakhir pengguna (jika ada, lalai 50x30)
     const savedSize = localStorage.getItem('mycarpet_last_barcode_size') || "50x30";
     const [savedW, savedH] = savedSize.split('x');
     currentPaperWidth = parseInt(savedW);
@@ -2665,7 +2684,7 @@ function renderBarcode(container) {
 
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Sistem Grafik Termaju: Kalis ralat PDF dan muat turun imej pukal stabil</p></div></header>
+        <header><div><h1>🏷️ Cetak Barcode Karpet</h1><p class="muted">Dioptimumkan untuk kawalan saiz kertas thermal pasaran secara dinamik</p></div></header>
         <div class="card">
             <div class="form-group"><label>Pilih Invois Aktif</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
             
@@ -2716,113 +2735,86 @@ function generateBarcodePreview() {
         };
     });
 
-    // MEMBINA STRUKTUR TERSEMBUNYI (OFF-SCREEN GHOST DOM) UNTUK PENGGUBAHAN GRAPHIC RENDERER
-    let hiddenHTML = `<div id="hiddenRenderGrid" style="position:absolute; left:-9999px; top:-9999px; display:flex; flex-direction:column; background:#fff;">`;
+    let stikersHTML = '';
     carpetsData.forEach((k, idx) => {
-        hiddenHTML += `
-            <div class="raw-stiker-box" id="raw-box-${idx}" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; padding:calc(${currentPaperHeight}mm * 0.05) calc(${currentPaperWidth}mm * 0.05); box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; background:#ffffff; overflow:hidden;">
+        // PEMBETULAN STRUKTUR PINTAR: Saiz kotak dikunci secara statik (mm) manakala reka bentuk dalaman bertindak balas automatik
+        // menggunakan skala kalkulasi calc() berasaskan peratusan saiz kertas thermal pasaran agar teks tidak melimpah keluar.
+        stikersHTML += `
+            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:calc(${currentPaperHeight}mm * 0.04) calc(${currentPaperWidth}mm * 0.04); box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; margin:1mm; page-break-after:always; background:#fff; overflow:hidden; flex-shrink:0;">
                 <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.1px; color:#333; text-align:center; width:100%; line-height:1;">MYCARPET PRO v3.3</div>
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.2px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.3px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
                 
-                <!-- Ruang fizikal kod QR yang dikunci pada kedudukan tengah mutlak -->
-                <div class="raw-qr-holder" id="raw-qr-${idx}" style="width:100%; height:40%; display:flex; align-items:center; justify-content:center; margin:0.5px auto; overflow:hidden;"></div>
+                <!-- Kontena QR fleksibel berasaskan 40% tinggi ruang fizikal kertas -->
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:40%; display:block; text-align:center; margin:0 auto; overflow:hidden;"></div>
                 
                 <div style="font-size:calc(${currentPaperHeight}mm * 0.065); font-weight:bold; font-family:monospace; letter-spacing:0.2px; text-align:center; width:100%; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
                 <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
-    hiddenHTML += `</div>`;
-
-    // Buang grid tersembunyi lama jika wujud, pasang yang baharu
-    const oldHidden = document.getElementById('hiddenRenderGrid');
-    if (oldHidden) oldHidden.remove();
-    document.body.insertAdjacentHTML('beforeend', hiddenHTML);
-
-
-        // Sediakan ruang paparan untuk imej stiker png yang telah siap digubah
     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
-            <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>Jumlah karpet: ${carpets.length} | Status Enjin: Grafik `.png` Tulen Sedia Ada</small></div>
+            <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
-                <button class="btn btn-primary btn-sm" onclick="printStikers()"><i class="fa-solid fa-print"></i> Cetak Semua / PDF</button>
+                <button class="btn btn-primary btn-sm" onclick="printStikers()"><i class="fa-solid fa-print"></i> Cetak Semua</button>
+                <button class="btn btn-secondary btn-sm" onclick="simpanPDFStikers()"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="simpanGambarStikers()"><i class="fa-solid fa-image"></i> Simpan Gambar Terpisah</button>
             </div>
         </div>
-        <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:4mm; justify-content:center; align-items:flex-start; padding:15px; background:#e9ecef; border-radius:8px;">
-            <p class="muted" id="loading-graphic-text">🤖 Sedang memproses seni bina imej stiker kalis ralat...</p>
-        </div>`;
+        <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:2mm; justify-content:center; align-items:flex-start;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
-    // FASA 1: Jana kod QR digital asli ke dalam grid tersembunyi dahulu
-    carpetsData.forEach((k, idx) => {
-        const qrContainer = document.getElementById(`raw-qr-${idx}`);
-        if (qrContainer) {
-            try {
-                new QRCode(qrContainer, {
-                    text: k.qrId, 
-                    width: 120,
-                    height: 120,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.L
-                });
-                const img = qrContainer.querySelector('img');
-                if (img) { img.style.width = '100%'; img.style.height = '100%'; img.style.objectFit = 'contain'; }
-            } catch (e) { console.error(e); }
-        }
-    });
+    // PEMBETULAN SEGERA PAPARAN: Urutan pemanggilan QRCode diaktifkan sejurus selepas innerHTML selesai disuap ke DOM
+    setTimeout(() => {
+        carpetsData.forEach((k, idx) => {
+            const qrContainer = document.getElementById(`qr-stiker-${idx}`);
+            if (qrContainer) {
+                qrContainer.innerHTML = '';
+                try {
+                    // Saiz piksel integer standard 120x120 dikekalkan untuk menjamin kestabilan modul qrcodeJS
+                    new QRCode(qrContainer, {
+                        text: k.qrId, 
+                        width: 120,
+                        height: 120,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.L
+                    });
 
-    // FASA 2: Tukar elemen tersembunyi kepada imej PNG Tulen menggunakan html2canvas
-    setTimeout(async () => {
-        if (typeof html2canvas === 'undefined') {
-            document.getElementById('stikerGrid').innerHTML = '<p class="text-danger">Pustaka html2canvas tidak dijumpai.</p>';
-            return;
-        }
-
-        const targetGrid = document.getElementById('stikerGrid');
-        let finalImagesHTML = '';
-
-        for (let i = 0; i < carpetsData.length; i++) {
-            const rawBox = document.getElementById(`raw-box-${i}`);
-            try {
-                const canvas = await html2canvas(rawBox, {
-                    scale: 3, // Skala dipertingkatkan ke 3x ganda agar teks super tajam dan tidak pecah apabila disimpan
-                    useCORS: true,
-                    backgroundColor: '#ffffff'
-                });
-                const dataUrl = canvas.toDataURL('image/png');
-                
-                // PEMBETULAN UTAMA PREVIEW: Memaparkan imej tulen png pada skrin.
-                // Saiz dilaraskan menggunakan unit mm fizikal yang anjal mengikut pilihan pengguna
-                finalImagesHTML += `
-                    <img class="stiker-pure-img" src="${dataUrl}" data-qrid="${carpetsData[i].qrId}" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px solid #ccc; box-shadow:0 2px 4px rgba(0,0,0,0.15); background:#fff; object-fit:contain; display:block;" />`;
-            } catch (err) {
-                console.error('Ralat pemprosesan grafik stiker:', i, err);
+                    // Pengecilan grafik diatur melalui CSS responsif peratusan penuh mengikut bekas kontena
+                    const qrImg = qrContainer.querySelector('img');
+                    const qrCanvas = qrContainer.querySelector('canvas');
+                    if (qrImg) {
+                        qrImg.style.width = 'auto';
+                        qrImg.style.height = '100%';
+                        qrImg.style.maxHeight = '100%';
+                        qrImg.style.objectFit = 'contain';
+                        qrImg.style.display = 'block';
+                        qrImg.style.margin = '0 auto';
+                    }
+                    if (qrCanvas) {
+                        qrCanvas.style.width = 'auto';
+                        qrCanvas.style.height = '100%';
+                        qrCanvas.style.maxHeight = '100%';
+                        qrCanvas.style.objectFit = 'contain';
+                        qrCanvas.style.display = 'block';
+                        qrCanvas.style.margin = '0 auto';
+                    }
+                } catch (e) {
+                    console.error('Gagal jana QR untuk stiker', idx, e);
+                }
             }
-        }
-
-        targetGrid.innerHTML = finalImagesHTML;
-        
-        // Bersihkan semula ghost DOM daripada memori selepas selesai proses gubahan grafik
-        const hiddenDOM = document.getElementById('hiddenRenderGrid');
-        if (hiddenDOM) hiddenDOM.remove();
-        
-    }, 200);
+        });
+    }, 50);
 }
 
-// PEMBETULAN MUTLAK CETAKAN/PDF: Mengirim fail imej tulen statik (.png) secara langsung 
-// ke driver pencetak browser. Oleh kerana ia adalah imej siap gubah, barcode TIDAK AKAN HILANG lagi!
 function printStikers() {
-    const pureImages = document.querySelectorAll('#stikerGrid .stiker-pure-img');
-    if (!pureImages.length) return toast('Grafik stiker belum sedia.');
-    
+    const grid = document.getElementById('stikerGrid');
+    if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    let imgTagsHTML = '';
     
-    pureImages.forEach(img => {
-        imgTagsHTML += `<img src="${img.src}" style="width:${currentPaperWidth}mm !important; height:${currentPaperHeight}mm !important; page-break-after:always !important; display:block !important; margin:0 !important; padding:0 !important;" />`;
-    });
-
+    // PEMBETULAN MUTLAK KEDUDUKAN & KEROSAKAN BARCODE PDF:
+    // 1. Mengunci saiz kontena imej QR menggunakan unit peratusan tinggi tingkap cetakan (vh) bagi menghalang Chrome daripada meruntuhkan piksel.
+    // 2. Menghapuskan margin bawaan browser (@page margin: 0) bagi mengelakkan sempadan halaman terpotong atau terbahagi dua.
     printWindow.document.write(`
         <html>
         <head>
@@ -2830,68 +2822,94 @@ function printStikers() {
             <style>
                 * { box-sizing: border-box; margin: 0 !important; padding: 0 !important; }
                 @page { size: ${currentPaperWidth}mm ${currentPaperHeight}mm; margin: 0 !important; }
-                html, body { width: 100%; height: 100%; background: #fff; margin: 0 !important; padding: 0 !important; overflow: hidden; }
+                html, body { width: ${currentPaperWidth}mm; height: ${currentPaperHeight}mm; background: #fff; overflow: hidden; margin: 0 !important; padding: 0 !important; }
+                .stiker-box { 
+                    width: ${currentPaperWidth}mm !important; 
+                    height: ${currentPaperHeight}mm !important; 
+                    margin: 0 !important; 
+                    border: none !important; 
+                    padding: calc(${currentPaperHeight}mm * 0.04) calc(${currentPaperWidth}mm * 0.04) !important; 
+                    display: flex !important; 
+                    flex-direction: column !important; 
+                    justify-content: space-between !important; 
+                    text-align: center !important; 
+                    font-family: 'Inter', sans-serif !important; 
+                    page-break-after: always !important; 
+                    background: #fff !important; 
+                    box-sizing: border-box !important; 
+                    overflow: hidden !important;
+                }
+                .stiker-box .qr-placeholder {
+                    height: 40% !important;
+                    width: 100% !important;
+                    display: block !important;
+                    margin: 0 auto !important;
+                }
+                .stiker-box table, .stiker-box canvas, .stiker-box img { 
+                    width: auto !important; 
+                    height: 100% !important; 
+                    max-height: 100% !important; 
+                    margin: 0 auto !important; 
+                    display: block !important;
+                    object-fit: contain !important; 
+                }
+                .stiker-box div { line-height: 1.1 !important; text-align: center !important; width: 100% !important; }
             </style>
         </head>
         <body>
-            ${imgTagsHTML}
+            ${grid.innerHTML}
         </body>
         </html>
     `);
     printWindow.document.close();
     printWindow.focus();
     
-    // Masa lenggangan singkat mencukupi kerana pelayar hanya membaca fail imej statik sedia ada
+    // PEMBETULAN DELAY MASA: Masa bertenang dikunci pada 1.5 saat (1500ms) untuk memberi ruang pelayar web
+    // selesai memproses pemetaan grafik Base64 QR Code ke helaian pratonton PDF dengan sempurna.
     setTimeout(() => { 
         printWindow.print(); 
         printWindow.close(); 
-    }, 500);
+    }, 1500);
 }
 
 function simpanPDFStikers() { 
     printStikers(); 
 }
 
-// PEMBETULAN UTAMA GAMBAR TERPISAH (NATIVE MULTI-DOWNLOAD):
-// Sistem memuat turun fail imej tunggal yang terpisah secara pukal dalam satu masa tanpa menyekat pelayar
+// PEMBETULAN KAWALAN GAMBAR TERPISAH PUKAL (NATIVE MULTI-DOWNLOAD):
+// Berjaya memuat turun fail imej tunggal terasing secara serentak ke folder peranti tanpa disekat sekatan browser
 async function simpanGambarStikers() {
-    const pureImages = document.querySelectorAll('#stikerGrid .stiker-pure-img');
-    if (!pureImages.length) return toast('Tiada imej stiker untuk disimpan.');
+    const stickerBoxes = document.querySelectorAll('#stikerGrid .stiker-box');
+    if (!stickerBoxes.length) return toast('Tiada stiker untuk disimpan.');
+    if (typeof html2canvas === 'undefined') return toast('Pustaka html2canvas tidak dijumpai.');
     
-    toast('Sedang memuat turun himpunan gambar stiker ke folder peranti...');
-    
-    for (let i = 0; i < pureImages.length; i++) {
-        const img = pureImages[i];
-        const qrIdText = img.getAttribute('data-qrid') || `Item_${i+1}`;
+    toast('Sedang memproses muat turun imej secara terasing...');
+    for (let i = 0; i < stickerBoxes.length; i++) {
+        const box = stickerBoxes[i];
         
-        const link = document.createElement('a');
-        link.download = `Stiker_QR_${qrIdText}_(${currentPaperWidth}x${currentPaperHeight}).png`;
-        link.href = img.src; // Terus mengambil data url imej sedia wujud tanpa proses html2canvas berulang
-        link.click();
+        // Mengambil rentangan nama fail unik berdasarkan QR ID peranti karpet semasa
+        const qrIdText = box.querySelector('div:nth-last-child(2)')?.textContent?.replace('QR ID:', '')?.trim() || `Item_${i+1}`;
         
-        // Sela masa mikro 200ms bagi mengelakkan browser security menyekat muat turun serentak
-        await new Promise(resolve => setTimeout(resolve, 200));
+        try {
+            const canvas = await html2canvas(box, { 
+                scale: 3, // Menggunakan skala 3x ganda bagi memastikan cetakan melalui telefon pintar sangat padat dan tajam
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            const link = document.createElement('a');
+            link.download = `Stiker_QR_${qrIdText}_(${currentPaperWidth}x${currentPaperHeight}).png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            // Memberikan sela masa 300ms supaya pelayar internet tidak menapis muat turun serentak
+            await new Promise(resolve => setTimeout(resolve, 300));
+        } catch (err) {
+            console.error('Gagal mengeksport fail gambar stiker indeks:', i, err);
+        }
     }
     toast('Semua gambar stiker terasing berjaya disimpan ke peranti!');
 }
 
-
-
-    // ================================================================
-//          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
-// ================================================================
-
-// ================================================================
-//  BAHAGIAN 1: ANTARA MUKA HTML BORANG PERBELANJAAN (renderExpenses)
-// ================================================================
-
-function renderExpenses(container) {
-    container.innerHTML = `
-        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
-        <div class="card" id="expenseFormContainer">
-            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
-            <input type="hidden" id="expenseEditId">
             <div class="row">
                 <div class="col form-group">
                     <label>Tarikh</label>
