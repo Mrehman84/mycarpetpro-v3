@@ -1793,12 +1793,10 @@ function hantarWhatsAppPembayaran() {
     if (!msg) return toast('Tiada mesej.');
     bukaWhatsApp(tel, msg);
 }
-    // ================================================================
-//            BAHAGIAN 2F - INVOIS & RESIT (DENGAN DISKAUN)
-// ================================================================
 
-// ================================================================
-//            BAHAGIAN 2F - INVOIS & RESIT (BERKUMPULAN)
+
+    // ================================================================
+//            BAHAGIAN 2F - INVOIS & RESIT (BERKUMPULAN STABIL)
 // ================================================================
 
 function renderInvoiceTab(container) {
@@ -1832,23 +1830,24 @@ function renderInvoiceTab(container) {
 
     // KUMPULAN 1: Menghimpunkan invois yang status harian masih PENDING
     if (pendingList.length > 0) {
-        invoiceOptions += `<optgroup label="⏳ INVOIS TERTUNDA (PENDING)" style="color: #ff6d00; font-weight: bold; background: #fffaf5;">`;
+        invoiceOptions += `<optgroup label="⏳ INVOIS TERTUNDA (PENDING)">`;
         pendingList.forEach(item => {
-            invoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #2d3748;">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [⏳ PENDING]</option>`;
+            invoiceOptions += `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [⏳ PENDING]</option>`;
         });
         invoiceOptions += `</optgroup>`;
     }
 
     // KUMPULAN 2: Menghimpunkan invois yang status harian sudah PAID (Pindah ke bawah)
     if (paidList.length > 0) {
-        invoiceOptions += `<optgroup label="✅ INVOIS SELESAI / LUNAS (PAID)" style="color: #28a745; font-weight: bold; background: #f6fff6;">`;
+        invoiceOptions += `<optgroup label="✅ INVOIS SELESAI / LUNAS (PAID)">`;
         paidList.forEach(item => {
-            invoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #718096;">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [✅ PAID]</option>`;
+            invoiceOptions += `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [✅ PAID]</option>`;
         });
         invoiceOptions += `</optgroup>`;
     }
 
-    // Kekalkan 100% struktur kad kawalan, input diskaun, caj tambahan, dan butang PDF asal anda
+    // PEMBETULAN GRAPHIC LIFECYCLE: Struktur kontena, ID elemen "invoiceSelect" 
+    // dan seluruh butang cetakan asal anda dikembalikan 100% ke format asal tanpa sebarang gubahan inline style yang mengganggu enjin pdf
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
