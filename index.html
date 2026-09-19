@@ -2667,15 +2667,20 @@ function generateBarcodePreview() {
     });
 
     let stikersHTML = '';
+    carpersData = carpetsData; // Rujukan data
+
     carpetsData.forEach((k, idx) => {
-        // PERUBAHAN UKURAN: Lebar disetkan kepada 50mm mengikut spesifikasi saiz gulungan kertas thermal baharu anda
+        // PEMBETULAN UTAMA: Mengunci saiz kotak secara mutlak & susunan flex menegak yang kemas
         stikersHTML += `
-            <div class="stiker-box" style="width:50mm;height:30mm;border:1px dashed #000;padding:1.5mm 1mm;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;margin:1mm;page-break-after:always;background:#fff;">
-                <div style="font-size:8px;font-weight:bold;letter-spacing:0.2px;color:#333;">MYCARPET PRO v3.3</div>
-                <div style="font-size:8px;font-weight:bold;margin:0.5px 0;">INV: ${escapeHtml(inv)}</div>
-                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%;height:13mm;display:flex;align-items:center;justify-content:center;"></div>
-                <div style="font-size:7px;font-weight:bold;font-family:monospace;letter-spacing:0.5px;">QR ID: ${escapeHtml(k.qrId)}</div>
-                <div style="font-size:6px;border-top:0.5px solid #000;padding-top:1px;font-weight:bold;color:#111;white-space:nowrap;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+            <div class="stiker-box" style="width:50mm; height:30mm; border:1px dashed #000; padding:1mm; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter',sans-serif; margin:2mm; page-break-after:always; background:#fff; flex-shrink:0;">
+                <div style="font-size:7px; font-weight:bold; letter-spacing:0.2px; color:#333; line-height:1;">MYCARPET PRO v3.3</div>
+                <div style="font-size:7px; font-weight:bold; margin:0.5px 0; line-height:1;">INV: ${escapeHtml(inv)}</div>
+                
+                <!-- Ruang QR dikecilkan sedikit ke 11mm untuk mengelakkan elemen bawah bertindih -->
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:11mm; display:flex; align-items:center; justify-content:center; margin:0.5mm 0;"></div>
+                
+                <div style="font-size:6.5px; font-weight:bold; font-family:monospace; letter-spacing:0.5px; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
+                <div style="font-size:5.5px; border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
 
@@ -2684,11 +2689,11 @@ function generateBarcodePreview() {
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
                 <button class="btn btn-primary btn-sm" onclick="printStikers()"><i class="fa-solid fa-print"></i> Cetak Semua</button>
-                <button class="btn btn-secondary btn-sm" onclick="simpanPDFStikers()"><i class="fa-solid fa-file-pdf"></i> Simpan PDF</button>
                 <button class="btn btn-secondary btn-sm" onclick="simpanGambarStikers()"><i class="fa-solid fa-image"></i> Simpan Gambar</button>
             </div>
         </div>
-        <div id="stikerGrid" style="display:flex;flex-wrap:wrap;gap:2mm;justify-content:center;">${stikersHTML}</div>`;
+        <!-- Ditambah flex-start dan overflow bagi memastikan paparan di telefon boleh diskrol, bukan mengecilkan stiker -->
+        <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:2mm; justify-content:center; align-items:flex-start; overflow-x:auto; padding:10px; background:#f0f0f0; border-radius:8px;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
     setTimeout(() => {
@@ -2697,11 +2702,11 @@ function generateBarcodePreview() {
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 try {
-                    // Hanya teks k.qrId sahaja yang disuap ke dalam generator QR, tiada URL lagi [1]
+                    // PENGECILAN QR: Lebar dan tinggi QR render dikurangkan ke 90px (anggaran ~11mm)
                     new QRCode(qrContainer, {
                         text: k.qrId, 
-                        width: 120,
-                        height: 120,
+                        width: 90,
+                        height: 90,
                         colorDark: "#000000",
                         colorLight: "#ffffff",
                         correctLevel: QRCode.CorrectLevel.L
@@ -2709,8 +2714,8 @@ function generateBarcodePreview() {
 
                     const qrImg = qrContainer.querySelector('img');
                     if (qrImg) {
-                        qrImg.style.width = '13mm';
-                        qrImg.style.height = '13mm';
+                        qrImg.style.width = '11mm';
+                        qrImg.style.height = '11mm';
                         qrImg.style.objectFit = 'contain';
                     }
                 } catch (e) {
@@ -2725,12 +2730,54 @@ function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    // PERUBAHAN CSS CETAKAN: Format helaian @page dikemas kini kepada saiz 50mm 30mm
-    printWindow.document.write(`<html><head><title>Cetak Stiker Barcode</title><style>*{box-sizing:border-box;margin:0;padding:0;}@page{size:50mm 30mm;margin:0;}body{margin:0;display:flex;flex-wrap:wrap;justify-content:center;background:#fff;}.stiker-box{width:50mm!important;height:30mm!important;margin:0!important;border:none;padding:1.5mm 1mm;display:flex;flex-direction:column;justify-content:space-between;text-align:center;font-family:'Inter',sans-serif;page-break-after:always;background:#fff;box-sizing:border-box;}.stiker-box table, .stiker-box canvas, .stiker-box img {width:13mm!important;height:13mm!important;margin:0 auto!important;object-fit:contain;}.stiker-box div{line-height:1.1!important;}</style></head><body>${grid.innerHTML}</body></html>`);
+    
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Cetak Stiker Barcode</title>
+            <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                @page { size: 50mm 30mm; margin: 0; }
+                html, body { width: 50mm; height: 30mm; background: #fff; overflow: hidden; }
+                .stiker-box { 
+                    width: 50mm !important; 
+                    height: 30mm !important; 
+                    margin: 0 !important; 
+                    border: none !important; 
+                    padding: 1.2mm 1mm !important; 
+                    display: flex !important; 
+                    flex-direction: column !important; 
+                    justify-content: space-between !important; 
+                    text-align: center !important; 
+                    font-family: 'Inter', sans-serif !important; 
+                    page-break-after: always !important; 
+                    box-sizing: border-box !important;
+                    overflow: hidden !important;
+                }
+                .stiker-box table, .stiker-box canvas, .stiker-box img { 
+                    width: 11mm !important; 
+                    height: 11mm !important; 
+                    margin: 0 auto !important; 
+                    object-fit: contain !important; 
+                }
+                .stiker-box div { line-height: 1.1 !important; }
+            </style>
+        </head>
+        <body>
+            ${grid.innerHTML}
+        </body>
+        </html>
+    `);
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
+    
+    // Memberikan masa sedikit untuk elemen QR selesai di-render sepenuhnya sebelum tetingkap cetak dibuka
+    setTimeout(() => { 
+        printWindow.print(); 
+        printWindow.close(); 
+    }, 800);
 }
+
 
 function simpanPDFStikers() { printStikers(); }
 
