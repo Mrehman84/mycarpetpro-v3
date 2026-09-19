@@ -2737,7 +2737,7 @@ function generateBarcodePreview() {
     });
 
 
-        const html = `
+       const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
@@ -2884,6 +2884,7 @@ async function simpanGambarStikers() {
     }
     toast('Semua gambar stiker terasing berjaya disimpan ke peranti!');
 }
+
 
 
 
