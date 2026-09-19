@@ -2821,63 +2821,97 @@ function generateBarcodePreview() {
     }, 100);
 }
 
-function printStikers() {
+async function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
-    
+
     const invSelect = document.getElementById('barcodeInvoiceSelect');
     const currentInvNo = invSelect ? invSelect.value : 'INVOIS';
-    
+
+    // ⭐ KUNCI FIX: Tukar canvas → img pada DOM ASAL (live) DULU,
+    //    kerana cloneNode(true) pada <canvas> TIDAK salin piksel!
+    _barcodeCanvasToImg(grid);
+
+    // SEKARANG baru clone — clone akan bawa <img> yang telah ada data
+    const clone = grid.cloneNode(true);
+
+    const W = currentPaperWidth;
+    const H = currentPaperHeight;
+    const printQrSizeMm = (H * 0.42).toFixed(1);
+
     const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
-    const printQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
-    
-    printWindow.document.write(`
-        <html>
-        <head>
-            <title>Stiker_Barcode_${currentInvNo}_(${currentPaperWidth}x${currentPaperHeight})</title>
-            <style>
-                * { box-sizing: border-box; margin: 0 !important; padding: 0 !important; }
-                @page { size: ${currentPaperWidth}mm ${currentPaperHeight}mm; margin: 0 !important; }
-                body { margin: 0; display: flex; flex-wrap: wrap; justify-content: center; background: #fff; }
-                .stiker-box { 
-                    width: ${currentPaperWidth}mm !important; 
-                    height: ${currentPaperHeight}mm !important; 
-                    margin: 0 !important; 
-                    border: none !important; 
-                    padding: calc(${currentPaperHeight}mm * 0.05) calc(${currentPaperWidth}mm * 0.04) !important; 
-                    display: flex !important; 
-                    flex-direction: column !important; 
-                    justify-content: space-between !important; 
-                    text-align: center !important; 
-                    font-family: 'Inter', sans-serif !important; 
-                    page-break-after: always !important; 
-                    background: #fff !important; 
-                    box-sizing: border-box !important; 
-                    overflow: hidden !important;
-                }
-                .stiker-box table, .stiker-box canvas, .stiker-box img { 
-                    width: ${printQrSizeMm}mm !important; 
-                    height: ${printQrSizeMm}mm !important; 
-                    margin: 0 auto !important; 
-                    display: block !important;
-                    object-fit: contain !important; 
-                }
-                .stiker-box div { line-height: 1.1 !important; text-align: center !important; width: 100% !important; }
-            </style>
-        </head>
-        <body>
-            ${grid.innerHTML}
-        </body>
-        </html>
-    `);
+    if (!printWindow) return toast('Popup disekat. Benarkan popup untuk cetak.');
+
+    printWindow.document.write(`<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Stiker_Barcode_${escapeHtml(currentInvNo)}_(${W}x${H})</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        @page { size: ${W}mm ${H}mm; margin: 0; }
+        html, body { margin: 0; padding: 0; background: #fff; }
+        body { display: flex; flex-wrap: wrap; justify-content: center; }
+        .stiker-box {
+            width: ${W}mm !important;
+            height: ${H}mm !important;
+            margin: 0 !important;
+            border: none !important;
+            padding: calc(${H}mm * 0.05) calc(${W}mm * 0.04) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: space-between !important;
+            text-align: center !important;
+            font-family: 'Inter', sans-serif !important;
+            page-break-after: always !important;
+            break-after: page !important;
+            background: #fff !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+        }
+        .stiker-box:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
+        }
+        .stiker-box table,
+        .stiker-box canvas,
+        .stiker-box img {
+            width: ${printQrSizeMm}mm !important;
+            height: ${printQrSizeMm}mm !important;
+            margin: 0 auto !important;
+            display: block !important;
+            object-fit: contain !important;
+        }
+        .stiker-box div {
+            line-height: 1.1 !important;
+            text-align: center !important;
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body>
+${clone.innerHTML}
+</body>
+</html>`);
     printWindow.document.close();
+
+    // Tunggu imej siap
+    await new Promise(resolve => {
+        const imgs = Array.from(printWindow.document.images || []);
+        if (!imgs.length) return resolve();
+        let pending = imgs.length;
+        const done = () => { if (--pending <= 0) resolve(); };
+        imgs.forEach(img => {
+            if (img.complete) return done();
+            img.onload = done;
+            img.onerror = done;
+        });
+        setTimeout(resolve, 3000);
+    });
+
     printWindow.focus();
-    
-    setTimeout(() => { 
-        printWindow.print(); 
-        printWindow.close(); 
-    }, 1200);
+    printWindow.onafterprint = () => printWindow.close();
+    printWindow.print();
 }
 
 function simpanPDFStikers() { 
