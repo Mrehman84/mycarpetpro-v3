@@ -2627,187 +2627,6 @@ async function saveBulkPrices() {
     setTimeout(() => renderBulkPrice(document.getElementById('priceTabContent')), 1500);
 }
 
-// ================================================================
-//          BAHAGIAN 2J - BARCODE (FORMULA MILIMETER TETAP)
-//          v3.3.1 — Fix: QR hilang masa PDF, saiz A4 di telefon
-// ================================================================
-
-// Pembolehubah global untuk menyimpan dimensi saiz kertas semasa
-let currentPaperWidth  = 50;
-let currentPaperHeight = 30;
-
-// ----------------------------------------------------------------
-//   HELPER: Tukar <canvas> → <img> supaya QR TIDAK HILANG
-//   apabila innerHTML disalin ke tetingkap cetak / jsPDF
-// ----------------------------------------------------------------
-function _barcodeCanvasToImg(root) {
-    if (!root || !root.querySelectorAll) return;
-    root.querySelectorAll('canvas').forEach(cv => {
-        try {
-            const img = document.createElement('img');
-            img.src = cv.toDataURL('image/png');
-            img.width  = cv.width;
-            img.height = cv.height;
-            img.style.cssText = cv.style.cssText || '';
-            cv.replaceWith(img);
-        } catch (e) {
-            console.warn('[Barcode] canvas→img gagal:', e);
-        }
-    });
-}
-
-// ----------------------------------------------------------------
-//   RENDER HALAMAN BARCODE (dropdown invois + dropdown saiz)
-// ----------------------------------------------------------------
-function renderBarcode(container) {
-    const invSet = new Set();
-
-    // PENAPISAN DATA: Hanya karpet aktif (belum SELESAI DIHANTAR)
-    STATE.karpet.forEach(k => {
-        if (!k) return;
-        const st = normalize(getField(k, ['STATUS']));
-        if (st === 'SELESAI DIHANTAR') return;
-
-        const inv = String(getField(k, ['INV NO','INV_NO'], '')).trim();
-        if (inv) invSet.add(inv);
-    });
-
-    // Kumpul maklumat pelanggan bagi setiap invois
-    const invList = [];
-    invSet.forEach(inv => {
-        const order = STATE.tempahan.find(o =>
-            normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)
-        ) || {};
-        const cust = STATE.pelanggan.find(c =>
-            String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) ===
-            String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))
-        ) || {};
-        const nama   = getField(cust, ['NAMA'], '');
-        const alamat = getField(cust, ['ALAMAT'], '');
-        invList.push({ inv, nama, alamat });
-    });
-
-    // Susun invois terkini di atas
-    invList.sort((a, b) => b.inv.localeCompare(a.inv));
-    const invoiceOptions = invList
-        .map(item => `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} — ${escapeHtml(item.nama)} — ${escapeHtml(item.alamat)}</option>`)
-        .join('');
-
-    // Baca cache saiz terakhir pengguna
-    const savedSize = localStorage.getItem('mycarpet_last_barcode_size') || "50x30";
-    const [savedW, savedH] = savedSize.split('x');
-    currentPaperWidth  = parseInt(savedW) || 50;
-    currentPaperHeight = parseInt(savedH) || 30;
-
-    container.innerHTML = `
-        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()">
-            <i class="fa-solid fa-arrow-left"></i> Kembali ke Menu
-        </button>
-        <header>
-            <div>
-                <h1>🏷️ Cetak Barcode Karpet</h1>
-                <p class="muted">Dioptimumkan untuk kawalan saiz kertas thermal pasaran secara dinamik</p>
-            </div>
-        </header>
-        <div class="card">
-            <div class="form-group">
-                <label>Pilih Invois Aktif</label>
-                <select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()">
-                    <option value="">-- Pilih --</option>${invoiceOptions}
-                </select>
-            </div>
-
-            <div class="form-group" style="margin-top: 12px;">
-                <label><i class="fa-solid fa-ruler-combined"></i> Pilih Saiz Kertas Thermal Pasaran</label>
-                <select id="barcodeSizeSelect" class="form-control" onchange="generateBarcodePreview()">
-                    <option value="50x30" ${savedSize === '50x30' ? 'selected' : ''}>50mm × 30mm (Lalai Kedai)</option>
-                    <option value="50x20" ${savedSize === '50x20' ? 'selected' : ''}>50mm × 20mm</option>
-                    <option value="50x50" ${savedSize === '50x50' ? 'selected' : ''}>50mm × 50mm</option>
-                    <option value="40x30" ${savedSize === '40x30' ? 'selected' : ''}>40mm × 30mm</option>
-                    <option value="40x20" ${savedSize === '40x20' ? 'selected' : ''}>40mm × 20mm</option>
-                    <option value="40x40" ${savedSize === '40x40' ? 'selected' : ''}>40mm × 40mm</option>
-                    <option value="35x25" ${savedSize === '35x25' ? 'selected' : ''}>35mm × 25mm</option>
-                    <option value="30x30" ${savedSize === '30x30' ? 'selected' : ''}>30mm × 30mm</option>
-                    <option value="30x20" ${savedSize === '30x20' ? 'selected' : ''}>30mm × 20mm</option>
-                    <option value="30x15" ${savedSize === '30x15' ? 'selected' : ''}>30mm × 15mm</option>
-                </select>
-            </div>
-
-            <div id="barcodePreviewContainer" class="mt-16">
-                <p class="muted">Sila pilih invois untuk lihat preview barcode.</p>
-            </div>
-        </div>`;
-}
-
-// ----------------------------------------------------------------
-//   JANA PREVIEW STIKER (QR + info) UNTUK SATU INVOIS
-// ----------------------------------------------------------------
-function generateBarcodePreview() {
-    const inv = document.getElementById('barcodeInvoiceSelect').value;
-    const container = document.getElementById('barcodePreviewContainer');
-    if (!inv) { container.innerHTML = '<p class="muted">Sila pilih invois.</p>'; return; }
-
-    const carpets = STATE.karpet.filter(k =>
-        normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv)
-    );
-    if (!carpets.length) {
-        container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>';
-        return;
-    }
-
-    // Kunci saiz yang dipilih
-    const sizeSelect = document.getElementById('barcodeSizeSelect')?.value || "50x30";
-    localStorage.setItem('mycarpet_last_barcode_size', sizeSelect);
-    const [wStr, hStr] = sizeSelect.split('x');
-    currentPaperWidth  = parseInt(wStr) || 50;
-    currentPaperHeight = parseInt(hStr) || 30;
-
-    // Data pelanggan
-    const order = STATE.tempahan.find(o =>
-        normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)
-    ) || {};
-    const cust = STATE.pelanggan.find(c =>
-        String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) ===
-        String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))
-    ) || {};
-    const telefon = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    const cusId   = getField(cust, ['CUSTOMER ID','CUSTOMER_ID'], '');
-    const nama    = getField(cust, ['NAMA'], '');
-    const alamat  = getField(cust, ['ALAMAT'], '');
-
-    // Data karpet
-    const carpetsData = carpets.map(k => ({
-        qrId: String(getField(k, ['QR ID','QR_ID'], '')).trim(),
-        kod : String(getField(k, ['KOD'], '')).trim()
-    }));
-
-    // Saiz QR di skrin (42% dari tinggi kertas)
-    const previewQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
-
-    // Bina stiker
-    let stikersHTML = '';
-    carpetsData.forEach((k, idx) => {
-        stikersHTML += `
-            <div class="stiker-box" data-qr="${escapeHtml(k.qrId)}"
-                 style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm;
-                        border:1px dashed #000;
-                        padding:calc(${currentPaperHeight}mm * 0.05) calc(${currentPaperWidth}mm * 0.04);
-                        box-sizing:border-box; display:flex; flex-direction:column;
-                        justify-content:space-between; text-align:center;
-                        font-family:'Inter', sans-serif; margin:1mm;
-                        page-break-after:always; background:#fff; overflow:hidden; flex-shrink:0;">
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.1px; color:#333; text-align:center; width:100%; line-height:1;">MYCARPET PRO v3.3</div>
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.3px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
-
-                <div class="qr-placeholder" id="qr-stiker-${idx}"
-                     style="width:100%; height:${previewQrSizeMm}mm; display:block;
-                            text-align:center; margin:0 auto; overflow:hidden;"></div>
-
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.065); font-weight:bold; font-family:monospace; letter-spacing:0.2px; text-align:center; width:100%; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
-            </div>`;
-    });
-
     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div>
@@ -2830,7 +2649,7 @@ function generateBarcodePreview() {
         <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:2mm; justify-content:center; align-items:flex-start;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
-    // Jana QR selepas DOM siap
+    // PEMBETULAN RE-RENDER PENUTUP FUNGSI: QRCode dipanggil dengan selamat di sini
     setTimeout(() => {
         carpetsData.forEach((k, idx) => {
             const qrContainer = document.getElementById(`qr-stiker-${idx}`);
@@ -2843,7 +2662,7 @@ function generateBarcodePreview() {
                     height: 120,
                     colorDark: "#000000",
                     colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.M   // M = 15% ketahanan
+                    correctLevel: QRCode.CorrectLevel.M
                 });
 
                 const qrImg = qrContainer.querySelector('img');
@@ -2859,12 +2678,8 @@ function generateBarcodePreview() {
             }
         });
     }, 100);
-}
+} // <--- PEMBETULAN MUTLAK: Tanda penutup fungsi generateBarcodePreview() dikembalikan dengan selamat!
 
-// ----------------------------------------------------------------
-//   CETAK (thermal printer desktop)
-//   FIX: canvas → img, tunggu imej, page-break betul
-// ----------------------------------------------------------------
 async function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
@@ -2872,7 +2687,6 @@ async function printStikers() {
     const invSelect = document.getElementById('barcodeInvoiceSelect');
     const currentInvNo = invSelect ? invSelect.value : 'INVOIS';
 
-    // ⭐ KUNCI FIX: clone grid, tukar canvas→img SEBELUM salin HTML
     const clone = grid.cloneNode(true);
     _barcodeCanvasToImg(clone);
 
@@ -2936,7 +2750,6 @@ ${clone.innerHTML}
 </html>`);
     printWindow.document.close();
 
-    // Tunggu imej siap (bukan setTimeout tekaan)
     await new Promise(resolve => {
         const imgs = Array.from(printWindow.document.images || []);
         if (!imgs.length) return resolve();
@@ -2947,7 +2760,6 @@ ${clone.innerHTML}
             img.onload = done;
             img.onerror = done;
         });
-        // Safety net
         setTimeout(resolve, 3000);
     });
 
@@ -2956,17 +2768,13 @@ ${clone.innerHTML}
     printWindow.print();
 }
 
-// ----------------------------------------------------------------
-//   SIMPAN PDF — guna jsPDF, saiz MILIMETER SEBENAR
-//   FIX: tidak lagi bergantung pada @page (yang diabaikan di telefon)
-// ----------------------------------------------------------------
 async function simpanPDFStikers() {
     const boxes = document.querySelectorAll('#stikerGrid .stiker-box');
     if (!boxes.length) return toast('Tiada stiker untuk disimpan.');
 
     const jsPDFLib = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     if (!jsPDFLib) {
-        return toast('Pustaka jsPDF tidak dijumpai. Tambah <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script> dalam <head>.');
+        return toast('Pustaka jsPDF tidak dijumpai di dalam <head>.');
     }
     if (typeof html2canvas === 'undefined') {
         return toast('Pustaka html2canvas tidak dijumpai.');
@@ -3007,9 +2815,6 @@ async function simpanPDFStikers() {
     toast('PDF berjaya dimuat turun!');
 }
 
-// ----------------------------------------------------------------
-//   SIMPAN GAMBAR (per-stiker)
-// ----------------------------------------------------------------
 async function simpanGambarStikers() {
     const boxes = document.querySelectorAll('#stikerGrid .stiker-box');
     if (!boxes.length) return toast('Tiada stiker untuk disimpan.');
@@ -3021,8 +2826,6 @@ async function simpanGambarStikers() {
 
     for (let i = 0; i < boxes.length; i++) {
         const box = boxes[i];
-
-        // Ambil QR ID dari data-attribute (lebih selamat dari selector rapuh)
         const qrIdRaw  = box.dataset.qr || `Item_${i + 1}`;
         const qrIdSafe = String(qrIdRaw).replace(/[\\/:*?"<>|]/g, '_');
 
@@ -3044,13 +2847,9 @@ async function simpanGambarStikers() {
             console.error('[IMG] Gagal mengeksport stiker indeks:', i, err);
         }
     }
-
     toast('Semua gambar stiker berjaya disimpan ke peranti!');
 }
 
-// ================================================================
-//          TAMAT BAHAGIAN 2J
-// ================================================================
 
 
 
