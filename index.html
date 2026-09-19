@@ -2734,7 +2734,7 @@ function generateBarcodePreview() {
                 <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
-    const html = `
+     const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
@@ -2792,8 +2792,8 @@ function printStikers() {
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // PEMBETULAN CETAKAN LEBAR: Menyediakan konfigurasi helaian cetakan responsif penuh 
-    // suapan lebar kertas thermal semasa di dalam driver pencetak browser
+    const targetQrSizeMm = (currentPaperHeight * 0.42).toFixed(1);
+    
     printWindow.document.write(`
         <html>
         <head>
@@ -2819,9 +2819,8 @@ function printStikers() {
                     overflow: hidden !important;
                 }
                 .stiker-box table, .stiker-box canvas, .stiker-box img { 
-                    width: auto !important; 
-                    height: 100% !important; 
-                    max-height: 100% !important; 
+                    width: ${targetQrSizeMm}mm !important; 
+                    height: ${targetQrSizeMm}mm !important; 
                     margin: 0 auto !important; 
                     display: block !important;
                     object-fit: contain !important; 
@@ -2847,19 +2846,43 @@ function simpanPDFStikers() {
     printStikers(); 
 }
 
-// PENGEKALAN FUNGSI GAMBAR TULEN
-function simpanGambarStikers() {
-    const grid = document.getElementById('stikerGrid');
-    if (!grid) return toast('Tiada stiker.');
+// PEMBETULAN UTAMA EKSPORT GAMBAR TERPISAH SATU DEMI SATU (PUKAL):
+// Fungsi ini mengimbas setiap elemen '.stiker-box' secara individu dan memuat turunnya secara berasingan
+async function simpanGambarStikers() {
+    const stikerBoxes = document.querySelectorAll('#stikerGrid .stiker-box');
+    if (!stikerBoxes.length) return toast('Tiada stiker untuk disimpan.');
     if (typeof html2canvas === 'undefined') return toast('Pustaka html2canvas tidak dijumpai.');
     
-    html2canvas(grid, { scale: 2 }).then(canvas => {
-        const link = document.createElement('a');
-        link.download = `Stiker_Barcode_${currentPaperWidth}x${currentPaperHeight}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-        toast('Gambar disimpan.');
-    });
+    toast('Sedang memproses muat turun imej secara terasing...');
+    
+    // Melakukan gelungan sekat-masa (asynchronous loop) untuk memproses stiker satu demi satu
+    for (let i = 0; i < stikerBoxes.length; i++) {
+        const box = stikerBoxes[i];
+        
+        // Ambil ID QR unik daripada elemen teks dalaman stiker untuk dijadikan nama fail
+        const qrIdText = box.querySelector('div:nth-last-child(2)')?.textContent?.replace('QR ID:', '')?.trim() || `Item_${i+1}`;
+        
+        try {
+            // Tangkap imej kotak fizikal stiker itu sahaja secara berasingan
+            const canvas = await html2canvas(box, { 
+                scale: 3, // Skala dinaikkan ke 3 bagi memastikan cetakan melalui telefon pintar sangat tajam dan tidak pecah
+                useCORS: true,
+                backgroundColor: '#ffffff'
+            });
+            
+            const link = document.createElement('a');
+            link.download = `Stiker_QR_${qrIdText}_(${currentPaperWidth}x${currentPaperHeight}).png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+            
+            // Berikan sedikit sela masa 300ms antara setiap muat turun fail supaya sistem pelayar web tidak menyekat muat turun pukal
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+        } catch (err) {
+            console.error('Gagal mengeksport fail gambar stiker indeks:', i, err);
+        }
+    }
+    toast('Semua gambar stiker berjaya dimuat turun secara berasingan!');
 }
 
 
