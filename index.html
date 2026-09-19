@@ -2663,22 +2663,26 @@ async function saveBulkPrices() {
                     correctLevel: QRCode.CorrectLevel.M
                 });
 
-                const qrImg = qrContainer.querySelector('img');
-                if (qrImg) {
-                    qrImg.style.width = previewQrSizeMm + 'mm';
-                    qrImg.style.height = previewQrSizeMm + 'mm';
-                    qrImg.style.objectFit = 'contain';
-                    qrImg.style.display = 'block';
-                    qrImg.style.margin = '0 auto';
+                                   const qrImg = qrContainer.querySelector('img');
+                    if (qrImg) {
+                        qrImg.style.width = previewQrSizeMm2 + 'mm';
+                        qrImg.style.height = previewQrSizeMm2 + 'mm';
+                        qrImg.style.objectFit = 'contain';
+                        qrImg.style.display = 'block';
+                        qrImg.style.margin = '0 auto';
+                    }
+                } catch (e) {
+                    console.error('Gagal jana QR untuk stiker', idx, e);
                 }
-            } catch (e) {
-                console.error('Gagal jana QR untuk stiker', idx, e);
             }
         });
     }, 100);
-} // <--- PEMBETULAN MUTLAK: Tanda penutup fungsi generateBarcodePreview() dikembalikan dengan selamat!
+}
 
-async function printStikers() {
+// ================================================================
+//   FUNGSI CETAKAN ASAL: Menggunakan konsep window.open() asal anda
+// ================================================================
+function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
 
