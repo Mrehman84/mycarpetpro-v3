@@ -1797,8 +1797,15 @@ function hantarWhatsAppPembayaran() {
 //            BAHAGIAN 2F - INVOIS & RESIT (DENGAN DISKAUN)
 // ================================================================
 
+// ================================================================
+//            BAHAGIAN 2F - INVOIS & RESIT (BERKUMPULAN)
+// ================================================================
+
 function renderInvoiceTab(container) {
-    const invList = [];
+    const pendingList = [];
+    const paidList = [];
+
+    // MEMBAHAGI KEPADA 2: Mengasingkan invois mengikut status lunas (PAID) atau tertunda (PENDING)
     STATE.tempahan.forEach(t => {
         const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
         if (!inv) return;
@@ -1806,18 +1813,47 @@ function renderInvoiceTab(container) {
         const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(t, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
         const nama = getField(cust, ['NAMA'], '');
         const alamat = getField(cust, ['ALAMAT'], '');
-        invList.push({ inv, status, nama, alamat });
+        
+        const itemData = { inv, status, nama, alamat };
+
+        if (status === 'PENDING') {
+            pendingList.push(itemData);
+        } else {
+            paidList.push(itemData);
+        }
     });
-    invList.sort((a, b) => b.inv.localeCompare(a.inv));
-    const invoiceOptions = invList.map(item => {
-        const label = item.status === 'PENDING' ? '[PENDING]' : '[PAID]';
-        return `<option value="${escapeHtml(item.inv)}">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} ${label}</option>`;
-    }).join('');
+
+    // Kekalkan susunan invois terkini sentiasa berada di bahagian atas senarai bagi kedua-dua kumpulan
+    pendingList.sort((a, b) => b.inv.localeCompare(a.inv));
+    paidList.sort((a, b) => b.inv.localeCompare(a.inv));
+
+    // Membina isi dropdown pilihan berkumpulan (HTML optgroup)
+    let invoiceOptions = '<option value="">-- Pilih --</option>';
+
+    // KUMPULAN 1: Menghimpunkan invois yang status harian masih PENDING
+    if (pendingList.length > 0) {
+        invoiceOptions += `<optgroup label="⏳ INVOIS TERTUNDA (PENDING)" style="color: #ff6d00; font-weight: bold; background: #fffaf5;">`;
+        pendingList.forEach(item => {
+            invoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #2d3748;">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [⏳ PENDING]</option>`;
+        });
+        invoiceOptions += `</optgroup>`;
+    }
+
+    // KUMPULAN 2: Menghimpunkan invois yang status harian sudah PAID (Pindah ke bawah)
+    if (paidList.length > 0) {
+        invoiceOptions += `<optgroup label="✅ INVOIS SELESAI / LUNAS (PAID)" style="color: #28a745; font-weight: bold; background: #f6fff6;">`;
+        paidList.forEach(item => {
+            invoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #718096;">${escapeHtml(item.inv)} - ${escapeHtml(item.nama)} - ${escapeHtml(item.alamat)} [✅ PAID]</option>`;
+        });
+        invoiceOptions += `</optgroup>`;
+    }
+
+    // Kekalkan 100% struktur kad kawalan, input diskaun, caj tambahan, dan butang PDF asal anda
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
         <div class="card no-print">
-            <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
+            <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">${invoiceOptions}</select></div>
             <div class="row">
                 <div class="col form-group"><label>Servis Tambahan</label><input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()"></div>
                 <div class="col form-group"><label>Harga (RM)</label><input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()"></div>
