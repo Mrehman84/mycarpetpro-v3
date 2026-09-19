@@ -2623,24 +2623,6 @@ async function saveBulkPrices() {
 }
 
 
-
-
-
-    // ================================================================
-//          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
-// ================================================================
-
-// ================================================================
-//  BAHAGIAN 1: ANTARA MUKA HTML BORANG PERBELANJAAN (renderExpenses)
-// ================================================================
-
-function renderExpenses(container) {
-    container.innerHTML = `
-        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
-        <div class="card" id="expenseFormContainer">
-            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
-            <input type="hidden" id="expenseEditId">// ================================================================
 //          BAHAGIAN 2J - BARCODE (KEMAS KINI STRUKTUR PEMBETULAN)
 // ================================================================
 
@@ -2909,6 +2891,24 @@ async function simpanGambarStikers() {
     }
     toast('Semua gambar stiker terasing berjaya disimpan ke peranti!');
 }
+
+
+    // ================================================================
+//          BAHAGIAN 2K - PERBELANJAAN (DENGAN OCR RESIT)
+// ================================================================
+
+// ================================================================
+//  BAHAGIAN 1: ANTARA MUKA HTML BORANG PERBELANJAAN (renderExpenses)
+// ================================================================
+
+function renderExpenses(container) {
+    container.innerHTML = `
+        <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
+        <header><div><h1>🧾 Perbelanjaan</h1><p class="muted">Rekod perbelanjaan syarikat</p></div></header>
+        <div class="card" id="expenseFormContainer">
+            <h3 class="card-title">Tambah / Edit Perbelanjaan</h3>
+            <input type="hidden" id="expenseEditId">// ================================================================
+
 
             <div class="row">
                 <div class="col form-group">
