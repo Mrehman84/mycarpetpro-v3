@@ -2623,7 +2623,7 @@ async function saveBulkPrices() {
 }
 
 
-    // ================================================================
+ // ================================================================
 //          BAHAGIAN 2J - BARCODE (KEMAS KINI STRUKTUR PEMBETULAN)
 // ================================================================
 
@@ -2671,7 +2671,6 @@ function renderBarcode(container) {
         <div class="card">
             <div class="form-group"><label>Pilih Invois Aktif</label><select id="barcodeInvoiceSelect" class="form-control" onchange="generateBarcodePreview()"><option value="">-- Pilih --</option>${invoiceOptions}</select></div>
             
-            <!-- PENAMBAHAN DROPDOWN SAIZ: Senarai saiz pasaran lengkap di bawah atau sama dengan 50mm -->
             <div class="form-group" style="margin-top: 12px;">
                 <label><i class="fa-solid fa-ruler-combined"></i> Pilih Saiz Kertas Thermal Pasaran</label>
                 <select id="barcodeSizeSelect" class="form-control" onchange="generateBarcodePreview()">
@@ -2699,7 +2698,6 @@ function generateBarcodePreview() {
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
     if (!carpets.length) { container.innerHTML = '<p class="muted">Tiada karpet untuk invois ini.</p>'; return; }
 
-    // Simpan rujukan saiz pilihan semasa ke memori cache pelayar web
     const sizeSelect = document.getElementById('barcodeSizeSelect')?.value || "50x30";
     localStorage.setItem('mycarpet_last_barcode_size', sizeSelect);
     const [wStr, hStr] = sizeSelect.split('x');
@@ -2722,22 +2720,19 @@ function generateBarcodePreview() {
 
     let stikersHTML = '';
     carpetsData.forEach((k, idx) => {
-        // PENYELESAIAN PERTINDIHAN ELEMEN: Saiz kotak dikunci secara mutlak (mm), 
-        // manakai teks dilaraskan mengikut peratusan (%) tinggi ruang fizikal kertas menggunakan formula 'calc'
+        // PEMBETULAN PARSING KEDUDUKAN: Menambah 'align-items: center;' agar kandungan dipaksa berada di paksi tengah stiker
         stikersHTML += `
-            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:3% 4%; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter',sans-serif; margin:2mm; page-break-after:always; background:#fff; flex-shrink:0; overflow:hidden;">
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.2px; color:#333; line-height:1.1;">MYCARPET PRO v3.3</div>
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.5px 0; line-height:1.1;">INV: ${escapeHtml(inv)}</div>
+            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:3% 4%; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; align-items:center; text-align:center; font-family:'Inter',sans-serif; margin:2mm; page-break-after:always; background:#fff; flex-shrink:0; overflow:hidden;">
+                <div style="width:100%; font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.2px; color:#333; line-height:1.1; text-align:center;">MYCARPET PRO v3.3</div>
+                <div style="width:100%; font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.5px 0; line-height:1.1; text-align:center;">INV: ${escapeHtml(inv)}</div>
                 
-                <!-- Ruang kontena QR menggunakan kaedah peratusan dinamik (40% daripada ketinggian stiker) -->
-                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:40%; display:flex; align-items:center; justify-content:center; margin:1% 0; overflow:hidden;"></div>
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:40%; display:flex; align-items:center; justify-content:center; margin:1% auto; overflow:hidden;"></div>
                 
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.07); font-weight:bold; font-family:monospace; letter-spacing:0.3px; line-height:1.1;">QR ID: ${escapeHtml(k.qrId)}</div>
-                <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:3%; font-weight:bold; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+                <div style="width:100%; font-size:calc(${currentPaperHeight}mm * 0.07); font-weight:bold; font-family:monospace; letter-spacing:0.3px; line-height:1.1; text-align:center;">QR ID: ${escapeHtml(k.qrId)}</div>
+                <div style="width:100%; font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:3%; font-weight:bold; color:#111; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.1; text-align:center;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
-
-        const html = `
+    const html = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3mm;">
             <div><strong>${escapeHtml(inv)}</strong> — ${escapeHtml(nama)}<br><small>${escapeHtml(alamat)} | Tel: ${escapeHtml(telefon)}</small><br><small>Jumlah karpet: ${carpets.length}</small></div>
             <div>
@@ -2746,7 +2741,6 @@ function generateBarcodePreview() {
                 <button class="btn btn-secondary btn-sm" onclick="simpanGambarStikers()"><i class="fa-solid fa-image"></i> Simpan Gambar</button>
             </div>
         </div>
-        <!-- PENYELESAIAN DI TELEFON: Ditambah overflow-x:auto dan align-items:flex-start bagi menghalang telefon mudah alih daripada mengecilkan kotak stiker secara paksa -->
         <div id="stikerGrid" style="display:flex; flex-wrap:wrap; gap:2mm; justify-content:center; align-items:flex-start; overflow-x:auto; padding:10px; background:#f0f0f0; border-radius:8px;">${stikersHTML}</div>`;
     container.innerHTML = html;
 
@@ -2756,7 +2750,6 @@ function generateBarcodePreview() {
             if (qrContainer) {
                 qrContainer.innerHTML = '';
                 try {
-                    // KOD STABIL ASAL ANDA: Saiz standard asli (120x120) dikekalkan supaya enjin qrcodeJS tidak crash/blank di skrin utama
                     new QRCode(qrContainer, {
                         text: k.qrId, 
                         width: 120,
@@ -2766,7 +2759,6 @@ function generateBarcodePreview() {
                         correctLevel: QRCode.CorrectLevel.L
                     });
 
-                    // PENAMBAHAN KAWALAN CSS PINTAR: Imej QR dikecilkan secara lancar mengikut ruang kotak kertas thermal
                     const qrImg = qrContainer.querySelector('img');
                     const qrCanvas = qrContainer.querySelector('canvas');
                     
@@ -2799,7 +2791,7 @@ function printStikers() {
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // SUNTIKAN STRUKTUR CETAKAN DINAMIK @PAGE
+    // PEMBETULAN GAYA KERTAS: Suntikan gaya susunan flex 'align-items: center' dipastikan aktif semasa proses cetakan
     printWindow.document.write(`
         <html>
         <head>
@@ -2807,7 +2799,7 @@ function printStikers() {
             <style>
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 @page { size: ${currentPaperWidth}mm ${currentPaperHeight}mm; margin: 0; }
-                html, body { width: ${currentPaperWidth}mm; height: ${currentPaperHeight}mm; background: #fff; overflow: hidden; }
+                html, body { width: ${currentPaperWidth}mm; height: ${currentPaperHeight}mm; background: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; }
                 .stiker-box { 
                     width: ${currentPaperWidth}mm !important; 
                     height: ${currentPaperHeight}mm !important; 
@@ -2817,6 +2809,7 @@ function printStikers() {
                     display: flex !important; 
                     flex-direction: column !important; 
                     justify-content: space-between !important; 
+                    align-items: center !important;
                     text-align: center !important; 
                     font-family: 'Inter', sans-serif !important; 
                     page-break-after: always !important; 
@@ -2831,7 +2824,7 @@ function printStikers() {
                     display: block !important;
                     object-fit: contain !important; 
                 }
-                .stiker-box div { line-height: 1.1 !important; }
+                .stiker-box div { line-height: 1.1 !important; text-align: center !important; }
             </style>
         </head>
         <body>
@@ -2842,8 +2835,6 @@ function printStikers() {
     printWindow.document.close();
     printWindow.focus();
     
-    // PENYELESAIAN CETAKAN PDF KOSONG DI TELEFON: Lenggangan masa 1500ms (1.5 saat) 
-    // supaya pemandu peranti mudah alih sempat menyalin fail imej QR Code sebelum halaman cetak muncul
     setTimeout(() => { 
         printWindow.print(); 
         printWindow.close(); 
@@ -2854,7 +2845,6 @@ function simpanPDFStikers() {
     printStikers(); 
 }
 
-// PEMULIHAN FUNGSI HILANG: Melengkapkan fungsi eksport gambar menggunakan pustaka html2canvas sedia ada
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
