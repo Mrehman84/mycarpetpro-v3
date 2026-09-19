@@ -2778,9 +2778,10 @@ function generateBarcodePreview() {
 function printStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
+    
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // MENYUNTIK SAIZ HALAMAN DINAMIK KE DALAM CONFIG PENCETAK WINDOWS / MAC / ANDROID
+    // PEMBETULAN UTAMA: Menyalin kandungan grid bersama tetapan CSS cetakan mutlak
     printWindow.document.write(`
         <html>
         <head>
@@ -2804,11 +2805,13 @@ function printStikers() {
                     box-sizing: border-box !important;
                     overflow: hidden !important;
                 }
+                /* Memaksa elemen imej dan kanvas QR code kelihatan stabil semasa PDF dijana */
                 .stiker-box table, .stiker-box canvas, .stiker-box img { 
                     width: auto !important;
                     height: 100% !important;
                     max-height: 100% !important;
                     margin: 0 auto !important; 
+                    display: block !important;
                     object-fit: contain !important; 
                 }
                 .stiker-box div { line-height: 1.1 !important; }
@@ -2819,10 +2822,18 @@ function printStikers() {
         </body>
         </html>
     `);
+    
     printWindow.document.close();
     printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 750);
+    
+    // PEMBETULAN PENTING: Memanjangkan masa kepada 1500ms (1.5 saat) 
+    // bagi memberikan ruang pelayar telefon melukis semula imej QR Code ke dalam fail PDF
+    setTimeout(() => { 
+        printWindow.print(); 
+        printWindow.close(); 
+    }, 1500);
 }
+
 
 function simpanPDFStikers() { printStikers(); }
 
