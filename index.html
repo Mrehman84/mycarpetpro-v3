@@ -2721,17 +2721,17 @@ function generateBarcodePreview() {
 
     let stikersHTML = '';
     carpetsData.forEach((k, idx) => {
-        // KOD ASAL ANDA: Ditambah gaya 'text-align: center' yang lebih konsisten pada setiap baris tulisan
+        // PEMBETULAN PINTAR KELANDINGAN LEBAR: Aturan padding ditukar dinamik mengikut kelebaran semasa peratusan.
+        // white-space ditukar kepada 'normal' supaya teks bawah membungkus ke baris baharu (wrap) jika lebar kertas dipendekkan (contoh: 30mm).
         stikersHTML += `
-            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:1.5mm 1mm; box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; margin:1mm; page-break-after:always; background:#fff;">
-                <div style="font-size:8px; font-weight:bold; letter-spacing:0.2px; color:#333; text-align:center; width:100%;">MYCARPET PRO v3.3</div>
-                <div style="font-size:8px; font-weight:bold; margin:0.5px 0; text-align:center; width:100%;">INV: ${escapeHtml(inv)}</div>
+            <div class="stiker-box" style="width:${currentPaperWidth}mm; height:${currentPaperHeight}mm; border:1px dashed #000; padding:calc(${currentPaperHeight}mm * 0.04) calc(${currentPaperWidth}mm * 0.04); box-sizing:border-box; display:flex; flex-direction:column; justify-content:space-between; text-align:center; font-family:'Inter', sans-serif; margin:1mm; page-break-after:always; background:#fff; overflow:hidden;">
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; letter-spacing:0.1px; color:#333; text-align:center; width:100%; line-height:1;">MYCARPET PRO v3.3</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.075); font-weight:bold; margin:0.3px 0; text-align:center; width:100%; line-height:1;">INV: ${escapeHtml(inv)}</div>
                 
-                <!-- Ruang pembungkus imej QR code menggunakan kaedah susunan tengah statik yang kuat -->
-                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:13mm; display:block; text-align:center; margin:0 auto;"></div>
+                <div class="qr-placeholder" id="qr-stiker-${idx}" style="width:100%; height:40%; display:block; text-align:center; margin:0 auto; overflow:hidden;"></div>
                 
-                <div style="font-size:7px; font-weight:bold; font-family:monospace; letter-spacing:0.5px; text-align:center; width:100%;">QR ID: ${escapeHtml(k.qrId)}</div>
-                <div style="font-size:6px; border-top:0.5px solid #000; padding-top:1px; font-weight:bold; color:#111; white-space:nowrap; text-align:center; width:100%;">KOD: ${escapeHtml(k.kod)} | CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.065); font-weight:bold; font-family:monospace; letter-spacing:0.2px; text-align:center; width:100%; line-height:1;">QR ID: ${escapeHtml(k.qrId)}</div>
+                <div style="font-size:calc(${currentPaperHeight}mm * 0.055); border-top:0.5px solid #000; padding-top:2px; font-weight:bold; color:#111; white-space:normal; word-break:break-all; text-align:center; width:100%; line-height:1.1;">KOD: ${escapeHtml(k.kod)}<br>CUS: ${escapeHtml(cusId)} | TEL: ${escapeHtml(telefon)}</div>
             </div>`;
     });
     const html = `
@@ -2761,14 +2761,23 @@ function generateBarcodePreview() {
                         correctLevel: QRCode.CorrectLevel.L
                     });
 
-                    // PEMBETULAN UTAMA PREVIEW: Memaksa imej QR duduk di tengah-tengah kontena skrin utama (margin: 0 auto)
                     const qrImg = qrContainer.querySelector('img');
+                    const qrCanvas = qrContainer.querySelector('canvas');
                     if (qrImg) {
-                        qrImg.style.width = '13mm';
-                        qrImg.style.height = '13mm';
+                        qrImg.style.width = 'auto';
+                        qrImg.style.height = '100%';
+                        qrImg.style.maxHeight = '100%';
                         qrImg.style.objectFit = 'contain';
                         qrImg.style.display = 'block';
                         qrImg.style.margin = '0 auto';
+                    }
+                    if (qrCanvas) {
+                        qrCanvas.style.width = 'auto';
+                        qrCanvas.style.height = '100%';
+                        qrCanvas.style.maxHeight = '100%';
+                        qrCanvas.style.objectFit = 'contain';
+                        qrCanvas.style.display = 'block';
+                        qrCanvas.style.margin = '0 auto';
                     }
                 } catch (e) {
                     console.error('Gagal jana QR untuk stiker', idx, e);
@@ -2783,8 +2792,8 @@ function printStikers() {
     if (!grid) return toast('Tiada stiker.');
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     
-    // PEMBETULAN UTAMA CETAKAN: Suntikan 'display: block !important; margin: 0 auto !important;' 
-    // dipaksa masuk ke dalam tag imej dan kanvas pencetak untuk mengunci kedudukan tengah mutlak
+    // PEMBETULAN CETAKAN LEBAR: Menyediakan konfigurasi helaian cetakan responsif penuh 
+    // suapan lebar kertas thermal semasa di dalam driver pencetak browser
     printWindow.document.write(`
         <html>
         <head>
@@ -2798,7 +2807,7 @@ function printStikers() {
                     height: ${currentPaperHeight}mm !important; 
                     margin: 0 !important; 
                     border: none !important; 
-                    padding: 1.5mm 1mm !important; 
+                    padding: calc(${currentPaperHeight}mm * 0.04) calc(${currentPaperWidth}mm * 0.04) !important; 
                     display: flex !important; 
                     flex-direction: column !important; 
                     justify-content: space-between !important; 
@@ -2807,10 +2816,12 @@ function printStikers() {
                     page-break-after: always !important; 
                     background: #fff !important; 
                     box-sizing: border-box !important; 
+                    overflow: hidden !important;
                 }
                 .stiker-box table, .stiker-box canvas, .stiker-box img { 
-                    width: 13mm !important; 
-                    height: 13mm !important; 
+                    width: auto !important; 
+                    height: 100% !important; 
+                    max-height: 100% !important; 
                     margin: 0 auto !important; 
                     display: block !important;
                     object-fit: contain !important; 
@@ -2836,6 +2847,7 @@ function simpanPDFStikers() {
     printStikers(); 
 }
 
+// PENGEKALAN FUNGSI GAMBAR TULEN
 function simpanGambarStikers() {
     const grid = document.getElementById('stikerGrid');
     if (!grid) return toast('Tiada stiker.');
