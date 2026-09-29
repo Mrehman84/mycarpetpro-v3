@@ -1977,7 +1977,7 @@ function hantarWhatsAppPembayaran() {
 
 
 // ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 1/4)
+//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 1/4)
 // ================================================================
 
 function renderInvoiceTab(container) {
@@ -2060,8 +2060,9 @@ function renderInvoiceTab(container) {
         </div>
         <div id="invoicePreviewContainer"></div>`;
 }
+
 // ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 2/4)
+//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 2/4)
 // ================================================================
 
 function renderInvoicePreview() {
@@ -2129,8 +2130,9 @@ function renderInvoicePreview() {
     if (diskaun > 0) {
         itemsHTML += `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td></tr>`;
     }
+
 // ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 3/4)
+//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 3/4)
 // ================================================================
 
     const html = `
@@ -2152,67 +2154,69 @@ function renderInvoicePreview() {
                     </div>
                 </td>
                 <td style="width:45%; vertical-align:top; text-align:right; padding:0;">
-                    <h1 style="font-size:20px; color:\${brandColor}; margin:0 0 5px 0; font-weight:700; line-height:1;">INVOICE</h1>
+                    <h1 style="font-size:20px; color:${brandColor}; margin:0 0 5px 0; font-weight:700; line-height:1;">INVOICE</h1>
                     <table style="border-collapse:collapse; font-size:9px; margin-top:5px; margin-left:auto;">
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">INVOICE NO</td><td style="border:1px solid #ddd; padding:2px 6px; font-weight:700;">\${escapeHtml(inv)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH AMBIL</td><td style="border:1px solid #ddd; padding:2px 6px;">\${formatDateMY(tarikhAmbil)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH SIAP</td><td style="border:1px solid #ddd; padding:2px 6px;">\${formatDateMY(tarikhSiap)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">INVOICE NO</td><td style="border:1px solid #ddd; padding:2px 6px; font-weight:700;">${escapeHtml(inv)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH AMBIL</td><td style="border:1px solid #ddd; padding:2px 6px;">${formatDateMY(tarikhAmbil)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH SIAP</td><td style="border:1px solid #ddd; padding:2px 6px;">${formatDateMY(tarikhSiap)}</td></tr>
                     </table>
                     <div style="margin-top:4mm;">
-                        <span style="font-weight:700; font-size:18px; color:\${brandColor}; border:2px solid brandColor; padding:2px 8px; border-radius:4px; display:inline-block;">{isPaid ? 'PAID' : 'PENDING'}</span>
+                        <span style="font-weight:700; font-size:18px; color:${brandColor}; border:2px solid ${brandColor}; padding:2px 8px; border-radius:4px; display:inline-block;">${isPaid ? 'PAID' : 'PENDING'}</span>
                     </div>
                 </td>
             </tr>
         </table>
 
         <!-- MAKLUMAT DATA PELANGGAN -->
-        <div style="background:\${brandColor}; color:#fff; padding:4px 8px; font-weight:700; font-size:10px; margin-bottom:3mm; border-radius:2px;">INVOICE TO</div>
+        <div style="background:${brandColor}; color:#fff; padding:4px 8px; font-weight:700; font-size:10px; margin-bottom:3mm; border-radius:2px;">INVOICE TO</div>
         <div style="margin-bottom:5mm; background:#fafafa; padding:8px; border:1px solid #eee; border-radius:4px;">
-            <div style="font-weight:700; font-size:12px;">escapeHtml(nama) ({escapeHtml(custId)})</div>
-            <div style="font-size:10px; color:#555; margin-top:2px;">Alamat: escapeHtml(alamat), {escapeHtml(daerah)}</div>
-            <div style="font-size:10px; color:#555; margin-top:2px;">No. Telefon: \${escapeHtml(telefon)}</div>
+            <div style="font-weight:700; font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
+            <div style="font-size:10px; color:#555; margin-top:2px;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
+            <div style="font-size:10px; color:#555; margin-top:2px;">No. Telefon: ${escapeHtml(telefon)}</div>
         </div>
         
         <!-- JADUAL ITEM KARPET UTAMA -->
         <table style="width:100%; border-collapse:collapse; font-size:10px; margin-bottom:5mm;">
             <thead>
-                <tr style="background:\${brandColor}; color:#fff;">
-                    <th style="padding:4px; text-align:center; width:5%; border:1px solid \${brandColor};">BIL</th>
-                    <th style="padding:4px 6px; width:50%; text-align:left; border:1px solid \${brandColor};">KETERANGAN SERVIS / JENIS CARPET</th>
-                    <th style="padding:4px; text-align:center; width:5%; border:1px solid \${brandColor};">UNIT</th>
-                    <th style="padding:4px 6px; text-align:right; width:18%; border:1px solid \${brandColor};">HARGA SEUNIT (RM)</th>
-                    <th style="padding:4px 6px; text-align:right; width:22%; border:1px solid \${brandColor};">TOTAL (RM)</th>
+                <tr style="background:${brandColor}; color:#fff;">
+                    <th style="padding:4px; text-align:center; width:5%; border:1px solid ${brandColor};">BIL</th>
+                    <th style="padding:4px 6px; width:50%; text-align:left; border:1px solid ${brandColor};">KETERANGAN SERVIS / JENIS CARPET</th>
+                    <th style="padding:4px; text-align:center; width:5%; border:1px solid ${brandColor};">UNIT</th>
+                    <th style="padding:4px 6px; text-align:right; width:18%; border:1px solid ${brandColor};">HARGA SEUNIT (RM)</th>
+                    <th style="padding:4px 6px; text-align:right; width:22%; border:1px solid ${brandColor};">TOTAL (RM)</th>
                 </tr>
             </thead>
             <tbody>
-                \${itemsHTML || '<tr><td colspan="5" style="padding:6px; text-align:center; border:1px solid #ddd;">Tiada item</td></tr>'}
+                ${itemsHTML || '<tr><td colspan="5" style="padding:6px; text-align:center; border:1px solid #ddd;">Tiada item</td></tr>'}
             </tbody>
         </table>
 
-        <!-- RINGKASAN SUB TOTAL KOS DAN BAKI (SEBELAH KANAN) -->
+        <!-- RINGKASAN SUB TOTAL KOS DAN BAKI (PENGGANTIAN STRUKTUR BEBAS CONCATENATION KALIS RALAT) -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:5mm;">
             <tr>
                 <td style="width:50%;"></td>
                 <td style="width:50%; vertical-align:top;">
                     <table style="border-collapse:collapse; font-size:10px; width:100%;">
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">\({formatMoney(subtotal)}</td></tr>\){extraPrice > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
-                        \${diskaun > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px; color:#d32f2f; font-weight:600;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:#d32f2f;">-${formatMoney(diskaun)}</td></tr>` : ''}
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; font-weight:700;">\${formatMoney(total)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">\${formatMoney(deposit)}</td></tr>
-                        <tr style="background:#f5f5f5; font-weight:700;"><td style="border:1px solid #ddd; padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:\({isPaid ? '#28a745' : '#ff6d00'};">\){formatMoney(baki)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(subtotal)}</td></tr>
+                        ${extraPrice > 0 ? '<tr><td style="border:1px solid #ddd; padding:3px 8px;">' + escapeHtml(extraName.toUpperCase()) + '</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">' + formatMoney(extraPrice) + '</td></tr>' : ''}
+                        ${diskaun > 0 ? '<tr><td style="border:1px solid #ddd; padding:3px 8px; color:#d32f2f; font-weight:600;">' + escapeHtml(diskaunNote.toUpperCase()) + '</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:#d32f2f;">-' + formatMoney(diskaun) + '</td></tr>' : ''}
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; font-weight:700;">${formatMoney(total)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(deposit)}</td></tr>
+                        <tr style="background:#f5f5f5; font-weight:700;"><td style="border:1px solid #ddd; padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
                     </table>
                 </td>
             </tr>
         </table>
+
 // ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 4/4)
+//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 4/4)
 // ================================================================
 
         <!-- FOOTER: AKAUN BANK PILIHAN DAN RUANGAN COP KEDAI TANDATANGAN -->
         <table style="width:100%; border-collapse:collapse; font-size:8px; color:#555; border-top:1px solid #eee; margin-bottom:4mm;">
             <tr>
                 <td style="width:55%; vertical-align:top; text-align:left; padding-top:2mm; line-height:1.4;">
-                    \${bankHTML}
+                    ${bankHTML}
                 </td>
                 <td style="width:45%; vertical-align:top; text-align:center; padding-top:2mm;">
                     <strong>DISEDIAKAN OLEH / COP:</strong><br>
@@ -2229,7 +2233,7 @@ function renderInvoicePreview() {
             2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
             <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
         </div>
-        <div style="text-align:center; margin-top:3mm; font-size:8px; color:\${brandColor}; font-weight:700;">
+        <div style="text-align:center; margin-top:3mm; font-size:8px; color:${brandColor}; font-weight:700;">
             Thank you for your business! We look forward to serving you again.<br>
             ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
         </div>
