@@ -1975,8 +1975,9 @@ function hantarWhatsAppPembayaran() {
 }
 
 
-    // ================================================================
-//            BAHAGIAN 2F - INVOIS & RESIT (BERKUMPULAN STABIL)
+
+// ================================================================
+//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 1/4)
 // ================================================================
 
 function renderInvoiceTab(container) {
@@ -2017,7 +2018,7 @@ function renderInvoiceTab(container) {
         invoiceOptions += `</optgroup>`;
     }
 
-    // KUMPULAN 2: Menghimpunkan invois yang status harian sudah PAID (Pindah ke bawah)
+    // KUMPULAN 2: Menghimpunkan invois yang status harian sudah PAID
     if (paidList.length > 0) {
         invoiceOptions += `<optgroup label="✅ INVOIS SELESAI / LUNAS (PAID)">`;
         paidList.forEach(item => {
@@ -2026,13 +2027,23 @@ function renderInvoiceTab(container) {
         invoiceOptions += `</optgroup>`;
     }
 
-    // PEMBETULAN GRAPHIC LIFECYCLE: Struktur kontena, ID elemen "invoiceSelect" 
-    // dan seluruh butang cetakan asal anda dikembalikan 100% ke format asal tanpa sebarang gubahan inline style yang mengganggu enjin pdf
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>🖨️ Invois & Resit</h1><p class="muted">Pilih invois untuk paparan</p></div></header>
         <div class="card no-print">
             <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">${invoiceOptions}</select></div>
+            
+            <!-- INPUT DROP-DOWN BANK TERBARU UNTUK PILIHAN ADMIN -->
+            <div class="row">
+                <div class="col form-group">
+                    <label style="font-weight: 700; color: #2b6cb0;"><i class="fa-solid fa-bank"></i> Pilih Akaun Bank Untuk Paparan Invois</label>
+                    <select id="invoiceBankSelect" class="form-control" onchange="renderInvoicePreview()" style="border: 2px solid #2b6cb0;">
+                        <option value="MAYBANK">MAYBANK — MATI-UR REHMAN (15-203-142-4070)</option>
+                        <option value="PUBLIC_BANK">PUBLIC BANK — WESTBERRY ENTERPRISE (38-206-27000)</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="row">
                 <div class="col form-group"><label>Servis Tambahan</label><input type="text" id="extraServiceName" class="form-control" placeholder="Caj Urgen" oninput="renderInvoicePreview()"></div>
                 <div class="col form-group"><label>Harga (RM)</label><input type="number" id="extraServicePrice" class="form-control" min="0" step="0.01" value="0" oninput="renderInvoicePreview()"></div>
@@ -2049,11 +2060,28 @@ function renderInvoiceTab(container) {
         </div>
         <div id="invoicePreviewContainer"></div>`;
 }
+// ================================================================
+//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 2/4)
+// ================================================================
 
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
     if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
+    
+    // AMBIL PILIHAN DROP-DOWN BANK SECARA DINAMIK
+    const bankSelect = document.getElementById('invoiceBankSelect')?.value || "MAYBANK";
+    let bankHTML = '';
+    if (bankSelect === "MAYBANK") {
+        bankHTML = `<strong>UNTUK PEMBAYARAN:</strong><br>
+                    <strong style="font-size:11px; color:#000;">MAYBANK — MATI-UR REHMAN</strong><br>
+                    <span style="color:#b42828; font-size:13px; font-weight:900; letter-spacing:0.5px;">15-203-142-4070</span>`;
+    } else {
+        bankHTML = `<strong>UNTUK PEMBAYARAN:</strong><br>
+                    <strong style="font-size:11px; color:#000;">PUBLIC BANK — WESTBERRY ENTERPRISE</strong><br>
+                    <span style="color:#b42828; font-size:13px; font-weight:900; letter-spacing:0.5px;">38-206-27000</span>`;
+    }
+
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) || {};
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const nama = getField(cust, ['NAMA'], getField(order, ['NAMA'], '-'));
@@ -2066,18 +2094,23 @@ function renderInvoicePreview() {
     const status = normalize(getField(order, ['STATUS'], 'PENDING'));
     const isPaid = status === 'PAID' || status === 'LUNAS' || status === 'SELESAI';
     const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(inv));
+    
     let items = carpets.map(k => ({ nama: getField(k, ['JENIS','JENIS CARPET'], 'CUCIAN CARPET'), qr: getField(k, ['QR ID','QR_ID'], ''), qty: 1, harga: getNumber(getField(k, ['HARGA'])), total: getNumber(getField(k, ['HARGA'])) }));
     if (!items.length) { const to = getNumber(getField(order, ['JUMLAH HARGA'], 0)); if (to > 0) items = [{ nama: 'PERKHIDMATAN CUCIAN', qr: '', qty: 1, harga: to, total: to }]; }
+    
     const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
     let deposit = 0; payments.forEach(p => { deposit += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    
     const diskaun = getNumber(document.getElementById('diskaunAmount')?.value || 0);
     const diskaunNote = document.getElementById('diskaunNote')?.value.trim() || 'DISKAUN';
     const extraName = document.getElementById('extraServiceName')?.value.trim() || '';
     const extraPrice = getNumber(document.getElementById('extraServicePrice')?.value || 0);
+    
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const totalSelepasTambahan = subtotal + extraPrice;
     const totalSelepasDiskaun = Math.max(0, totalSelepasTambahan - diskaun);
     const total = totalSelepasDiskaun;
+    
     let baki = 0;
     if (payments.length > 0) {
         const lp = payments[payments.length - 1];
@@ -2086,26 +2119,30 @@ function renderInvoicePreview() {
     } else {
         baki = Math.max(0, total - deposit);
     }
+    
     const brandColor = isPaid ? '#28a745' : '#ff6d00';
-    let itemsHTML = items.map((item, i) => `<tr><td style="width:5%;">${i+1}</td><td style="width:50%;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: ${escapeHtml(item.qr)}</small>` : ''}</td><td style="width:5%;">${item.qty}</td><td style="width:18%;text-align:right;">${formatMoney(item.harga)}</td><td style="width:22%;text-align:right;">${formatMoney(item.total)}</td></tr>`).join('');
+    
+    let itemsHTML = items.map((item, i) => `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${i+1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: \${escapeHtml(item.qr)}</small>` : ''}</td><td style="width:5%; border:1px solid #ddd; text-align:center;">${item.qty}</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(item.harga)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(item.total)}</td></tr>`).join('');
     if (extraName && extraPrice > 0) {
-        itemsHTML += `<tr><td style="width:5%;">${items.length+1}</td><td style="width:50%;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">${formatMoney(extraPrice)}</td><td style="width:22%;text-align:right;">${formatMoney(extraPrice)}</td></tr>`;
+        itemsHTML += `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${items.length+1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(extraPrice)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(extraPrice)}</td></tr>`;
     }
     if (diskaun > 0) {
-        itemsHTML += `<tr><td style="width:5%;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%;">1</td><td style="width:18%;text-align:right;">-${formatMoney(diskaun)}</td><td style="width:22%;text-align:right;">-${formatMoney(diskaun)}</td></tr>`;
+        itemsHTML += `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td></tr>`;
     }
+// ================================================================
+//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 3/4)
+// ================================================================
 
- 
- const html = `
-        <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important; box-shadow: none !important; border: none !important; background: #fff;">
-        <div style="max-width:210mm; margin:0 auto; padding: 6mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
+    const html = `
+        <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important; box-shadow: none !important; border: none !important; background: #fff; position: relative; top: 0; left: 0;">
+        <div style="max-width:210mm; margin:0 auto; padding: 4mm 6mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
         
-        <!-- HEADER UTAMA: Menggunakan struktur jadual stabil untuk menghalang logo bertindih dengan teks syarikat -->
-        <table style="width:100%; border-collapse:collapse; margin-bottom:5mm;">
+        <!-- HEADER UTAMA JADUAL KANAN KIRI KALIS HEROT -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:5mm; margin-top:0px;">
             <tr>
-                <td style="width:55%; vertical-align:top; text-align:left;">
-                    <div style="margin-bottom:4mm;">
-                        <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/logo_westberry.png" alt="Logo" style="height:15mm; display:block;" onerror="this.style.display='none'">
+                <td style="width:55%; vertical-align:top; text-align:left; padding:0;">
+                    <div style="margin-bottom:4mm; margin-top:0px; padding-top:0px;">
+                        <img src="https://githubusercontent.com" alt="Logo" style="height:15mm; display:block;" onerror="this.style.display='none'">
                     </div>
                     <div style="font-size:13px; font-weight:700; color:#1a1a1a; line-height:1.4;">WESTBERRY ENTERPRISE</div>
                     <div style="font-size:10px; color:#555; line-height:1.4;">
@@ -2114,85 +2151,85 @@ function renderInvoicePreview() {
                         TEL: 017-4050336
                     </div>
                 </td>
-                <td style="width:45%; vertical-align:top; text-align:right;">
-                    <h1 style="font-size:20px; color:${brandColor}; margin:0 0 5px 0; font-weight:700;">INVOICE</h1>
-                    <table style="border-collapse:collapse; font-size:9px; margin-left:auto;">
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">INVOICE NO</td><td style="border:1px solid #ddd; padding:2px 6px; font-weight:700;">${escapeHtml(inv)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH AMBIL</td><td style="border:1px solid #ddd; padding:2px 6px;">${formatDateMY(tarikhAmbil)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH SIAP</td><td style="border:1px solid #ddd; padding:2px 6px;">${formatDateMY(tarikhSiap)}</td></tr>
+                <td style="width:45%; vertical-align:top; text-align:right; padding:0;">
+                    <h1 style="font-size:20px; color:\${brandColor}; margin:0 0 5px 0; font-weight:700; line-height:1;">INVOICE</h1>
+                    <table style="border-collapse:collapse; font-size:9px; margin-top:5px; margin-left:auto;">
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">INVOICE NO</td><td style="border:1px solid #ddd; padding:2px 6px; font-weight:700;">\${escapeHtml(inv)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH AMBIL</td><td style="border:1px solid #ddd; padding:2px 6px;">\${formatDateMY(tarikhAmbil)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:2px 6px; font-weight:600; background:#f9f9f9;">TARIKH SIAP</td><td style="border:1px solid #ddd; padding:2px 6px;">\${formatDateMY(tarikhSiap)}</td></tr>
                     </table>
                     <div style="margin-top:4mm;">
-                        <span style="font-weight:700; font-size:20px; color:${brandColor}; border:2px solid ${brandColor}; padding:2px 8px; border-radius:4px; display:inline-block;">${isPaid ? 'PAID' : 'PENDING'}</span>
+                        <span style="font-weight:700; font-size:18px; color:\${brandColor}; border:2px solid brandColor; padding:2px 8px; border-radius:4px; display:inline-block;">{isPaid ? 'PAID' : 'PENDING'}</span>
                     </div>
                 </td>
             </tr>
         </table>
 
-        <!-- REKOD MAKLUMAT PELANGGAN -->
-        <div style="background:${brandColor}; color:#fff; padding:4px 8px; font-weight:700; font-size:10px; margin-bottom:3mm; border-radius:2px;">INVOICE TO</div>
-        <div style="margin-bottom:6mm; background:#fafafa; padding:8px; border:1px solid #eee; border-radius:4px;">
-            <div style="font-weight:700; font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
-            <div style="font-size:10px; color:#555; margin-top:2px;">Alamat: ${escapeHtml(alamat)}, ${escapeHtml(daerah)}</div>
-            <div style="font-size:10px; color:#555; margin-top:2px;">No. Telefon: ${escapeHtml(telefon)}</div>
+        <!-- MAKLUMAT DATA PELANGGAN -->
+        <div style="background:\${brandColor}; color:#fff; padding:4px 8px; font-weight:700; font-size:10px; margin-bottom:3mm; border-radius:2px;">INVOICE TO</div>
+        <div style="margin-bottom:5mm; background:#fafafa; padding:8px; border:1px solid #eee; border-radius:4px;">
+            <div style="font-weight:700; font-size:12px;">escapeHtml(nama) ({escapeHtml(custId)})</div>
+            <div style="font-size:10px; color:#555; margin-top:2px;">Alamat: escapeHtml(alamat), {escapeHtml(daerah)}</div>
+            <div style="font-size:10px; color:#555; margin-top:2px;">No. Telefon: \${escapeHtml(telefon)}</div>
         </div>
         
-        <!-- SENARAI ITEM KARPET -->
-        <table style="width:100%; border-collapse:collapse; font-size:10px; margin-bottom:6mm;">
+        <!-- JADUAL ITEM KARPET UTAMA -->
+        <table style="width:100%; border-collapse:collapse; font-size:10px; margin-bottom:5mm;">
             <thead>
-                <tr style="background:${brandColor}; color:#fff;">
-                    <th style="padding:4px; text-align:center; width:5%; border:1px solid ${brandColor};">BIL</th>
-                    <th style="padding:4px 6px; width:50%; text-align:left; border:1px solid ${brandColor};">KETERANGAN SERVIS / JENIS CARPET</th>
-                    <th style="padding:4px; text-align:center; width:5%; border:1px solid ${brandColor};">UNIT</th>
-                    <th style="padding:4px 6px; text-align:right; width:18%; border:1px solid ${brandColor};">HARGA SEUNIT (RM)</th>
-                    <th style="padding:4px 6px; text-align:right; width:22%; border:1px solid ${brandColor};">TOTAL (RM)</th>
+                <tr style="background:\${brandColor}; color:#fff;">
+                    <th style="padding:4px; text-align:center; width:5%; border:1px solid \${brandColor};">BIL</th>
+                    <th style="padding:4px 6px; width:50%; text-align:left; border:1px solid \${brandColor};">KETERANGAN SERVIS / JENIS CARPET</th>
+                    <th style="padding:4px; text-align:center; width:5%; border:1px solid \${brandColor};">UNIT</th>
+                    <th style="padding:4px 6px; text-align:right; width:18%; border:1px solid \${brandColor};">HARGA SEUNIT (RM)</th>
+                    <th style="padding:4px 6px; text-align:right; width:22%; border:1px solid \${brandColor};">TOTAL (RM)</th>
                 </tr>
             </thead>
             <tbody>
-                ${itemsHTML || '<tr><td colspan="5" style="padding:6px; text-align:center; border:1px solid #ddd;">Tiada item</td></tr>'}
+                \${itemsHTML || '<tr><td colspan="5" style="padding:6px; text-align:center; border:1px solid #ddd;">Tiada item</td></tr>'}
             </tbody>
         </table>
 
-        <!-- JUMLAH DAN BAYARAN -->
-        <table style="width:100%; border-collapse:collapse; margin-bottom:6mm;">
+        <!-- RINGKASAN SUB TOTAL KOS DAN BAKI (SEBELAH KANAN) -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:5mm;">
             <tr>
                 <td style="width:50%;"></td>
                 <td style="width:50%; vertical-align:top;">
                     <table style="border-collapse:collapse; font-size:10px; width:100%;">
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(subtotal)}</td></tr>
-                        ${extraPrice > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px;">\${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">\${formatMoney(extraPrice)}</td></tr>` : ''}
-                        ${diskaun > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px; color:#d32f2f; font-weight:600;">\${escapeHtml(diskaunNote.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:#d32f2f;">-\${formatMoney(diskaun)}</td></tr>` : ''}
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; font-weight:700;">${formatMoney(total)}</td></tr>
-                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(deposit)}</td></tr>
-                        <tr style="background:#f5f5f5; font-weight:700;"><td style="border:1px solid #ddd; padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:${isPaid ? '#28a745' : '#ff6d00'};">${formatMoney(baki)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">SUB TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">\({formatMoney(subtotal)}</td></tr>\){extraPrice > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px;">${escapeHtml(extraName.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">${formatMoney(extraPrice)}</td></tr>` : ''}
+                        \${diskaun > 0 ? `<tr><td style="border:1px solid #ddd; padding:3px 8px; color:#d32f2f; font-weight:600;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:#d32f2f;">-${formatMoney(diskaun)}</td></tr>` : ''}
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">TOTAL</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; font-weight:700;">\${formatMoney(total)}</td></tr>
+                        <tr><td style="border:1px solid #ddd; padding:3px 8px; font-weight:600;">DEPOSIT</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right;">\${formatMoney(deposit)}</td></tr>
+                        <tr style="background:#f5f5f5; font-weight:700;"><td style="border:1px solid #ddd; padding:3px 8px;">JUMLAH BERSIH</td><td style="border:1px solid #ddd; padding:3px 8px; text-align:right; color:\({isPaid ? '#28a745' : '#ff6d00'};">\){formatMoney(baki)}</td></tr>
                     </table>
                 </td>
             </tr>
         </table>
+// ================================================================
+//   BAHAGIAN 2F - INVOIS & RESIT (LENGKAP SEHINGGA BAWAH - KOD 4/4)
+// ================================================================
 
-        <!-- FOOTER: Bahagian Akaun Pembayaran & Ruangan Cop/Tandatangan Disediakan Secara Berasingan Kolum -->
-        <table style="width:100%; border-collapse:collapse; font-size:8px; color:#555; border-top:1px solid #eee; padding-top:4mm; margin-bottom:5mm;">
+        <!-- FOOTER: AKAUN BANK PILIHAN DAN RUANGAN COP KEDAI TANDATANGAN -->
+        <table style="width:100%; border-collapse:collapse; font-size:8px; color:#555; border-top:1px solid #eee; margin-bottom:4mm;">
             <tr>
-                <td style="width:55%; vertical-align:top; text-align:left; padding-top:3mm;">
-                    <strong>UNTUK PEMBAYARAN:</strong><br>
-                    <strong style="font-size:11px; color:#000;">MAYBANK-MATI-UR REHMAN</strong><br>
-                    <span style="color:#b42828; font-size:13px; font-weight:900; letter-spacing:0.5px;">15-203-142-4070</span>
+                <td style="width:55%; vertical-align:top; text-align:left; padding-top:2mm; line-height:1.4;">
+                    \${bankHTML}
                 </td>
-                <td style="width:45%; vertical-align:top; text-align:center; padding-top:3mm;">
+                <td style="width:45%; vertical-align:top; text-align:center; padding-top:2mm;">
                     <strong>DISEDIAKAN OLEH / COP:</strong><br>
-                    <img src="https://raw.githubusercontent.com/Mrehman84/MYCARPET_PRO/main/tandatangan.png" alt="Tandatangan" style="height:15mm; margin:2mm auto; display:block;" onerror="this.style.display='none'">
+                    <img src="https://githubusercontent.com" alt="Tandatangan" style="height:12mm; margin:1mm auto; display:block;" onerror="this.style.display='none'">
                     <div style="border-top:1px solid #aaa; padding-top:1mm; font-weight:600;">( MYCARPETPRO MANAGEMENT )</div>
                 </td>
             </tr>
         </table>
 
-        <!-- TERMA & PENUTUP -->
-        <div style="font-size:7.5px; color:#777; border-top:1px solid #eee; padding-top:3mm; line-height:1.3;">
+        <!-- TERMA SYARAT & TEKS PENUTUP -->
+        <div style="font-size:7.5px; color:#777; border-top:1px solid #eee; padding-top:2mm; line-height:1.3;">
             <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>
             1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>
             2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
             <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
         </div>
-        <div style="text-align:center; margin-top:4mm; font-size:8px; color:${brandColor}; font-weight:700;">
+        <div style="text-align:center; margin-top:3mm; font-size:8px; color:\${brandColor}; font-weight:700;">
             Thank you for your business! We look forward to serving you again.<br>
             ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
         </div>
@@ -2213,90 +2250,25 @@ function renderInvoicePreview() {
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, isPaid: isPaid, diskaun, diskaunNote };
 }
 
-
-async function prepareInvoiceForExport() {
-    const element = document.getElementById('invoicePrintArea');
-    if (!element) throw new Error('Tiada invois dipilih.');
-
-    const clone = element.cloneNode(true);
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.width = '210mm';
-    clone.style.margin = '0 auto';
-    clone.style.padding = '0';
-    document.body.appendChild(clone);
-
-    const images = Array.from(clone.querySelectorAll('img'));
-    await Promise.all(images.map(img => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-            if (img.src) img.src = img.src;
-        });
-    }));
-
-    return clone;
-}
-
-async function shareInvoiceWithAttachment() {
-    const data = STATE.currentInvoiceData;
-    if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
-    const element = document.getElementById('invoicePrintArea');
-    if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    const isPaid = data.isPaid;
-    const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
-    const mimeType = isPaid ? 'application/pdf' : 'image/png';
-    toast('Menyediakan lampiran...');
-    let fileBlob;
-    try {
-        if (isPaid) { 
-            // PEMBETULAN: Nilai margin diletakkan array yang sah [10, 10, 10, 10]
-            const pdfBlob = await html2pdf().set({ 
-                margin: 5, 
-                filename: fileName, 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, useCORS: true, logging: false }, 
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } 
-            }).from(element).outputPdf('blob'); 
-            fileBlob = pdfBlob; 
-        }
-        else { 
-            const canvas = await html2canvas(element, { scale: 2, useCORS: true }); 
-            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); 
-        }
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
-            const file = new File([fileBlob], fileName, { type: mimeType });
-            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
-            toast('Invois berjaya dikongsi!');
-            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
-            return;
-        }
-    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
-    try { if (fileBlob) { const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); } } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
-    bukaWhatsApp(data.telefon, data.msg);
-}
+// ================================================================
+//   FUNGSI INDUK PEMANDU EKSPORT PDF DENGAN SETTING scrollY: 0
+// ================================================================
 
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    if (typeof html2pdf === 'undefined') { 
-        toast('Pustaka PDF sedang dimuat. Sila cuba sebentar lagi.'); 
-        const script = document.createElement('script'); 
-        script.src = 'https://cloudflare.com'; 
-        script.onload = () => { toast('Pustaka PDF siap. Sila cuba lagi.'); }; 
-        document.head.appendChild(script); 
-        return; 
-    }
     
-    // PEMBETULAN: Nilai margin diletakkan array yang sah [10, 10, 10, 10]
     const opt = { 
         margin: 5, 
         filename: `Invoice_${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, 
         image: { type: 'jpeg', quality: 0.98 }, 
-        html2canvas: { scale: 2, useCORS: true, logging: false }, 
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollY: 0, // MEMAKSA KOORDINAT SIFAR: Menghapuskan pepijat melorot ke bawah
+            scrollX: 0
+        }, 
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } 
     };
@@ -2310,11 +2282,68 @@ function downloadInvoicePDF() {
     });
 }
 
+async function shareInvoiceWithAttachment() {
+    const data = STATE.currentInvoiceData;
+    if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
+    const element = document.getElementById('invoicePrintArea');
+    if (!element) { toast('Sila pilih invois dahulu.'); return; }
+    
+    const isPaid = data.isPaid;
+    const fileName = isPaid ? `Invoice_${data.inv}.pdf` : `Invoice_${data.inv}_Pending.png`;
+    const mimeType = isPaid ? 'application/pdf' : 'image/png';
+    toast('Menyediakan lampiran...');
+    let fileBlob;
+    
+    try {
+        if (isPaid) { 
+            fileBlob = await html2pdf().set({ 
+                margin: 5, 
+                filename: fileName, 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, 
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } 
+            }).from(element).outputPdf('blob'); 
+        } else { 
+            const canvas = await html2canvas(element, { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }); 
+            fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); 
+        }
+        
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            const file = new File([fileBlob], fileName, { type: mimeType });
+            await navigator.share({ title: `Invoice ${data.inv}`, text: data.msg, files: [file] });
+            toast('Invois berjaya dikongsi!');
+            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800);
+            return;
+        }
+    } catch (err) { console.warn('Web Share gagal atau tidak disokong:', err); }
+    
+    try { 
+        if (fileBlob) { 
+            const url = URL.createObjectURL(fileBlob); 
+            const a = document.createElement('a'); 
+            a.href = url; 
+            a.download = fileName; 
+            document.body.appendChild(a); 
+            a.click(); 
+            document.body.removeChild(a); 
+            URL.revokeObjectURL(url); 
+            toast('Fail dimuat turun. Sila lampirkan secara manual di WhatsApp.'); 
+        } 
+    } catch (e) { console.error('Muat turun gagal:', e); toast('Gagal memuat turun fail.'); }
+    
+    bukaWhatsApp(data.telefon, data.msg);
+}
+
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
     bukaWhatsApp(data.telefon, data.msg);
 }
+
+
+
+    
     // ================================================================
 //                   BAHAGIAN 2G - PELANGGAN
 // ================================================================
