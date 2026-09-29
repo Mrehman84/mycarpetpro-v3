@@ -1975,16 +1975,10 @@ function hantarWhatsAppPembayaran() {
 }
 
 
-
-// ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 1/4)
-// ================================================================
-
 function renderInvoiceTab(container) {
     const pendingList = [];
     const paidList = [];
 
-    // MEMBAHAGI KEPADA 2: Mengasingkan invois mengikut status lunas (PAID) atau tertunda (PENDING)
     STATE.tempahan.forEach(t => {
         const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
         if (!inv) return;
@@ -2002,14 +1996,11 @@ function renderInvoiceTab(container) {
         }
     });
 
-    // Kekalkan susunan invois terkini sentiasa berada di bahagian atas senarai bagi kedua-dua kumpulan
     pendingList.sort((a, b) => b.inv.localeCompare(a.inv));
     paidList.sort((a, b) => b.inv.localeCompare(a.inv));
 
-    // Membina isi dropdown pilihan berkumpulan (HTML optgroup)
     let invoiceOptions = '<option value="">-- Pilih --</option>';
 
-    // KUMPULAN 1: Menghimpunkan invois yang status harian masih PENDING
     if (pendingList.length > 0) {
         invoiceOptions += `<optgroup label="⏳ INVOIS TERTUNDA (PENDING)">`;
         pendingList.forEach(item => {
@@ -2018,7 +2009,6 @@ function renderInvoiceTab(container) {
         invoiceOptions += `</optgroup>`;
     }
 
-    // KUMPULAN 2: Menghimpunkan invois yang status harian sudah PAID
     if (paidList.length > 0) {
         invoiceOptions += `<optgroup label="✅ INVOIS SELESAI / LUNAS (PAID)">`;
         paidList.forEach(item => {
@@ -2033,7 +2023,6 @@ function renderInvoiceTab(container) {
         <div class="card no-print">
             <div class="form-group"><label>Pilih Invois</label><select id="invoiceSelect" class="form-control" onchange="renderInvoicePreview()">${invoiceOptions}</select></div>
             
-            <!-- INPUT DROP-DOWN BANK TERBARU UNTUK PILIHAN ADMIN -->
             <div class="row">
                 <div class="col form-group">
                     <label style="font-weight: 700; color: #2b6cb0;"><i class="fa-solid fa-bank"></i> Pilih Akaun Bank Untuk Paparan Invois</label>
@@ -2060,17 +2049,11 @@ function renderInvoiceTab(container) {
         </div>
         <div id="invoicePreviewContainer"></div>`;
 }
-
-// ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 2/4)
-// ================================================================
-
 function renderInvoicePreview() {
     const inv = document.getElementById('invoiceSelect').value;
     const container = document.getElementById('invoicePreviewContainer');
     if (!inv) { container.innerHTML = '<div class="card muted">Sila pilih invois.</div>'; return; }
     
-    // AMBIL PILIHAN DROP-DOWN BANK SECARA DINAMIK
     const bankSelect = document.getElementById('invoiceBankSelect')?.value || "MAYBANK";
     let bankHTML = '';
     if (bankSelect === "MAYBANK") {
@@ -2123,23 +2106,19 @@ function renderInvoicePreview() {
     
     const brandColor = isPaid ? '#28a745' : '#ff6d00';
     
-    let itemsHTML = items.map((item, i) => `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${i+1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(item.nama)}${item.qr ? `<br><small>QR: \${escapeHtml(item.qr)}</small>` : ''}</td><td style="width:5%; border:1px solid #ddd; text-align:center;">${item.qty}</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(item.harga)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(item.total)}</td></tr>`).join('');
+    let itemsHTML = items.map((item, i) => '<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">' + (i+1) + '</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">' + escapeHtml(item.nama) + (item.qr ? '<br><small>QR: ' + escapeHtml(item.qr) + '</small>' : '') + '</td><td style="width:5%; border:1px solid #ddd; text-align:center;">' + item.qty + '</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">' + formatMoney(item.harga) + '</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">' + formatMoney(item.total) + '</td></tr>').join('');
+    
     if (extraName && extraPrice > 0) {
-        itemsHTML += `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${items.length+1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(extraName.toUpperCase())} (TAMBAHAN)</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(extraPrice)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">${formatMoney(extraPrice)}</td></tr>`;
+        itemsHTML += '<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">' + (items.length+1) + '</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">' + escapeHtml(extraName.toUpperCase()) + ' (TAMBAHAN)</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">' + formatMoney(extraPrice) + '</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">' + formatMoney(extraPrice) + '</td></tr>';
     }
     if (diskaun > 0) {
-        itemsHTML += `<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">${items.length + (extraPrice>0?1:0) + 1}</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">${escapeHtml(diskaunNote.toUpperCase())}</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-${formatMoney(diskaun)}</td></tr>`;
+        itemsHTML += '<tr><td style="width:5%; text-align:center; border:1px solid #ddd;">' + (items.length + (extraPrice>0?1:0) + 1) + '</td><td style="width:50%; border:1px solid #ddd; text-align:left; padding:4px 6px;">' + escapeHtml(diskaunNote.toUpperCase()) + '</td><td style="width:5%; text-align:center; border:1px solid #ddd;">1</td><td style="width:18%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-' + formatMoney(diskaun) + '</td><td style="width:22%; text-align:right; border:1px solid #ddd; padding:4px 6px;">-' + formatMoney(diskaun) + '</td></tr>';
     }
-
-// ================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 3/4)
-// ================================================================
-
     const html = `
         <div class="card print-area" id="invoicePrintArea" style="padding: 0px !important; margin: 0px !important; box-shadow: none !important; border: none !important; background: #fff; position: relative; top: 0; left: 0;">
         <div style="max-width:210mm; margin:0 auto; padding: 4mm 6mm; font-family:'Inter',sans-serif; color:#1a1a1a;">
         
-        <!-- HEADER UTAMA JADUAL KANAN KIRI KALIS HEROT -->
+        <!-- HEADER UTAMA JADUAL: Rapat ke atas bagi membasmi pepijat melorot dokumen -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:5mm; margin-top:0px;">
             <tr>
                 <td style="width:55%; vertical-align:top; text-align:left; padding:0;">
@@ -2167,7 +2146,7 @@ function renderInvoicePreview() {
             </tr>
         </table>
 
-        <!-- MAKLUMAT DATA PELANGGAN -->
+        <!-- REKOD MAKLUMAT HANTAR KEPADA PELANGGAN -->
         <div style="background:${brandColor}; color:#fff; padding:4px 8px; font-weight:700; font-size:10px; margin-bottom:3mm; border-radius:2px;">INVOICE TO</div>
         <div style="margin-bottom:5mm; background:#fafafa; padding:8px; border:1px solid #eee; border-radius:4px;">
             <div style="font-weight:700; font-size:12px;">${escapeHtml(nama)} (${escapeHtml(custId)})</div>
@@ -2175,7 +2154,7 @@ function renderInvoicePreview() {
             <div style="font-size:10px; color:#555; margin-top:2px;">No. Telefon: ${escapeHtml(telefon)}</div>
         </div>
         
-        <!-- JADUAL ITEM KARPET UTAMA -->
+        <!-- JADUAL ITEM KARPET -->
         <table style="width:100%; border-collapse:collapse; font-size:10px; margin-bottom:5mm;">
             <thead>
                 <tr style="background:${brandColor}; color:#fff;">
@@ -2191,7 +2170,7 @@ function renderInvoicePreview() {
             </tbody>
         </table>
 
-        <!-- RINGKASAN SUB TOTAL KOS DAN BAKI (PENGGANTIAN STRUKTUR BEBAS CONCATENATION KALIS RALAT) -->
+        <!-- JUMLAH KOS HIERARKI KANAN -->
         <table style="width:100%; border-collapse:collapse; margin-bottom:5mm;">
             <tr>
                 <td style="width:50%;"></td>
@@ -2207,16 +2186,11 @@ function renderInvoicePreview() {
                 </td>
             </tr>
         </table>
-
-//================================================================
-//   BAHAGIAN 2F - INVOIS & RESIT (KOD BERSIH KALIS RALAT - PART 4/4)
-// ================================================================
-
-        <!-- FOOTER: AKAUN BANK PILIHAN DAN RUANGAN COP KEDAI TANDATANGAN -->
+        <!-- FOOTER AKAUN BANK & RUANGAN TANDATANGAN COP RASMI KEDAI -->
         <table style="width:100%; border-collapse:collapse; font-size:8px; color:#555; border-top:1px solid #eee; margin-bottom:4mm;">
             <tr>
                 <td style="width:55%; vertical-align:top; text-align:left; padding-top:2mm; line-height:1.4;">
-                    ${bankHTML}
+                    \${bankHTML}
                 </td>
                 <td style="width:45%; vertical-align:top; text-align:center; padding-top:2mm;">
                     <strong>DISEDIAKAN OLEH / COP:</strong><br>
@@ -2226,14 +2200,14 @@ function renderInvoicePreview() {
             </tr>
         </table>
 
-        <!-- TERMA SYARAT & TEKS PENUTUP -->
+        <!-- TERMA & SYARAT NOTA TEKS PENUTUP -->
         <div style="font-size:7.5px; color:#777; border-top:1px solid #eee; padding-top:2mm; line-height:1.3;">
             <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>
             1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>
             2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>
             <em>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.</em>
         </div>
-        <div style="text-align:center; margin-top:3mm; font-size:8px; color:${brandColor}; font-weight:700;">
+        <div style="text-align:center; margin-top:3mm; font-size:8px; color:\${brandColor}; font-weight:700;">
             Thank you for your business! We look forward to serving you again.<br>
             ~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
         </div>
@@ -2255,7 +2229,7 @@ function renderInvoicePreview() {
 }
 
 // ================================================================
-//   FUNGSI INDUK PEMANDU EKSPORT PDF DENGAN SETTING scrollY: 0
+//   FUNGSI INDUK PEMANDU EKSPORT PDF DENGAN SETTING KALIS SCROLL
 // ================================================================
 
 function downloadInvoicePDF() {
@@ -2344,6 +2318,7 @@ function hantarWhatsAppInvoice() {
     if (!data || !data.telefon) return toast('Nombor telefon tidak dijumpai.');
     bukaWhatsApp(data.telefon, data.msg);
 }
+
 
 
 
