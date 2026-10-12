@@ -2001,9 +2001,9 @@ function renderInvoicePreview() {
 
     container.innerHTML = html;
     
-    let msgWa = `Salam * \${escapeHtml(nama)}*, semoga hari anda ceria! 👋\\nKami dari *MYCARPET PRO v3.3* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\\nBerikut adalah maklumat invois anda:\\n🧾 *No. Invois:* \${inv}\\n📅 Tarikh Ambil: \${formatDateMY(tarikhAmbil)}\\n📆 Tarikh Siap: \${formatDateMY(tarikhSiap)}`;
-    if (diskaun > 0) msgWa += `\\n💰 *Diskaun:* -\${formatMoney(diskaun)} (\${escapeHtml(diskaunNote)})`;
-    msgWa += `\\n💵 *Jumlah Selepas Diskaun:* \${formatMoney(total)}\\n📌 *Status/Baki Semasa:* \${formatMoney(baki)}\\n\\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Terima kasih! 🧺 clean & fresh!`;
+   let msgWa = "Salam " + escapeHtml(nama) + ", semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.3* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* " + inv + "\n📅 Tarikh Ambil: " + formatDateMY(tarikhAmbil) + "\n📆 Tarikh Siap: " + formatDateMY(tarikhSiap);
+    if (diskaun > 0) msgWa += "\n💰 *Diskaun:* -" + formatMoney(diskaun) + " (" + escapeHtml(diskaunNote) + ")";
+    msgWa += "\n💵 *Jumlah Selepas Diskaun:* " + formatMoney(total) + "\n📌 *Status/Baki Semasa:* " + formatMoney(baki) + "\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Terima kasih! 🧺 clean & fresh!";
     
     const itemsTextRecall = carpets.map((item, i) => ` \${i+1}. * \${getField(item,['JENIS','JENIS CARPET'])}* (\${getField(item,['KOD'])}) = * \${formatMoney(getField(item,['HARGA']))}*`).join('\\n');
     const msgRecallTempahanAsal = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.3*\\n\\nPelanggan yang dihormati, karpet anda telah selamat diambil.\\n\\n🧾 *No Invoice:* \${inv}\\n📅 Tarikh Ambil: \${formatDateMY(tarikhAmbil)}\\n📆 Tarikh Siap: \${formatDateMY(tarikhSiap)}\\n📦 Jumlah Karpet: \${carpets.length} unit\\n\\n📝 *Butiran Setiap Karpet:*\\n\${itemsTextRecall}\\n\\n💰 *Jumlah Harga:* * \${formatMoney(getNumber(getField(order,['JUMLAH HARGA'])))}*\\n📌 Status: Pickup & Proses Cucian\\n\\nTerima kasih! 🙏`;
