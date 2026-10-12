@@ -1991,22 +1991,26 @@ function renderInvoicePreview() {
                 </td>
             </tr>
         </table>
+        // ================================================================
+//   BAHAGIAN 2F - INVOIS & RESIT (PART 2A-2B: REKA BENTUK BAWAH)
+// ================================================================
+
         <div style="font-size:7.5px; color:#777; border-top:1px solid #eee; padding-top:2mm; line-height:1.3;">
             <strong>TERMA & SYARAT PEMBAYARAN:</strong><br>1. Sila jelaskan baki bayaran penuh semasa penghantaran atau pengambilan karpet dilakukan.<br>2. Sila sertakan resit/bukti transaksi Online Transfer kepada pihak kami untuk pengesahan baki.<br>3. Hubungi kami di talian 017-4050336 atau layari media sosial kami @mycarpetpro untuk sebarang maklum balas.
         </div>
         <div style="text-align:center; margin-top:3mm; font-size:8px; color:\${brandColor}; font-weight:700;">
             Thank you for your business! We look forward to serving you again.<br>~~~ Terima kasih kerana memilih MYCARPET PRO! Sokongan Anda amat kami hargai ~~~
         </div>
-        </div></div>\`;
+        </div></div>`;
 
     container.innerHTML = html;
     
-   let msgWa = "Salam " + escapeHtml(nama) + ", semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.3* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* " + inv + "\n📅 Tarikh Ambil: " + formatDateMY(tarikhAmbil) + "\n📆 Tarikh Siap: " + formatDateMY(tarikhSiap);
+    let msgWa = "Salam " + escapeHtml(nama) + ", semoga hari anda ceria! 👋\nKami dari *MYCARPET PRO v3.3* ingin mengucapkan terima kasih atas kepercayaan anda menggunakan slot cucian kami.\nBerikut adalah maklumat invois anda:\n🧾 *No. Invois:* " + inv + "\n📅 Tarikh Ambil: " + formatDateMY(tarikhAmbil) + "\n📆 Tarikh Siap: " + formatDateMY(tarikhSiap);
     if (diskaun > 0) msgWa += "\n💰 *Diskaun:* -" + formatMoney(diskaun) + " (" + escapeHtml(diskaunNote) + ")";
     msgWa += "\n💵 *Jumlah Selepas Diskaun:* " + formatMoney(total) + "\n📌 *Status/Baki Semasa:* " + formatMoney(baki) + "\n\nDokumen rasmi (PDF) ada kami sertakan bersama mesej ini. Terima kasih! 🧺 clean & fresh!";
     
-    const itemsTextRecall = carpets.map((item, i) => ` \${i+1}. * \${getField(item,['JENIS','JENIS CARPET'])}* (\${getField(item,['KOD'])}) = * \${formatMoney(getField(item,['HARGA']))}*`).join('\\n');
-    const msgRecallTempahanAsal = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.3*\\n\\nPelanggan yang dihormati, karpet anda telah selamat diambil.\\n\\n🧾 *No Invoice:* \${inv}\\n📅 Tarikh Ambil: \${formatDateMY(tarikhAmbil)}\\n📆 Tarikh Siap: \${formatDateMY(tarikhSiap)}\\n📦 Jumlah Karpet: \${carpets.length} unit\\n\\n📝 *Butiran Setiap Karpet:*\\n\${itemsTextRecall}\\n\\n💰 *Jumlah Harga:* * \${formatMoney(getNumber(getField(order,['JUMLAH HARGA'])))}*\\n📌 Status: Pickup & Proses Cucian\\n\\nTerima kasih! 🙏`;
+    const itemsTextRecall = carpets.map((item, i) => " " + (i+1) + ". *" + getField(item,['JENIS','JENIS CARPET']) + "* (" + getField(item,['KOD']) + ") = *" + formatMoney(getField(item,['HARGA'])) + "*").join('\n');
+    const msgRecallTempahanAsal = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.3*\n\nPelanggan yang dihormati, karpet anda telah selamat diambil.\n\n🧾 *No Invoice:* ${inv}\n📅 Tarikh Ambil: ${formatDateMY(tarikhAmbil)}\n📆 Tarikh Siap: ${formatDateMY(tarikhSiap)}\n📦 Jumlah Karpet: ${carpets.length} unit\n\n📝 *Butiran Setiap Karpet:*\n${itemsTextRecall}\n\n💰 *Jumlah Harga:* *${formatMoney(getNumber(getField(order,['JUMLAH HARGA','JUMLAH'])))}*\n📌 Status: Pickup & Proses Cucian\n\nTerima kasih! 🙏`;
 
     STATE.currentInvoiceData = { inv, nama, telefon: String(telefon).replace(/[- ]/g, ''), msg: msgWa, msgRecall: msgRecallTempahanAsal, isPaid: isPaid, diskaun, diskaunNote };
 }
@@ -2021,7 +2025,7 @@ function hantarWhatsAppRecallDariInvoice() {
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    const opt = { margin: 5, filename: `Invoice_\${STATE.currentInvoiceData?.inv || 'inv'}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } };
+    const opt = { margin: 5, filename: 'Invoice_' + (STATE.currentInvoiceData?.inv || 'inv') + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } };
     toast('Sedang menjana PDF...');
     html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch(() => { toast('Gagal menjana PDF.'); });
 }
@@ -2031,7 +2035,7 @@ async function shareInvoiceWithAttachment() {
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    const fileName = data.isPaid ? `Invoice_\${data.inv}.pdf` : `Invoice_\${data.inv}_Pending.png`;
+    const fileName = data.isPaid ? 'Invoice_' + data.inv + '.pdf' : 'Invoice_' + data.inv + '_Pending.png';
     const mimeType = data.isPaid ? 'application/pdf' : 'image/png';
     toast('Menyediakan lampiran...');
     let fileBlob;
@@ -2039,7 +2043,7 @@ async function shareInvoiceWithAttachment() {
         if (data.isPaid) { fileBlob = await html2pdf().set({ margin: 5, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } }).from(element).outputPdf('blob'); }
         else { const canvas = await html2canvas(element, { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }); fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); }
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
-            await navigator.share({ title: `Invoice \${data.inv}`, text: data.msg, files: [new File([fileBlob], fileName, { type: mimeType })] });
+            await navigator.share({ title: 'Invoice ' + data.inv, text: data.msg, files: [new File([fileBlob], fileName, { type: mimeType })] });
             setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800); return;
         }
     } catch (err) {}
