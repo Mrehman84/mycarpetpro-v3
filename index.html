@@ -272,9 +272,10 @@ function bukaWhatsApp(phone, message) {
     if (!phone) return;
     const clean = String(phone).replace(/\D/g, '').replace(/^0+/, '');
     const waNumber = clean.startsWith('60') ? clean : '60' + clean;
-    const url = `https://wa.me{waNumber}?text=${encodeURIComponent(message)}`;
+    const url = `https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
 }
+
 
 // ==================== API (JSONP UNTUK BACA) ====================
 function fetchData(callback, skipRefresh = false) {
@@ -1492,24 +1493,14 @@ async function simpanTempahan() {
     fetchData(null, true);
 }
 
-function hantarWhatsAppTempahan() {
-    if (!STATE.lastCustomer) { 
-        toast('Tiada maklumat pelanggan.'); 
-        return; 
-    }
+ffunction hantarWhatsAppTempahan() {
+    if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    if (!tel) { 
-        toast('Nombor telefon tiada.'); 
-        return; 
-    }
+    if (!tel) { toast('Nombor telefon tiada.'); return; }
     const msg = STATE.lastOrderMsg;
-    if (!msg) { 
-        toast('Tiada mesej.'); 
-        return; 
-    }
+    if (!msg) { toast('Tiada mesej.'); return; }
     bukaWhatsApp(tel, msg);
 }
-
 // Auto-check duplikasi telefon blur listener
 document.addEventListener('focusout', function(e) {
     if (e.target && e.target.id === 'custTelBaru') {
