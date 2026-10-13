@@ -568,14 +568,14 @@ function kembaliKeMenuUtama() {
 //   BAHAGIAN 2B - DASHBOARD, CUSTOMER PORTAL, TEMUJANJI (PART 1)
 // ================================================================
 
-// ==================== DASHBOARD FIX SYNTX ====================
+// ==================== DASHBOARD FIX SYNTX TOTAL ====================
 function renderDashboard(container) {
     const proses = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'DALAM PROSES').length;
     const kering = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'PENGERINGAN').length;
     const ready = STATE.karpet.filter(k => normalize(getField(k,['STATUS'])) === 'READY TO DELIVER').length;
     const selesai = STATE.karpet.filter(k => ['SELESAI','SELESAI DIHANTAR'].includes(normalize(getField(k,['STATUS'])))).length;
     
-    container.innerHTML = `
+    let htmlContent = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Dashboard Operasi</h1><p class="muted">Data sebenar dari spreadsheet</p></div><button class="btn btn-secondary" onclick="fetchData()"><i class="fa-solid fa-sync"></i> Refresh</button></header>
         <div class="metrics-grid">
@@ -584,30 +584,38 @@ function renderDashboard(container) {
             <div class="metric-card" style="border-left-color:#38b2ac"><h3>Ready Deliver</h3><p>${ready}</p></div>
             <div class="metric-card" style="border-left-color:#2ecc71"><h3>Selesai</h3><p>${selesai}</p></div>
         </div>
-        <div class="card"><h3 class="card-title">Aktiviti Terkini</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>
-            ${STATE.karpet.slice(-10).reverse().map(k => {
-                const qr_id = getField(k, ['QR ID', 'QR_ID']);
-                const inv_no = getField(k, ['INV NO', 'INV_NO']);
-                const jenis_carpet = getField(k, ['JENIS', 'JENIS CARPET']);
-                const harga_carpet = getField(k, ['HARGA']);
-                const tarikh_raw = getField(k, ['TARIKH']);
-                const tarikh_clean = tarikh_raw ? String(tarikh_raw).split('T')[0] : '-';
-                
-                const st = normalize(getField(k,['STATUS']));
-                const badge = st === 'READY TO DELIVER' ? 'badge-ready' : (st === 'SELESAI' || st === 'SELESAI DIHANTAR') ? 'badge-selesai' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
-                
-                return `<tr>
-                    <td><strong>\${escapeHtml(qr_id)}</strong></td>
-                    <td>\${escapeHtml(inv_no)}</td>
-                    <td>\${escapeHtml(jenis_carpet)}</td>
-                    <td>\${formatMoney(harga_carpet)}</td>
-                    <td>\${escapeHtml(tarikh_clean)}</td>
-                    <td><span class="badge \({badge}">\){escapeHtml(st)}</span></td>
-                </tr>`;
-            }).join('') || '<tr><td colspan="6" class="text-center muted">Tiada rekod</td></tr>'}
-        </tbody></table></div></div>`;
-}
+        <div class="card"><h3 class="card-title">Aktiviti Terkini</h3><div class="table-wrap"><table class="data-table"><thead><tr><th>QR ID</th><th>Invois</th><th>Jenis</th><th>Harga</th><th>Tarikh</th><th>Status</th></tr></thead><tbody>`;
 
+    const recentCarpets = STATE.karpet.slice(-10).reverse();
+    
+    if (recentCarpets.length === 0) {
+        htmlContent += '<tr><td colspan="6" class="text-center muted">Tiada rekod</td></tr>';
+    } else {
+        recentCarpets.forEach(k => {
+            const qr_id = getField(k, ['QR ID', 'QR_ID']);
+            const inv_no = getField(k, ['INV NO', 'INV_NO']);
+            const jenis_carpet = getField(k, ['JENIS', 'JENIS CARPET']);
+            const harga_carpet = getField(k, ['HARGA']);
+            const tarikh_raw = getField(k, ['TARIKH']);
+            const tarikh_clean = tarikh_raw ? String(tarikh_raw).split('T')[0] : '-';
+            
+            const st = normalize(getField(k,['STATUS']));
+            const badge = st === 'READY TO DELIVER' ? 'badge-ready' : (st === 'SELESAI' || st === 'SELESAI DIHANTAR') ? 'badge-selesai' : st === 'PENGERINGAN' ? 'badge-cuci' : 'badge-proses';
+            
+            htmlContent += '<tr>' +
+                '<td><strong>' + escapeHtml(qr_id) + '</strong></td>' +
+                '<td>' + escapeHtml(inv_no) + '</td>' +
+                '<td>' + escapeHtml(jenis_carpet) + '</td>' +
+                '<td>' + formatMoney(harga_carpet) + '</td>' +
+                '<td>' + escapeHtml(tarikh_clean) + '</td>' +
+                '<td><span class="badge ' + badge + '">' + escapeHtml(st) + '</span></td>' +
+                '</tr>';
+        });
+    }
+
+    htmlContent += `</tbody></table></div></div>`;
+    container.innerHTML = htmlContent;
+}
 // ==================== CUSTOMER PORTAL ====================
 function renderCustomerPortal(container) {
     container.innerHTML = `
