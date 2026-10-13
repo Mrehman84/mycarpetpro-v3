@@ -1493,11 +1493,21 @@ async function simpanTempahan() {
 }
 
 function hantarWhatsAppTempahan() {
-    if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
+    if (!STATE.lastCustomer) { 
+        toast('Tiada maklumat pelanggan.'); 
+        return; 
+    }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    if (!tel) { toast('Nombor telefon tiada.'); return; }
-    if (!STATE.lastOrderMsg) { toast('Tiada mesej.'); return; }
-    bukaWhatsApp(tel, STATE.lastOrderMsg);
+    if (!tel) { 
+        toast('Nombor telefon tiada.'); 
+        return; 
+    }
+    const msg = STATE.lastOrderMsg;
+    if (!msg) { 
+        toast('Tiada mesej.'); 
+        return; 
+    }
+    bukaWhatsApp(tel, msg);
 }
 
 // Auto-check duplikasi telefon blur listener
