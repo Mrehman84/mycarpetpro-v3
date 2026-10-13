@@ -1493,7 +1493,7 @@ async function simpanTempahan() {
     fetchData(null, true);
 }
 
-ffunction hantarWhatsAppTempahan() {
+function hantarWhatsAppTempahan() {
     if (!STATE.lastCustomer) { toast('Tiada maklumat pelanggan.'); return; }
     const tel = String(getField(STATE.lastCustomer, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
     if (!tel) { toast('Nombor telefon tiada.'); return; }
