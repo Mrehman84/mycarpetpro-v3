@@ -476,6 +476,94 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 
+// ==================== INITIALIZE APPLICATION MENU ====================
+function initApp() { 
+    renderSidebar(); 
+    fetchData(() => { 
+        switchTab(STATE.currentUser.role === 'admin' ? 'menu' : 'customer-portal'); 
+    }); 
+}
+
+function renderSidebar() {
+    const menuContainer = document.getElementById('sidebarMenu'); 
+    if (!menuContainer) return;
+    menuContainer.innerHTML = '';
+    const role = STATE.currentUser.role;
+    const menuItems = role === 'admin' ? [
+        { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+        { id: 'temujanji', icon: 'fa-calendar-check', label: 'Temujanji' },
+        { id: 'tempahan', icon: 'fa-file-invoice-dollar', label: 'Tempahan Baru' },
+        { id: 'tracking', icon: 'fa-qrcode', label: 'Tracking' },
+        { id: 'payment', icon: 'fa-money-bill-wave', label: 'Pembayaran' },
+        { id: 'invoice', icon: 'fa-print', label: 'Invois & Resit' },
+        { id: 'pelanggan', icon: 'fa-users', label: 'Pelanggan' },
+        { id: 'pekerja', icon: 'fa-people-group', label: 'Pekerja' },
+        { id: 'pricematrix', icon: 'fa-calculator', label: 'Price Matrix' },
+        { id: 'barcode', icon: 'fa-barcode', label: 'Cetak Barcode' },
+        { id: 'expenses', icon: 'fa-receipt', label: 'Perbelanjaan' }
+    ] : [
+        { id: 'customer-portal', icon: 'fa-eye', label: 'Status Karpet Saya' }
+    ];
+    menuItems.forEach(item => {
+        const li = document.createElement('li'); 
+        li.className = 'menu-item'; 
+        li.dataset.tab = item.id;
+        li.innerHTML = `<i class="fa-solid ${item.icon}"></i> ${item.label}`;
+        li.addEventListener('click', () => switchTab(item.id));
+        menuContainer.appendChild(li);
+    });
+}
+
+function switchTab(id) {
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    const activeMenu = document.querySelector(`.menu-item[data-tab="${id}"]`); 
+    if (activeMenu) activeMenu.classList.add('active');
+    
+    const container = document.getElementById('tabContainer'); 
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (id === 'menu') { 
+        document.getElementById('halaman-menu-utama').style.display = 'block'; 
+        return; 
+    }
+    document.getElementById('halaman-menu-utama').style.display = 'none';
+    
+    if (id === 'dashboard') renderDashboard(container);
+    else if (id === 'temujanji') renderTemujanji(container);
+    else if (id === 'tempahan') renderTempahan(container);
+    else if (id === 'tracking') renderTracking(container);
+    else if (id === 'payment') renderPayment(container);
+    else if (id === 'invoice') renderInvoiceTab(container);
+    else if (id === 'pelanggan') renderPelanggan(container);
+    else if (id === 'pekerja') renderPekerja(container);
+    else if (id === 'pricematrix') renderPriceMatrix(container);
+    else if (id === 'barcode') renderBarcode(container);
+    else if (id === 'expenses') renderExpenses(container);
+    else if (id === 'customer-portal') renderCustomerPortal(container);
+    
+    document.body.classList.remove('sidebar-open');
+}
+
+function refreshAllUI() { 
+    const activeMenu = document.querySelector('.menu-item.active'); 
+    if (activeMenu) switchTab(activeMenu.dataset.tab); 
+}
+
+function tukarHalamanSistem(pageId) { 
+    switchTab(pageId); 
+}
+
+function kembaliKeMenuUtama() { 
+    document.getElementById('halaman-menu-utama').style.display = 'block'; 
+    document.getElementById('tabContainer').innerHTML = ''; 
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active')); 
+}
+
+
+
+
+    
  // ================================================================
 //   BAHAGIAN 2B - DASHBOARD, CUSTOMER PORTAL, TEMUJANJI (PART 1)
 // ================================================================
