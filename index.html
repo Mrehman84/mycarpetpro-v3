@@ -877,7 +877,7 @@ function renderTempahan(container) {
             <button class="btn btn-warning" onclick="picitRecallTextTempahan()"><i class="fa-solid fa-rotate-left"></i> Recall Text Mesej WhatsApp</button>
             <div id="boxRecallWaPreview" class="wa-preview hidden"></div>
         </div>`;
-       container.innerHTML += `
+      container.innerHTML += `
         <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
             <div class="form-group">
                 <label>Jenis Pelanggan</label>
@@ -931,7 +931,14 @@ function renderTempahan(container) {
         <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
         <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>`;
 
-    if (typeof addCarpetRow === 'function') { addCarpetRow(); }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#custSearchInput') && !e.target.closest('#custSuggestionBox')) {
+            const box = document.getElementById('custSuggestionBox');
+            if (box) box.style.display = 'none';
+        }
+    });
+
+    resetCarpetRows();
 }
 // ================================================================
 //   BAHAGIAN 2C - TEMPAHAN (PART 2: LOGIK CARIAN, APPT & DUPLIKASI)
