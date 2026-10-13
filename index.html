@@ -827,11 +827,17 @@ function renderTempahan(container) {
         apptOptions += `<option value="${escapeHtml(getField(a,['ID TUGASAN','ID']))}">${escapeHtml(getField(a,['NAMA PELANGGAN','NAMA']))} — ${escapeHtml(getField(a,['ALAMAT']))}</option>`;
     });
 
-    let activeInvoiceOptions = '<option value="">-- Pilih No Invois Untuk Ditindak --</option>';
-    (STATE.tempahan || []).forEach(t => {
-        const inv = getField(t, ['INV NO','INV_NO','NO INVOIS']);
-        activeInvoiceOptions += `<option value="${escapeHtml(inv)}">${escapeHtml(inv)} [${escapeHtml(getField(t, ['STATUS']))}]</option>`;
-    });
+   let activeInvoiceOptions = '<option value="">-- Pilih No Invois Untuk Ditindak --</option>';
+(STATE.tempahan || []).forEach(t => {
+    const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+    if (!inv) return;
+    const status = getField(t, ['STATUS'], 'Pending');
+    const custId = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+    const alamat = String(getField(cust, ['ALAMAT'], '-'));
+    
+    activeInvoiceOptions += `<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)} [${escapeHtml(status)}]</option>`;
+});
 
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
