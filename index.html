@@ -827,23 +827,45 @@ function renderTempahan(container) {
         apptOptions += `<option value="${escapeHtml(getField(a,['ID TUGASAN','ID']))}">${escapeHtml(getField(a,['NAMA PELANGGAN','NAMA']))} — ${escapeHtml(getField(a,['ALAMAT']))}</option>`;
     });
 
-   let activeInvoiceOptions = '<option value="">-- Pilih No Invois Untuk Ditindak --</option>';
-(STATE.tempahan || []).forEach(t => {
-    const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
-    if (!inv) return;
-    const status = getField(t, ['STATUS'], 'Pending');
-    const custId = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
-    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
-    const alamat = String(getField(cust, ['ALAMAT'], '-'));
-    
-    activeInvoiceOptions += `<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(alamat)} [${escapeHtml(status)}]</option>`;
-});
+    const pendingListRecall = [];
+    const paidListRecall = [];
+
+    (STATE.tempahan || []).forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        const custId = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+        const alamat = String(getField(cust, ['ALAMAT'], '-'));
+        const itemData = { inv, status, alamat };
+        if (status === 'PENDING') { pendingListRecall.push(itemData); } else { paidListRecall.push(itemData); }
+    });
+
+    pendingListRecall.sort((a, b) => b.inv.localeCompare(a.inv));
+    paidListRecall.sort((a, b) => b.inv.localeCompare(a.inv));
+
+    let activeInvoiceOptions = '<option value="">-- Pilih No Invois Untuk Ditindak --</option>';
+
+    if (pendingListRecall.length > 0) {
+        activeInvoiceOptions += `<optgroup label="⏳ INVOIS TERTUNDA (PENDING BALANCES)" style="color: #ff4b4b; font-weight: bold; background: #fff5f5;">`;
+        pendingListRecall.forEach(item => {
+            activeInvoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #2d3748;">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)} [⏳ PENDING]</option>`;
+        });
+        activeInvoiceOptions += `</optgroup>`;
+    }
+
+    if (paidListRecall.length > 0) {
+        activeInvoiceOptions += `<optgroup label="✅ SEJARAH TRANSAKSI (PAID HISTORY)" style="color: #28a745; font-weight: bold; background: #f6fff6;">`;
+        paidListRecall.forEach(item => {
+            activeInvoiceOptions += `<option value="${escapeHtml(item.inv)}" style="color: #718096;">${escapeHtml(item.inv)} — ${escapeHtml(item.alamat)} [✅ PAID]</option>`;
+        });
+        activeInvoiceOptions += `</optgroup>`;
+    }
 
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
         <header><div><h1>Tempahan Baru</h1><p class="muted">Daftar kemasukan karpet pelanggan</p></div></header>
         
-        <!-- KOTAK UTILITI RECALL MESEJ TEMPAHAN LAMA -->
         <div class="card" style="border: 2px solid var(--primary-red); background: #fff8f8;">
             <h3 class="card-title" style="color: var(--primary-red);"><i class="fa-solid fa-rotate-left"></i> Kotak Utiliti: Recall Text Mesej Tempahan Lama</h3>
             <div class="row">
@@ -854,8 +876,8 @@ function renderTempahan(container) {
             </div>
             <button class="btn btn-warning" onclick="picitRecallTextTempahan()"><i class="fa-solid fa-rotate-left"></i> Recall Text Mesej WhatsApp</button>
             <div id="boxRecallWaPreview" class="wa-preview hidden"></div>
-        </div>
-
+        </div>`;
+       container.innerHTML += `
         <div class="card"><h3 class="card-title">1. Maklumat Pelanggan</h3>
             <div class="form-group">
                 <label>Jenis Pelanggan</label>
@@ -865,12 +887,10 @@ function renderTempahan(container) {
                     <label><input type="radio" name="custType" value="appt" onchange="toggleCustType()"> <strong style="color:var(--info);"><i class="fa-solid fa-star"></i> Dari Temujanji Active</strong></label>
                 </div>
             </div>
-            
             <div id="boxApptSelect" class="form-group" style="display:none; margin-bottom:15px;">
                 <label style="color:#2b6cb0; font-weight:700;">Senarai Temujanji PENDING:</label>
                 <select id="optApptSrc" class="form-control" onchange="tarikDataTemujanjiKeBorang()" style="border:2px solid var(--info);">${apptOptions}</select>
             </div>
-
             <div id="secCustLama">
                 <div class="form-group" style="position: relative;">
                     <label style="color: var(--primary-red); font-weight: 700;"><i class="fa-solid fa-magnifying-glass"></i> Kotak Carian Pelanggan Sedia Ada</label>
@@ -880,14 +900,10 @@ function renderTempahan(container) {
                 </div>
                 <div class="row"><div class="col form-group"><label>Nama</label><input id="custNama" class="form-control"></div><div class="col form-group"><label>Telefon</label><input id="custTel" class="form-control"></div></div><div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamat" class="form-control"></div><div class="col form-group"><label>Daerah</label><input id="custDaerah" class="form-control"></div></div>
             </div>
-            
             <div id="secCustBaru" style="display:none;">
                 <div class="row">
                     <div class="col form-group"><label>Nama Penuh</label><input id="custNamaBaru" class="form-control" placeholder="Ahmad"></div>
-                    <div class="col form-group">
-                        <label style="font-weight:700;">No. Telefon Pelanggan Baru</label>
-                        <input id="custTelBaru" class="form-control" placeholder="60123456789" oninput="checkPhoneDuplicate()">
-                    </div>
+                    <div class="col form-group"><label style="font-weight:700;">No. Telefon Pelanggan Baru</label><input id="custTelBaru" class="form-control" placeholder="60123456789" oninput="checkPhoneDuplicate()"></div>
                 </div>
                 <div id="duplicateWarningBox" class="login-error hidden" style="margin-bottom:16px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; padding:12px; border-radius:var(--radius); text-align:left;"></div>
                 <div class="row"><div class="col form-group"><label>Alamat</label><input id="custAlamatBaru" class="form-control" placeholder="No, Jalan..."></div><div class="col form-group"><label>Daerah</label><input id="custDaerahBaru" class="form-control" placeholder="Kulim"></div></div>
@@ -895,54 +911,27 @@ function renderTempahan(container) {
         </div>
         <div class="card">
             <h3 class="card-title">📅 Tarikh Ambil</h3>
-            <div class="form-group">
-                <label>Tarikh Karpet Diambil (biarkan kosong untuk gunakan hari ini)</label>
-                <input type="date" id="tarikhAmbil" class="form-control" value="">
-            </div>
+            <div class="form-group"><label>Tarikh Karpet Diambil (biarkan kosong untuk gunakan hari ini)</label><input type="date" id="tarikhAmbil" class="form-control" value=""></div>
         </div>
         <div class="card"><h3 class="card-title">2. Perincian Item Karpet</h3>
             <div style="background:#edf6ff;padding:12px;border-radius:8px;margin-bottom:16px;">Pilih <strong>KOD</strong> – sistem akan ambil jenis & harga dari <strong>SENARAI_HARGA</strong>. Atau pilih <strong>CUSTOM</strong> untuk kira luas sendiri.</div>
             <div id="carpetItemsContainer"></div>
             <button class="btn btn-secondary mt-16" onclick="addCarpetRow()"><i class="fa-solid fa-plus"></i> Tambah Helai</button>
         </div>
-        <div class="card" id="qcCard" style="margin-top:16px;">
-            <h3 class="card-title">🔍 QC Pra-Basuhan (Kerosakan Sedia Ada)</h3>
+        <div class="card" id="qcCard" style="margin-top:16px;"><h3 class="card-title">🔍 QC Pra-Basuhan (Kerosakan Sedia Ada)</h3>
             <div class="row">
-                <div class="col">
-                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcLuntur"> Warna Luntur</label>
-                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcKoyak"> Tepi Koyak</label>
-                    <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcBulu"> Bulu Gugur</label>
-                </div>
-                <div class="col">
-                    <label>Nota Kerosakan</label>
-                    <textarea id="qcNota" class="form-control" rows="2" placeholder="Terangkan kerosakan..."></textarea>
-                </div>
+                <div class="col"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcLuntur"> Warna Luntur</label><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcKoyak"> Tepi Koyak</label><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="qcBulu"> Bulu Gugur</label></div>
+                <div class="col"><label>Nota Kerosakan</label><textarea id="qcNota" class="form-control" rows="2" placeholder="Terangkan kerosakan..."></textarea></div>
             </div>
-            <div class="qc-image-options">
-                <label>📸 Ambil Gambar <input type="file" accept="image/*" capture="environment" id="qcImageInput" style="display:none;" onchange="qcImageSelected(event)"></label>
-                <label>🖼️ Pilih dari Galeri <input type="file" accept="image/*" id="qcGalleryInput" style="display:none;" onchange="qcImageSelected(event)"></label>
-            </div>
+            <div class="qc-image-options"><label>📸 Ambil Gambar <input type="file" accept="image/*" capture="environment" id="qcImageInput" style="display:none;" onchange="qcImageSelected(event)"></label><label>🖼️ Pilih dari Galeri <input type="file" accept="image/*" id="qcGalleryInput" style="display:none;" onchange="qcImageSelected(event)"></label></div>
             <img id="qcImagePreview" src="" alt="Preview" style="max-width:200px;max-height:200px;display:none;margin-top:8px;">
-            <div class="flex mt-16">
-                <button class="btn btn-warning" onclick="hantarQcWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Hantar Kerosakan ke WhatsApp</button>
-            </div>
+            <div class="flex mt-16"><button class="btn btn-warning" onclick="hantarQcWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Hantar Kerosakan ke WhatsApp</button></div>
         </div>
-        <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;">
-            <span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span>
-            <button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button>
-        </div>
+        <div class="flex-between mt-16" style="border-top:2px dashed var(--border-color);padding-top:16px;"><span style="font-size:18px;font-weight:600;">Jumlah: <span style="color:var(--primary-red);font-size:24px;" id="grandTotalLabel">RM 0.00</span></span><button class="btn btn-success" onclick="simpanTempahan()"><i class="fa-solid fa-cloud-upload-alt"></i> Proses & Simpan</button></div>
         <div id="tempahanPreview" class="wa-preview hidden mt-16"></div>
-        <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>
-    `;
-    
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#custSearchInput') && !e.target.closest('#custSuggestionBox')) {
-            const box = document.getElementById('custSuggestionBox');
-            if (box) box.style.display = 'none';
-        }
-    });
+        <div id="tempahanWhatsAppBtn" class="hidden mt-16"><button class="btn btn-whatsapp" onclick="hantarWhatsAppTempahan()"><i class="fa-brands fa-whatsapp"></i> Hantar ke WhatsApp</button></div>`;
 
-    addCarpetRow();
+    if (typeof addCarpetRow === 'function') { addCarpetRow(); }
 }
 // ================================================================
 //   BAHAGIAN 2C - TEMPAHAN (PART 2: LOGIK CARIAN, APPT & DUPLIKASI)
