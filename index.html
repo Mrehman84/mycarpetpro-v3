@@ -2716,69 +2716,331 @@ async function tambahKomisen() {
     setTimeout(() => renderWorkerCommission(document.getElementById('workerTabContent')), 1500);
 }
 
+// ================================================================
+//   PART 1/4 - MASTER HUB RUNNER (PENGURUSAN DATA & LAYOUT JADUAL)
+// ================================================================
 function renderWorkerRunner(container) {
     const workers = STATE.pekerja || [];
     const tasks = STATE.runnerTugasan || [];
-    let workerOptions = '<option value="">-- Pilih Runner --</option>';
+    
+    // 1. Bina Pilihan Pemandu (Runner)
+    let workerOptions = '<option value="">-- Pilih Nama Runner --</option>';
+    let runnerDropdownMesej = '<option value="">-- Pilih Nama Runner Bertugas --</option>';
+    
     workers.forEach(w => {
-        if (getField(w, ['PERANAN'], '') === 'Runner') {
+        const peranan = normalize(getField(w, ['PERANAN', 'ROLE']));
+        if (peranan === 'RUNNER') {
             const id = escapeHtml(getField(w, ['ID','WORKER_ID','WORKER ID'], ''));
             const nama = escapeHtml(getField(w, ['NAMA'], ''));
-            workerOptions += `<option value="${id}">${id} - ${nama}</option>`;
+            workerOptions += `<option value="${id}" data-nama="${nama}">${id} - ${nama}</option>`;
+            runnerDropdownMesej += `<option value="${nama}">${id} - ${nama}</option>`;
         }
     });
+
+    // 2. Bina Pilihan Invois Aktif untuk Penghantaran (Delivery)
+    let activeInvoiceOptions = '<option value="">-- Pilih No Invois + Alamat Pelanggan --</option>';
+    STATE.tempahan.slice().reverse().forEach(t => {
+        const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
+        if (!inv) return;
+        const status = normalize(getField(t, ['STATUS'], 'Pending'));
+        if (status === 'PAID' || status === 'LUNAS' || status === 'SELESAI' || status === 'SELESAI DIHANTAR') return;
+
+        const custId = getField(t, ['CUSTOMER ID','CUSTOMER_ID']);
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+        const nama = String(getField(cust, ['NAMA'], '-'));
+        const alamat = String(getField(cust, ['ALAMAT'], ''));
+        activeInvoiceOptions += `<option value="${escapeHtml(inv)}">${escapeHtml(inv)} — ${escapeHtml(nama)} — ${escapeHtml(alamat)}</option>`;
+    });
+
+    // 3. Tarik Data Temujanji Pending
+    let apptOptions = '<option value="">-- PILIH REKOD TEMUJANJI PENDING (AUTO FILL) --</option>';
+    (STATE.temujanji || []).filter(x => normalize(getField(x, ['STATUS'])) === 'PENDING').forEach(a => {
+        const apptId = getField(a, ['ID TUGASAN', 'ID']);
+        const apptNama = getField(a, ['NAMA PELANGGAN', 'NAMA']);
+        const apptAlamat = getField(a, ['ALAMAT']);
+        apptOptions += `<option value="${escapeHtml(apptId)}">${escapeHtml(apptNama)} — ${escapeHtml(apptAlamat)}</option>`;
+    });
+    
+    // 4. Bina Jadual Paparan Logistik
     let tasksHtml = '';
     if (tasks.length) {
         tasksHtml = `<div class="table-wrap"><table class="data-table">
-            <thead><tr><th>ID Tugasan</th><th>Runner</th><th>Alamat</th><th>Tarikh</th><th>Status</th></tr></thead>
+            <thead><tr><th>ID</th><th>Kru Runner</th><th>Jenis & Alamat Tugasan</th><th>Tarikh</th><th>Status</th></tr></thead>
             <tbody>`;
-        tasks.sort((a,b) => String(getField(b, ['ID TUGASAN'], '')).localeCompare(String(getField(a, ['ID TUGASAN'], ''))));
+            
+        tasks.slice().sort((a,b) => String(getField(b, ['ID TUGASAN','ID'], '')).localeCompare(String(getField(a, ['ID TUGASAN','ID'], ''))));
+        
         tasks.forEach(t => {
-            const id = escapeHtml(getField(t, ['ID TUGASAN'], '-'));
-            const nama = escapeHtml(getField(t, ['NAMA PEKERJA'], '-'));
-            const alamat = escapeHtml(getField(t, ['ALAMAT'], '-'));
-            const tarikh = escapeHtml(String(getField(t, ['TARIKH'], '')).split('T'));
+            const id = escapeHtml(getField(t, ['ID TUGASAN','ID'], '-'));
+            const nama = escapeHtml(getField(t, ['NAMA PEKERJA','NAMA_PEKERJA','PEKERJA'], '-'));
+            let alamatRaw = getField(t, ['ALAMAT'], '-');
             const status = normalize(getField(t, ['STATUS'], 'PENDING'));
-            const badge = status === 'DELIVERED' || status === 'PICKED_UP' ? 'badge-selesai' : 'badge-proses';
-            tasksHtml += `<tr><td><strong>${id}</strong></td><td>${nama}</td><td>${alamat}</td><td>${tarikh}</td><td><span class="badge ${badge}">${status}</span></td></tr>`;
+            
+            let tarikhRaw = getField(t, ['TARIKH', 'DATE'], '');
+            let tarikhClean = tarikhRaw ? String(tarikhRaw).split('T') : '-';
+            
+            let jenisBadge = `<span class="badge badge-cuci" style="background:#e2e8f0; color:#4a5568;"><i class="fa-solid fa-box-arrow-in-down"></i> PICKUP</span>`;
+            let alamatDisplay = escapeHtml(alamatRaw);
+            
+            if (alamatRaw.includes('[HANTAR -')) {
+                jenisBadge = `<span class="badge badge-ready" style="background:#e1f5fe; color:#0288d1;"><i class="fa-solid fa-truck-fast"></i> DELIVERY</span>`;
+                alamatDisplay = alamatRaw.replace(/\[HANTAR - ([^\]]+)\]/, '<strong style="color:#0288d1;">\$1</strong> →');
+            }
+            
+            const badgeStatus = status === 'DELIVERED' || status === 'PICKED_UP' || status === 'SELESAI' ? 'badge-selesai' : 'badge-proses';
+            
+            tasksHtml += `<tr>
+                <td><strong>${id}</strong></td>
+                <td>${nama}</td>
+                <td><div style="display:flex; align-items:center; gap:8px;">${jenisBadge} <span>${alamatDisplay}</span></div></td>
+                <td>${escapeHtml(formatDateMY(tarikhClean))}</td>
+                <td><span class="badge ${badgeStatus}">${status}</span></td>
+            </tr>`;
         });
         tasksHtml += '</tbody></table></div>';
     } else {
-        tasksHtml = '<p class="muted">Tiada tugasan runner dijumpai.</p>';
+        tasksHtml = '<p class="muted">Tiada tugasan runner dijumpai dalam pangkalan data.</p>';
     }
+// ================================================================
+//   PART 2/4 - MASTER HUB RUNNER (SUNTIKAN VISUAL HTML KAD UI)
+// ================================================================
+    // Visual GUI Antaramuka Hub Runner
     container.innerHTML = `
-        <h3 class="card-title">🚚 Tambah Tugasan Runner</h3>
-        <div class="row">
-            <div class="col form-group"><label>Pilih Runner</label><select id="runnerSelect" class="form-control">${workerOptions}</select></div>
-            <div class="col form-group"><label>Alamat (Pick‑up / Delivery)</label><input type="text" id="runnerAlamat" class="form-control" placeholder="No, Jalan, Taman..."></div>
+        <!-- KAD 1: BORANG SLOT PENGHANTARAN (DELIVERY) -->
+        <div class="card" style="border-left: 5px solid #0288d1; background: #fbfdff;">
+            <h3 class="card-title" style="color: #0288d1;"><i class="fa-solid fa-truck-ramp-box"></i> 1. Jana Slot Penghantaran Karpet Siap</h3>
+            <div class="form-group">
+                <label>Pilih Invois Aktif Pelanggan</label>
+                <select id="delInvoiceSelect" class="form-control" onchange="janaMesejPenghantaranLive()">${activeInvoiceOptions}</select>
+            </div>
+            <div class="form-group" style="margin-top:12px;">
+                <label style="font-weight:700; color:#0288d1;">Tugaskan Kru Runner Hantar</label>
+                <select id="delRunnerSelect" class="form-control" onchange="janaMesejPenghantaranLive()" style="border: 1px solid #0288d1;">${runnerDropdownMesej}</select>
+            </div>
+            <div class="row" style="margin-top:12px;">
+                <div class="col form-group"><label>Tarikh Hantar</label><input type="date" id="delTarikh" class="form-control" onchange="janaMesejPenghantaranLive()"></div>
+                <div class="col form-group"><label>Masa Hantar</label><input type="time" id="delMasa" class="form-control" oninput="janaMesejPenghantaranLive()"></div>
+            </div>
+            <div class="flex" style="margin-top:12px;">
+                <button class="btn btn-success" onclick="simpanDataPenghantaranCloud()"><i class="fa-solid fa-cloud-upload-alt"></i> Rekod & Simpan Penghantaran</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppPenghantaran()"><i class="fa-brands fa-whatsapp"></i> Hantar Ke WhatsApp</button>
+            </div>
+            <div id="mesejPreviewPenghantaran" class="wa-preview hidden" style="margin-top:16px;"></div>
         </div>
-        <div class="row">
-            <div class="col form-group"><label>Tarikh</label><input type="date" id="runnerTarikh" class="form-control" value="${getToday()}"></div>
-            <div class="col form-group"><label>Status</label><select id="runnerStatus" class="form-control"><option value="PENDING">PENDING</option><option value="PICKED_UP">PICKED UP</option><option value="DELIVERED">DELIVERED</option></select></div>
+
+        <!-- KAD 2: BORANG TUGASAN AMBIL (PICKUP Hub Terhubung Temujanji) -->
+        <div class="card" style="border-left: 5px solid #ff9800; background: #fffcf8;">
+            <h3 class="card-title" style="color: #d2691e;"><i class="fa-solid fa-hand-holding-hand"></i> 2. Urus Tugasan Ambil Karpet Baru (Pickup Hub)</h3>
+            
+            <div class="form-group" style="background:#fff3e0; padding:10px; border-radius:8px; border:1px solid #ffe0b2;">
+                <label style="font-weight:700; color:#e65100;"><i class="fa-solid fa-link"></i> Tarik Data dari Modul Temujanji Active</label>
+                <select id="optRunnerApptSrc" class="form-control" onchange="tarikDataTemujanjiKeBorangRunner()" style="border:2px solid #ff9800;">${apptOptions}</select>
+            </div>
+
+            <div class="row" style="margin-top:12px;">
+                <div class="col form-group">
+                    <label>Pilih Pemandu Runner</label>
+                    <select id="runnerSelect" class="form-control" onchange="janaMesejRunnerOtwLive()">${workerOptions}</select>
+                </div>
+                <div class="col form-group"><label>Nama Pelanggan</label><input type="text" id="runnerCustNama" class="form-control" placeholder="Nama pelanggan" oninput="janaMesejRunnerOtwLive()"></div>
+                <div class="col form-group"><label>No Telefon Pelanggan</label><input type="text" id="runnerCustTel" class="form-control" placeholder="60123456789" oninput="janaMesejRunnerOtwLive()"></div>
+            </div>
+            <div class="form-group">
+                <label>Alamat Pengambilan</label>
+                <input type="text" id="runnerAlamat" class="form-control" placeholder="No, Jalan, Taman..." oninput="janaMesejRunnerOtwLive()">
+            </div>
+            <div class="row">
+                <div class="col form-group"><label>Tarikh Tugasan</label><input type="date" id="runnerTarikh" class="form-control" onchange="janaMesejRunnerOtwLive()"></div>
+                <div class="col form-group"><label>Masa Slot</label><input type="time" id="runnerMasa" class="form-control" oninput="janaMesejRunnerOtwLive()"></div>
+                <div class="col form-group" style="max-width:180px;">
+                    <label style="font-weight:700; color:#d2691e;"><i class="fa-solid fa-calculator"></i> Bil. Karpet Diambil</label>
+                    <input type="number" id="runnerQtyManual" class="form-control" min="1" value="1" oninput="janaMesejRunnerOtwLive()" style="border:1px solid #ff9800; font-weight:bold; text-align:center;">
+                </div>
+                <div class="col form-group"><label>Status Awal</label><select id="runnerStatus" class="form-control"><option value="PENDING">PENDING</option><option value="PICKED_UP">PICKED UP</option></select></div>
+            </div>
+            
+            <div class="flex" style="margin-top:12px;">
+                <button class="btn btn-primary" onclick="tambahRunnerTask()" style="background:#ff9800; color:#fff; border:none;"><i class="fa-solid fa-save"></i> Simpan Tugasan Cloud</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppRunnerOtw('slot')"><i class="fa-regular fa-calendar-check"></i> Mesej Pengesahan Slot</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppRunnerOtw('otw')" style="background:#00e676;"><i class="fa-solid fa-location-arrow"></i> Mesej Kru OTW</button>
+                <button class="btn btn-whatsapp" onclick="hantarWhatsAppRunnerOtw('diambil')" style="background:#ff6d00;"><i class="fa-solid fa-circle-check"></i> Mesej Karpet Selamat Diambil</button>
+            </div>
+            <div id="mesejPreviewRunnerOtw" class="wa-preview hidden" style="margin-top:16px; background:#e8f5e9; border-color:#c8e6c9;"></div>
         </div>
-        <button class="btn btn-success" onclick="tambahRunnerTask()"><i class="fa-solid fa-plus"></i> Simpan Tugasan</button>
-        <div id="runnerMsg" class="mt-16"></div>
-        <hr style="margin:20px 0;">
-        <h3 class="card-title">📋 Senarai Tugasan Runner</h3>
-        ${tasksHtml}
+
+        <!-- KAD 3: SENARAI REKOD JADUAL GABUNGAN -->
+        <div class="card">
+            <h3 class="card-title"><i class="fa-solid fa-list-check"></i> Jadual Pergerakan Aktif Runner (Pickup & Delivery)</h3>
+            ${tasksHtml}
+        </div>
     `;
+    
+    // Set tarikh lalai hari ini
+    document.getElementById('delTarikh').value = getToday();
+    document.getElementById('runnerTarikh').value = getToday();
+}
+// ================================================================
+//   PART 3/4 - MASTER HUB RUNNER (ENJIN AUTO-FILL & MESEJ DYNAMIC)
+// ================================================================
+function tarikDataTemujanjiKeBorangRunner() {
+    const id = document.getElementById('optRunnerApptSrc').value; 
+    if (!id) return;
+    const match = (STATE.temujanji || []).find(x => getField(x, ['ID TUGASAN', 'ID']) === id);
+    if (match) {
+        document.getElementById('runnerCustNama').value = getField(match, ['NAMA PELANGGAN', 'NAMA']);
+        document.getElementById('runnerCustTel').value = getField(match, ['TELEFON', 'NO TELEFON', 'PHONE']);
+        document.getElementById('runnerAlamat').value = getField(match, ['ALAMAT']);
+        
+        let tglRaw = getField(match, ['TARIKH']);
+        if (tglRaw) document.getElementById('runnerTarikh').value = String(tglRaw).split('T')[0];
+        
+        let masaRaw = getField(match, ['MASA']);
+        if (masaRaw) document.getElementById('runnerMasa').value = masaRaw;
+        
+        janaMesejRunnerOtwLive();
+    }
+}
+
+let teksRunnerOtwGlobal = "";
+let teksRunnerSlotGlobal = "";
+let teksRunnerDiambilGlobal = "";
+let telRunnerTargetGlobal = "";
+
+function janaMesejRunnerOtwLive() {
+    const runnerSelectEl = document.getElementById('runnerSelect');
+    const runnerNama = runnerSelectEl.options[runnerSelectEl.selectedIndex]?.dataset?.nama || "[NAMA RUNNER]";
+    const custNama = document.getElementById('runnerCustNama').value.trim() || "[NAMA PELANGGAN]";
+    const custTel = document.getElementById('runnerCustTel').value.trim().replace(/[- ]/g, '');
+    const alamat = document.getElementById('runnerAlamat').value.trim() || "[ALAMAT]";
+    const qtyManual = document.getElementById('runnerQtyManual').value || "1";
+    let tarikh = document.getElementById('runnerTarikh').value;
+    let masa = document.getElementById('runnerMasa').value;
+    const previewBox = document.getElementById('mesejPreviewRunnerOtw');
+
+    if (!custNama && !alamat) { previewBox.classList.add('hidden'); return; }
+    if (!tarikh) tarikh = getToday();
+    if (!masa) {
+        const skrg = new Date();
+        masa = String(skrg.getHours()).padStart(2,'0') + ":" + String(skrg.getMinutes()).padStart(2,'0');
+    }
+
+    telRunnerTargetGlobal = custTel;
+    teksRunnerSlotGlobal = `🧺 *MyCarpet Pro (Kru Runner)*\n\nSalam hormat Tuan/Puan *${custNama}*, saya *${runnerNama}*, kru perkhidmatan MyCarpet Pro anda.\n\nMakluman ringkas, saya dijadualkan untuk membuat pengambilan karpet di kediaman tuan/puan pada slot *${formatDateMY(tarikh)}* jam *${currentDate = masa}* bertempat di:\n📍 Alamat: ${alamat}\n\nMohon maklum balas jika tuan/puan ada di rumah. Terima kasih! 🙏`;
+    teksRunnerOtwGlobal = `🧺 *MyCarpet Pro (Kru Runner OTW)*\n\nTuan/Puan *${custNama}*, saya *${runnerNama}* dari MyCarpet Pro.\n\nSaya sedang **DALAM PERJALANAN (OTW)** ke kediaman tuan/puan untuk urusan pengambilan karpet. Anggaran waktu sampai adalah sebentar lagi.\n\nAdakah tuan/puan ada di rumah atau premis sekarang? Terima kasih. 👍`;
+    teksRunnerDiambilGlobal = `🧺 *MyCarpet Pro (Resit Ambilan)*\n\nTuan/Puan *${custNama}*, saya *${runnerNama}* dari MyCarpet Pro.\n\nKarpet anda sebanyak *${qtyManual} helai* telah **SELAMAT DIAMBIL** dan kini dalam perjalanan ke pusat cucian kami untuk diproses. ✨\n\nRekod tempahan dan no invois rasmi akan dijana oleh sistem admin kami sebentar lagi. Terima kasih atas sokongan anda! 🙏`;
+
+    previewBox.innerHTML = `<strong>🟢 Mesej Dinamik Sedia Ditindak:</strong><br><br>${teksRunnerDiambilGlobal.replace(/\n/g, '<br>')}`;
+    previewBox.classList.remove('hidden');
+}
+
+function hantarWhatsAppRunnerOtw(jenis) {
+    if (!telRunnerTargetGlobal) return toast('⚠️ Sila masukkan No Telefon Pelanggan.');
+    let msg = teksRunnerOtwGlobal;
+    if (jenis === 'slot') msg = teksRunnerSlotGlobal;
+    if (jenis === 'diambil') msg = teksRunnerDiambilGlobal;
+    bukaWhatsApp(telRunnerTargetGlobal, msg);
+}
+// ================================================================
+//   PART 4/4 - MASTER HUB RUNNER (ENJIN PENGHANTARAN & SAVE CLOUD)
+// ================================================================
+function janaMesejPenghantaranLive() {
+    const invNo = document.getElementById('delInvoiceSelect').value;
+    const runnerNama = document.getElementById('delRunnerSelect').value || "[SILA PILIH RUNNER]";
+    let tarikh = document.getElementById('delTarikh').value;
+    let masa = document.getElementById('delMasa').value;
+    const previewBox = document.getElementById('mesejPreviewPenghantaran');
+
+    if (!invNo) { previewBox.classList.add('hidden'); teksDelLiveGlobal = ""; telDelGlobal = ""; return; }
+    if (!tarikh) tarikh = getToday();
+    if (!masa) {
+        const skrg = new Date();
+        masa = String(skrg.getHours()).padStart(2,'0') + ":" + String(skrg.getMinutes()).padStart(2,'0');
+    }
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(invNo)) || {};
+    const custId = getField(order, ['CUSTOMER ID','CUSTOMER_ID']);
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+    
+    const nama = getField(cust, ['NAMA'], '-');
+    const alamat = getField(cust, ['ALAMAT'], '-');
+    telDelGlobal = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
+    const carpets = STATE.karpet.filter(k => normalize(getField(k, ['INV NO','INV_NO'])) === normalize(invNo));
+    
+    const totalHarga = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+    let depositDibayar = 0;
+    const payments = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(invNo));
+    payments.forEach(p => { depositDibayar += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
+    
+    let bakiSemasa = totalHarga - depositDibayar;
+    if (payments.length > 0) {
+        const lastP = payments[payments.length - 1];
+        const lb = getNumber(getField(lastP, ['BAKI']));
+        if (!isNaN(lb)) bakiSemasa = lb;
+    }
+    bakiSemasa = Math.max(0, bakiSemasa);
+
+    teksDelLiveGlobal = `🧺 *Pusat Cucian Karpet MyCarpetPro v3.3*\n\nAssalamualaikum/Salam Sejahtera Tuan/Puan *${nama}*.\n\nMakluman rasmi, karpet anda telah **SIAP DICUCI** sepenuhnya dengan bersih & segar! ✨\n\nKarpet anda akan dihantar oleh kru runner kami, *${runnerNama}* pada ketetapan slot berikut:\n\n🧾 *No. Invois:* ${invNo}\n📦 *Jumlah Karpet:* ${carpets.length} helai\n🗓️ *Tarikh Hantar:* ${formatDateMY(tarikh)}\n⏰ *Masa Hantar:* ${masa}\n📍 *Alamat:* ${alamat}\n\n💰 *Jumlah Baki Pembayaran:* *${formatMoney(bakiSemasa)}*\n\n_(Sila sediakan bayaran baki yang tepat jika membayar tunai, atau anda boleh lakukan online transfer kepada runner semasa kru kami sampai. Sila maklumkan jika perlukan pertukaran masa slot. Terima kasih!)_ 🙏`;
+    previewBox.textContent = teksDelLiveGlobal;
+    previewBox.classList.remove('hidden');
+}
+
+async function simpanDataPenghantaranCloud() {
+    const invNo = document.getElementById('delInvoiceSelect').value;
+    const runnerNama = document.getElementById('delRunnerSelect').value;
+    let tarikh = document.getElementById('delTarikh').value;
+    let masa = document.getElementById('delMasa').value;
+
+    if (!invNo || !runnerNama) return toast('❌ Sila pilih No Invois dan Nama Runner bertugas dahulu.');
+
+    const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(invNo)) || {};
+    const custId = getField(order, ['CUSTOMER ID','CUSTOMER_ID']);
+    const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+    const alamat = getField(cust, ['ALAMAT'], '-');
+
+    showLoading(true);
+    await postData({ 
+        action: 'addRunnerTask', 
+        workerId: 'RUNNER-AUTO', 
+        workerName: runnerNama, 
+        alamat: `[HANTAR - ${invNo}] ${alamat}`, 
+        tarikh: tarikh || getToday(), 
+        status: 'PENDING' 
+    });
+    showLoading(false);
+    toast(`🎉 Slot Penghantaran untuk ${runnerNama} berjaya direkod ke Cloud Excel!`);
+    fetchData(null, true);
+}
+
+function hantarWhatsAppPenghantaran() {
+    const runnerNama = document.getElementById('delRunnerSelect').value;
+    if (!runnerNama) return toast('⚠️ Sila pilih Nama Runner bertugas sebelum hantar WhatsApp.');
+    if (!teksDelLiveGlobal || !telDelGlobal) return toast('⚠️ Sila lengkapkan maklumat invois.'); 
+    bukaWhatsApp(telDelGlobal, teksDelLiveGlobal);
 }
 
 async function tambahRunnerTask() {
     const workerId = document.getElementById('runnerSelect').value;
+    const namaManual = document.getElementById('runnerCustNama').value.trim();
     const alamat = document.getElementById('runnerAlamat').value.trim();
     const tarikh = document.getElementById('runnerTarikh').value;
     const status = document.getElementById('runnerStatus').value;
-    if (!workerId || !alamat) {
-        toast('❌ Sila pilih Runner dan isi Alamat.');
-        return;
-    }
+    
+    if (!workerId || !alamat) return toast('❌ Sila pilih Runner dan isi Alamat.');
+    
     const worker = STATE.pekerja.find(w => normalize(getField(w, ['ID','WORKER_ID','WORKER ID'])) === normalize(workerId));
-    const workerName = worker ? getField(worker, ['NAMA'], '') : '';
+    const workerName = worker ? getField(worker, ['NAMA'], 'Runner') : 'Runner';
+    
     showLoading(true);
-    await postData({ action: 'addRunnerTask', workerId, workerName, alamat, tarikh, status });
+    await postData({ 
+        action: 'addRunnerTask', 
+        workerId: workerId, 
+        workerName: workerName, 
+        alamat: namaManual ? `[AMBIL - ${namaManual}] ${alamat}` : alamat, 
+        tarikh: tarikh || getToday(), 
+        status: status 
+    });
     showLoading(false);
-    toast('✅ Tugasan berjaya disimpan!');
+    toast('✅ Tugasan manual berjaya disimpan ke awan!');
     fetchData(null, true);
     setTimeout(() => renderWorkerRunner(document.getElementById('workerTabContent')), 1500);
 }
