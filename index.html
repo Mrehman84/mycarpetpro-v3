@@ -2236,24 +2236,58 @@ async function shareInvoiceWithAttachment() {
     if (!data || !data.telefon) { toast('Sila pilih invois dahulu.'); return; }
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    const fileName = data.isPaid ? 'Invoice_' + data.inv + '.pdf' : 'Invoice_' + data.inv + '_Pending.png';
-    const mimeType = data.isPaid ? 'application/pdf' : 'image/png';
-    toast('Menyediakan lampiran...');
-    let fileBlob;
+    
+    const fileName = 'Invoice_' + data.inv + '.png';
+    const mimeType = 'image/png';
+    
+    toast('Mengambil screenshot invois...');
+    let fileBlob = null;
+    
     try {
-        if (data.isPaid) { fileBlob = await html2pdf().set({ margin: 5, filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } }).from(element).outputPdf('blob'); }
-        else { const canvas = await html2canvas(element, { scale: 2, useCORS: true, scrollY: 0, scrollX: 0 }); fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png')); }
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
-            await navigator.share({ title: 'Invoice ' + data.inv, text: data.msg, files: [new File([fileBlob], fileName, { type: mimeType })] });
-            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800); return;
+        // Pembersihan penuh memori visual: Sesuai untuk CPU laptop & telefon pintar
+        const canvas = await html2canvas(element, { 
+            scale: 2, 
+            useCORS: true, 
+            scrollY: 0, 
+            scrollX: 0,
+            backgroundColor: '#ffffff',
+            removeContainer: true // Memaksa pelayar web laptop buang cache render lama
+        });
+        
+        fileBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+
+        // Ciri ini akan berjalan JIKA dibuka pada Telefon Android/iOS yang menyokong direct share
+        if (fileBlob && navigator.share && navigator.canShare && navigator.canShare({ files: [new File([fileBlob], fileName, { type: mimeType })] })) {
+            await navigator.share({ 
+                title: 'Invoice ' + data.inv, 
+                text: data.msg, 
+                files: [new File([fileBlob], fileName, { type: mimeType })] 
+            });
+            setTimeout(() => { bukaWhatsApp(data.telefon, data.msg); }, 800); 
+            return; // Tamat proses untuk telefon
         }
-    } catch (err) {}
-    if (fileBlob) {
-        const url = URL.createObjectURL(fileBlob); const a = document.createElement('a'); a.href = url; a.download = fileName;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (err) {
+        console.warn('[System Note] Navigator.share tidak disokong pada laptop, bertukar ke mod Autodownload.', err);
     }
+    
+    // ALIRAN KHUSUS UNTUK LAPTOP (FALLBACK):
+    // Jika dibuka dari laptop, ia tidak akan sangkut lagi. Ia akan terus download gambar & buka WhatsApp Web
+    if (fileBlob) {
+        const url = URL.createObjectURL(fileBlob); 
+        const a = document.createElement('a'); 
+        a.href = url; 
+        a.download = fileName; // Gambar invoice terkini auto-download ke laptop
+        document.body.appendChild(a); 
+        a.click(); 
+        document.body.removeChild(a); 
+        URL.revokeObjectURL(url);
+        toast('Gambar invoice dimuat turun. Membuka WhatsApp...');
+    }
+    
+    // Buka WhatsApp Web / Desktop app pada laptop bersama teks invois
     bukaWhatsApp(data.telefon, data.msg);
 }
+
 
 function hantarWhatsAppInvoice() {
     const data = STATE.currentInvoiceData;
