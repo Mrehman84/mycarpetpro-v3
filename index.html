@@ -1542,10 +1542,12 @@ document.addEventListener('focusout', function(e) {
 let html5QrCodeInstance = null;
 let torchOn = false;
 
+// ================================================================
+//   PART 2D-A - TRACKING QR BERKUMPULAN (UI LAYOUT & UTILITY KAD)
+// ================================================================
 function renderTracking(container) {
     let activeInvoiceOptions = '<option value="">-- Pilih Rekod Untuk Dipadam Total --</option>';
     
-    // MENYUSUN DROPDOWN: Gabungan INV NO + ALAMAT untuk ketepatan pemadaman
     STATE.tempahan.slice().reverse().forEach(t => {
         const inv = String(getField(t, ['INV NO','INV_NO','NO INVOIS'])).trim();
         if (!inv) return;
@@ -1557,10 +1559,10 @@ function renderTracking(container) {
 
     container.innerHTML = `
         <button class="btn btn-secondary btn-back-menu" onclick="kembaliKeMenuUtama()"><i class="fa-solid fa-arrow-left"></i> Kembali ke Menu</button>
-        <header><div><h1>Tracking QR & Kawalan Pukal</h1><p class="muted">Urus status karpet aktif dan utiliti pangkalan data</p></div></header>
+        <header><div><h1>Tracking QR & Kawalan Pukal</h1><p class="muted">Urus status karpet aktif secara berkumpulan mengikut invois pelanggan</p></div></header>
         
-        <!-- KOTAK KAWALAN UTILITY: PADAM TOTAL INV NO + ALAMAT (EXCEL SHREDDER) -->
-        <div class="card" style="border: 2px solid var(--primary-red); background: #fff8f8;">
+        <!-- EXCEL SHREDDER -->
+        <div class="card no-print" style="border: 2px solid var(--primary-red); background: #fff8f8;">
             <h3 class="card-title" style="color: var(--primary-red);"><i class="fa-solid fa-dumpster-fire"></i> Excel Shredder: Padam Total Rekod Invois Silap</h3>
             <div class="row">
                 <div class="col form-group">
@@ -1573,12 +1575,12 @@ function renderTracking(container) {
 
         <div class="card">
             <div class="row">
-                <div class="col form-group"><label>Cari Kata Kunci (QR ID / Jenis / Invois)</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="🔍 Taip untuk menapis jadual..." oninput="executeTrackingSearch()"></div>
+                <div class="col form-group"><label>Cari Kata Kunci (Nama Pelanggan / QR ID / Invois)</label><input type="text" id="trackingSearchBox" class="form-control" placeholder="🔍 Taip nama, No Invois, atau QR ID untuk menapis kad..." oninput="executeTrackingSearch()"></div>
             </div>
             
-            <!-- BARISAN BUTANG STATUS PUKAL GLOBAL MENGIKUT TEMA WARNA ABANG -->
+            <!-- BUTTON UTILITY STATUS PUKAL -->
             <div class="form-group">
-                <label style="font-weight:700; color:var(--text-dark); margin-bottom:8px; display:block;"><i class="fa-solid fa-layer-group"></i> Kotak Status Pukal (Tick karpet di jadual bawah dahulu):</label>
+                <label style="font-weight:700; color:var(--text-dark); margin-bottom:8px; display:block;"><i class="fa-solid fa-layer-group"></i> Kotak Status Pukal (Pilih/Tick kumpulan invois di bawah dahulu):</label>
                 <div class="camera-controls">
                     <button class="btn btn-sm" style="background:#f1c40f; color:#000;" onclick="tukarStatusPukalGah('PENGERINGAN')"><i class="fa-solid fa-wind"></i> 🟡 SET: PENGERINGAN</button>
                     <button class="btn btn-sm" style="background:#3498db; color:#fff;" onclick="tukarStatusPukalGah('READY TO DELIVER')"><i class="fa-solid fa-truck-ramp-box"></i> 🔵 SET: READY DELIVER</button>
@@ -1591,85 +1593,137 @@ function renderTracking(container) {
             <div id="cameraPreview" class="camera-preview"><div id="qr-reader" style="width:100%;"></div></div>
             <div id="scanStatus" class="scan-status"></div>
             
-            <div class="table-wrap">
-                <table class="data-table" id="trackingTable">
-                    <thead>
-                        <tr>
-                            <th><input type="checkbox" id="trackingMasterCheck" onchange="toggleSelectAllTrack(this)"></th>
-                            <th>QR / Invois</th>
-                            <th>Pelanggan / Alamat</th>
-                            <th>Jenis Carpet</th>
-                            <th>Harga</th>
-                            <th>Status</th>
-                            <th>Rak</th>
-                        </tr>
-                    </thead>
-                    <tbody id="trackingTableBody"></tbody>
-                </table>
-            </div>
+            <!-- KONTENA UTAMA UNTUK SUNTIKAN KAD BERKUMPULAN -->
+            <div id="trackingGroupContainer" style="display:flex; flex-direction:column; gap:16px; margin-top:15px;"></div>
         </div>`;
         
     executeTrackingSearch();
 }
+
 // ================================================================
 //   BAHAGIAN 2D - TRACKING (PART 2: ENGINE FILTER & SEARCH TABLE)
 // ================================================================
 
+// ================================================================
+//   PART 2D-B - ENJIN SEARCH, AUTOMATIC GROUPING & LOGIK AUTO TICK
+// ================================================================
 function executeTrackingSearch() {
     const search = (document.getElementById('trackingSearchBox')?.value || '').trim().toLowerCase();
-    const tbody = document.getElementById('trackingTableBody');
-    if (!tbody) return;
+    const container = document.getElementById('trackingGroupContainer');
+    if (!container) return;
 
-    let filtered = STATE.karpet.filter(k => {
+    // 1. Tapis karpet yang aktif sahaja (Sembunyikan yang dah SELESAI DIHANTAR)
+    let karpetAktif = STATE.karpet.filter(k => {
         const st = normalize(getField(k, ['STATUS']));
-        if (st === 'SELESAI DIHANTAR') return false; // Menyembunyikan karpet yang sudah selesai dihantar secara total
-
-        if (search) {
-            const qr = String(getField(k, ['QR ID','QR_ID'])).toLowerCase();
-            const invNo = String(getField(k, ['INV NO','INV_NO'])).toLowerCase();
-            const jenis = String(getField(k, ['JENIS','JENIS CARPET'])).toLowerCase();
-            if (!qr.includes(search) && !invNo.includes(search) && !jenis.includes(search)) return false;
-        }
-        return true;
+        return st !== 'SELESAI DIHANTAR';
     });
 
-    if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center muted">Tiada data karpet aktif ditemui</td></tr>';
-        return;
-    }
+    // 2. Kumpulkan data permaidani mengikut Nombor Invois
+    let kumpulanInvois = {};
+    karpetAktif.forEach(k => {
+        const invNo = String(getField(k, ['INV NO','INV_NO'])).trim();
+        if (!invNo) return;
+        if (!kumpulanInvois[invNo]) { kumpulanInvois[invNo] = []; }
+        kumpulanInvois[invNo].push(k);
+    });
 
-    let html = '';
-    filtered.forEach(k => {
-        const qrId = escapeHtml(getField(k, ['QR ID','QR_ID']));
-        const invNo = escapeHtml(getField(k, ['INV NO','INV_NO']));
-        const jenis = escapeHtml(getField(k, ['JENIS','JENIS CARPET']));
-        const harga = formatMoney(getField(k, ['HARGA']));
-        const st = normalize(getField(k, ['STATUS']));
-        const badge = st==='READY TO DELIVER'?'badge-ready':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
-        const rak = escapeHtml(getField(k, ['RAK'], '-'));
+    // 3. Bina paparan struktur kad visual bagi setiap kumpulan invois
+    let htmlContent = '';
+    let adaData = false;
 
+    Object.keys(kumpulanInvois).reverse().forEach(invNo => {
+        const senaraiKarpet = kumpulanInvois[invNo];
         const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(invNo)) || {};
-        const orderCustId = getField(order, ['CUSTOMER ID','CUSTOMER_ID']);
-        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(orderCustId).trim()) || {};
-        const nama = escapeHtml(getField(cust, ['NAMA'], '-'));
-        const alamat = escapeHtml(getField(cust, ['ALAMAT'], '-'));
+        const custId = getField(order, ['CUSTOMER ID','CUSTOMER_ID']);
+        const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])).trim() === String(custId).trim()) || {};
+        const namaPelanggan = getField(cust, ['NAMA'], '-');
+        const alamatPelanggan = getField(cust, ['ALAMAT'], '-');
 
-        html += `<tr>
-            <td><input type="checkbox" class="tracking-row-checkbox" value="${qrId}"></td>
-            <td><strong>${qrId}</strong><br><small>${invNo}</small></td>
-            <td>${nama}<br><small style="color:#4a5568; font-weight:500;">${alamat}</small></td>
-            <td>${jenis}</td>
-            <td>${harga}</td>
-            <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
-            <td>${rak}</td>
-        </tr>`;
+        // Logik Tapisan Teks Carian Skrin
+        if (search) {
+            const matchesInv = invNo.toLowerCase().includes(search);
+            const matchesNama = namaPelanggan.toLowerCase().includes(search);
+            const matchesQr = senaraiKarpet.some(k => String(getField(k, ['QR ID','QR_ID'])).toLowerCase().includes(search));
+            if (!matchesInv && !matchesNama && !matchesQr) return; 
+        }
+
+        adaData = true;
+        
+        // Membina isi kandungan baris-baris karpet di dalam kad
+        let barisKarpetHTML = '';
+        senaraiKarpet.forEach(k => {
+            const qrId = escapeHtml(getField(k, ['QR ID','QR_ID']));
+            const jenis = escapeHtml(getField(k, ['GENIS','JENIS CARPET','JENIS']));
+            const harga = formatMoney(getField(k, ['HARGA']));
+            const st = normalize(getField(k, ['STATUS']));
+            const badge = st==='READY TO DELIVER'?'badge-ready':st==='PENGERINGAN'?'badge-cuci':'badge-proses';
+            const rak = escapeHtml(getField(k, ['RAK'], '-'));
+
+            barisKarpetHTML += `
+                <tr style="background:#fff;">
+                    <td style="width:40px; text-align:center;"><input type="checkbox" class="tracking-row-checkbox cb-anak-${invNo}" value="${qrId}" onchange="checkMasterStatus('${invNo}')"></td>
+                    <td><strong>${qrId}</strong></td>
+                    <td>${jenis}</td>
+                    <td>${harga}</td>
+                    <td><span class="badge ${badge}">${escapeHtml(st)}</span></td>
+                    <td><span style="font-weight:600; color:#2b6cb0;">${rak}</span></td>
+                </tr>`;
+        });
+
+        // Rekabentuk Grafik Kad Berkumpulan Per Invois
+        htmlContent += `
+            <div class="card-kumpulan-inv" id="block-card-${invNo}" style="background:#f7fafc; border:1px solid var(--border-color); border-radius:10px; padding:15px; box-shadow:0 2px 4px rgba(0,0,0,0.02); margin-bottom:5px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <input type="checkbox" id="master-cb-${invNo}" onchange="toggleSelectKumpulan('${invNo}', this)" style="transform: scale(1.2); cursor:pointer;">
+                        <div>
+                            <span style="font-size:15px; font-weight:700; color:var(--primary-dark);">🧾 Invois: ${escapeHtml(invNo)}</span> — 
+                            <strong style="color:var(--primary-red); font-size:14px;">${escapeHtml(namaPelanggan.toUpperCase())}</strong>
+                            <small style="display:block; color:var(--text-muted); margin-top:2px;">📍 Alamat: ${escapeHtml(alamatPelanggan)}</small>
+                        </div>
+                    </div>
+                    <span class="badge badge-cuci" style="background:#edf2f7; color:#4a5568; font-weight:700; font-size:12px;">${senaraiKarpet.length} HELAI KARPET</span>
+                </div>
+                <div class="table-wrap" style="margin-bottom:0; background:#fff; border-radius:6px; border:1px solid #e2e8f0;">
+                    <table class="data-table" style="min-width:100%;">
+                        <thead>
+                            <tr style="background:#f1f5f9;">
+                                <th style="width:40px;"></th>
+                                <th>QR ID</th>
+                                <th>Jenis Carpet</th>
+                                <th>Harga</th>
+                                <th>Status Semasa</th>
+                                <th>Rak</th>
+                            </tr>
+                        </thead>
+                        <tbody>${barisKarpetHTML}</tbody>
+                    </table>
+                </div>
+            </div>`;
     });
-    tbody.innerHTML = html;
+
+    if (!adaData) {
+        container.innerHTML = '<div class="card muted text-center" style="padding:30px;">❌ Tiada data kumpulan karpet aktif ditemui.</div>';
+    } else {
+        container.innerHTML = htmlContent;
+    }
 }
 
-function toggleSelectAllTrack(master) {
-    document.querySelectorAll('.tracking-row-checkbox').forEach(cb => cb.checked = master.checked);
+// Menandakan semua anak karpet jika Master Checkbox di-tick
+function toggleSelectKumpulan(invNo, masterCb) {
+    document.querySelectorAll(`.cb-anak-${invNo}`).forEach(cb => {
+        cb.checked = masterCb.checked;
+    });
 }
+
+// Mengawal status Master Checkbox jika anak karpet ditanda satu demi satu
+function checkMasterStatus(invNo) {
+    const totalAnak = document.querySelectorAll(`.cb-anak-${invNo}`).length;
+    const totalChecked = document.querySelectorAll(`.cb-anak-${invNo}:checked`).length;
+    const masterCb = document.getElementById(`master-cb-${invNo}`);
+    if (masterCb) { masterCb.checked = (totalAnak === totalChecked); }
+}
+
 // ================================================================
 //   BAHAGIAN 2D - TRACKING (PART 3: LIVE QR SCANNER CAMERA ENGINE)
 // ================================================================
