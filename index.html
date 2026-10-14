@@ -2210,9 +2210,25 @@ function hantarWhatsAppRecallDariInvoice() {
 function downloadInvoicePDF() {
     const element = document.getElementById('invoicePrintArea');
     if (!element) { toast('Sila pilih invois dahulu.'); return; }
-    const opt = { margin: 5, filename: 'Invoice_' + (STATE.currentInvoiceData?.inv || 'inv') + '.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } };
+    
+    const opt = { 
+        margin: 5, 
+        filename: 'Invoice_' + (STATE.currentInvoiceData?.inv || 'inv') + '.pdf', 
+        image: { type: 'jpeg', quality: 0.98 }, 
+        html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 }, 
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, 
+        pagebreak: { mode: ['css', 'legacy'], avoid: ['table', 'tr', 'div'] } 
+    };
+    
     toast('Sedang menjana PDF...');
-    html2pdf().set(opt).from(element).save().then(() => { toast('PDF berjaya dimuat turun!'); }).catch(() => { toast('Gagal menjana PDF.'); });
+    
+    // PERBAIKAN: Gunakan direct calling html2pdf(element, opt) untuk mengelakkan sangkutan cache memori worker
+    html2pdf(element, opt).then(() => { 
+        toast('PDF berjaya dimuat turun!'); 
+    }).catch((err) => { 
+        console.error(err);
+        toast('Gagal menjana PDF.'); 
+    });
 }
 
 async function shareInvoiceWithAttachment() {
