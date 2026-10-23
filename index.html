@@ -257,10 +257,18 @@ function getToday() { return new Date().toISOString().split('T')[0]; }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return d.toISOString().split('T')[0]; }
 function formatDateMY(dateStr) {
     if (!dateStr) return '-';
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return dateStr;
+    
+    // PERBAIKAN: Paksa variabel menjadi string agar tidak error jika tipenya Date / Number
+    const str = String(dateStr); 
+    
+    // Cari pemisah tanggal, baik menggunakan '-' atau 'T' (jika format ISO timestamp)
+    const cleanStr = str.split('T')[0]; 
+    const parts = cleanStr.split('-');
+    
+    if (parts.length !== 3) return str;
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
 }
+
 function toast(msg) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
