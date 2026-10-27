@@ -6,8 +6,8 @@
     <title>TERMINAL HRM STAF — MYCARPET PRO</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com">
-    <!-- KUNCI FIX 1: Membetulkan ejaan huruf 'i' pada googleapis.com supaya pustaka kamera dikesan -->
-    <script src="https://jsdelivr.net"></script>
+    <!-- 🚀 KUNCI PERBAIKAN: Menukar cdnjs Cloudflare menggantikan jsdelivr yang disekat internet kamu -->
+    <script src="https://cloudflare.com"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
         body { background: #f4f6f9; color: #333; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -25,7 +25,7 @@
         .btn-status { padding: 10px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; flex: 1; font-size: 13px; }
     </style>
 </head>
-<body>
+<body onload="muatNamaStafDinamik()">
 
 <div class="container">
     <!-- 🔑 KAD 1: HALAMAN LOG MASUK PEKERJA -->
@@ -35,12 +35,7 @@
         <div class="form-group">
             <label>Pilih Nama Anda</label>
             <select id="staff-user" class="form-control">
-                <option value="">-- Sila Pilih Nama Anda --</option>
-                <option value="Ali">Ali (Runner 1)</option>
-                <option value="Chong">Chong (Runner 2)</option>
-                <option value="Abu">Abu (Staff Cucian 1)</option>
-                <option value="Khairul">Khairul (Staff Pengeringan)</option>
-                <option value="Admin">Master Admin</option>
+                <option value="">-- Sedang menarik nama dari Google Sheet... --</option>
             </select>
         </div>
         <button class="btn" onclick="logMasukStaf()">Masuk Sesi Kerja</button>
@@ -78,12 +73,23 @@ var namaStafAktif = "";
 var qrIdTerbaca = "";
 let html5QrcodeScanner = null;
 
-// KUNCI FIX 2: Memadamkan sisa-sisa sekatan cache Service Worker lama pada browser pekerja
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-            registration.unregister();
+// Mengaktifkan semula fungsi sedutan nama dari cloud Google Sheet secara automatik
+function muatNamaStafDinamik() {
+    fetch(`${WEB_APP_URL}?action=getStaffNames`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.staffList.length > 0) {
+            var dropdown = document.getElementById("staff-user");
+            dropdown.innerHTML = '<option value="">-- Sila Pilih Nama Anda --</option>';
+            data.staffList.forEach(function(staf) {
+                dropdown.innerHTML += `<option value="${staf.nama}">${staf.nama}</option>`;
+            });
+        } else {
+            document.getElementById("staff-user").innerHTML = '<option value="">❌ Gagal membaca senarai pekerja</option>';
         }
+    })
+    .catch(err => {
+        document.getElementById("staff-user").innerHTML = '<option value="">❌ Ralat menyambung ke Google Sheets</option>';
     });
 }
 
