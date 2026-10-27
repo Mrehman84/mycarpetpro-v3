@@ -128,6 +128,17 @@
         .stiker-box { width: 40mm; height: 30mm; border: 1px dashed #000; padding: 1mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; text-align: center; font-family: 'Inter', sans-serif; margin: 1mm; page-break-after: always; background: #fff; }
         .stiker-box .qr-placeholder img { width: 10mm !important; height: 10mm !important; object-fit: contain; }
         @media print { .no-print { display: none !important; } .stiker-box { border: none !important; } }
+                /* --- KOD HRM (FASA 4) --- */
+        .card-container { background: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; font-family: sans-serif; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-box input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+        .search-box button { background: #FF4B4B; color: #fff; border: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .timeline-card { background: #fafafa; border: 1px solid #eef0f2; border-radius: 10px; padding: 20px; }
+        .highlight { color: #FF4B4B; font-weight: bold; }
+        .divider { border: 0; height: 1px; background: #e0e0e0; margin: 20px 0; }
+        .vertical-timeline { position: relative; padding-left: 30px; margin-top: 15px; }
+        .vertical-timeline::before { content: ''; position: absolute; left: 9px; top: 5px; width: 2px; height: 95%; background: #ddd; }
+
     </style>
     <style>
 @media print {
@@ -204,6 +215,37 @@
                 <button class="btn-menu-hub" onclick="tukarHalamanSistem('barcode')"><span class="icon-menu-hub">🏷️</span><span class="label-menu-hub">Cetak Barcode</span></button>
                 <button class="btn-menu-hub" onclick="tukarHalamanSistem('expenses')"><span class="icon-menu-hub">🧾</span><span class="label-menu-hub">Perbelanjaan</span></button>
             </div>
+                        <!-- === KOTAK PILIHAN NAMA STAF (FASA 2) === -->
+            <div class="card-container" style="max-width: 600px; margin: 20px auto; background: #fff5f5; border: 1px solid #ffcccc;">
+              <h4 style="color: #ff4b4b;"><i class="fa-solid fa-user-clock"></i> Sesi Staf Aktif Sebelum Imbas</h4>
+              <select id="select-staff" onchange="simpanSesiStaf()" style="padding: 10px; width: 100%; border-radius: 6px; margin-top: 8px;">
+                <option value="">-- Pilih Nama Staf Bertugas --</option>
+                <option value="Ali">Ali (Runner 1)</option>
+                <option value="Chong">Chong (Runner 2)</option>
+                <option value="Abu">Abu (Staff Cucian 1)</option>
+                <option value="Khairul">Khairul (Staff Pengeringan)</option>
+              </select>
+              <p id="staff-active-status" style="color: green; font-weight: bold; margin-top: 5px; font-size: 13px;"></p>
+            </div>
+
+            <!-- === KOTAK PAPARAN GARIS MASA KRONOLOGI (FASA 4) === -->
+            <div class="card-container" style="max-width: 600px; margin: 20px auto;">
+              <h4><i class="fa-solid fa-timeline"></i> Semakan Garis Masa Real-Time</h4>
+              <div class="search-box" style="margin-top: 8px;">
+                <input type="text" id="input-qr-id" class="form-control" placeholder="Masukkan / Imbas QR ID Karpet...">
+                <button type="button" onclick="prosesSemakSejarah()" style="background: #FF4B4B; color: white; border: none; padding: 10px 15px; border-radius: 6px; font-weight: bold; cursor: pointer;">Cari Kronologi</button>
+              </div>
+              <div id="timeline-container" class="timeline-card" style="display: none;">
+                <div>
+                  <h5>Hasil QR: <span id="lbl-qr-id" class="highlight"></span></h5>
+                  <p style="font-size: 13px; margin: 4px 0;"><strong>Alamat:</strong> <span id="lbl-alamat-pelanggan">-</span></p>
+                  <p style="font-size: 13px;"><strong>Jenis:</strong> <span id="lbl-jenis-karpet">-</span></p>
+                </div>
+                <hr class="divider">
+                <div id="carpet-lifecycle-timeline" class="vertical-timeline"></div>
+              </div>
+            </div>
+
         </div>
         <div id="tabContainer"></div>
     </main>
@@ -4152,6 +4194,70 @@ function hantarWhatsAppApptTanpaLogin() {
     let msg = preview.textContent;
     if (!msg || preview.classList.contains('hidden')) { janaMesejApptTanpaLogin(); msg = preview.textContent; }
     bukaWhatsApp('0174050336', msg);
+}
+// --- LINK KONEKSI KE GOOGLE SHEETS CLOUD (HRM MYCARPET PRO) ---
+const WEB_APP_URL = "MASUKKAN_URL_DEPLOY_APPS_SCRIPT_KAMU_DI_SINI"; 
+
+function simpanSesiStaf() {
+  var namaPilih = document.getElementById("select-staff").value;
+  if (namaPilih) {
+    STATE.aktifPekerja = namaPilih;
+    document.getElementById("staff-active-status").innerText = "✓ Sesi Aktif: " + namaPilih;
+  } else {
+    STATE.aktifPekerja = "";
+    document.getElementById("staff-active-status").innerText = "";
+  }
+}
+
+function prosesSemakSejarah() {
+  var qrIdInput = document.getElementById("input-qr-id").value.trim();
+  if (!qrIdInput) {
+    alert("Sila masukkan atau imbas QR ID terlebih dahulu!");
+    return;
+  }
+  semakSejarahKarpet(qrIdInput);
+}
+
+function semakSejarahKarpet(qrId) {
+  document.getElementById("timeline-container").style.display = "block";
+  document.getElementById("carpet-lifecycle-timeline").innerHTML = "<p>⏳ Sedang memuatkan garis masa...</p>";
+  
+  fetch(`${https://script.google.com/macros/s/AKfycbzkJQUkgumJICdEZ84GB0ajzQnPbVLLaA0_uCSKuGU-VgVaetTLZsZFdnZTbmMvx1LLbA/exec}?action=getTrackingHistory&qrId=${qrId}`)
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.logs.length > 0) {
+        document.getElementById("lbl-qr-id").innerText = qrId;
+        document.getElementById("lbl-alamat-pelanggan").innerText = data.address || "Tiada alamat direkodkan";
+        document.getElementById("lbl-jenis-karpet").innerText = data.carpetType || "Jenis tidak diketahui";
+        
+        var timelineHtml = "";
+        data.logs.forEach(function(log) {
+          var dateObj = new Date(log.timestamp);
+          var masaFormat = isNaN(dateObj.getTime()) ? log.timestamp : dateObj.toLocaleString('ms-MY');
+          var paparanGambar = log.urlGambar ? `<br>└─ Bukti Gambar: <a href="${log.urlGambar}" target="_blank" style="color:#007BFF; font-weight:bold;">🖼️ Buka Foto</a>` : '';
+          var paparanNota = log.notaQc ? `<br>└─ Nota/QC: <span style="color:#FF4B4B;">${log.notaQc}</span>` : '';
+
+          timelineHtml += `
+            <div style="position: relative; padding-left: 20px; margin-bottom: 20px; border-left: 2px solid #FF4B4B; text-align: left;">
+              <div style="position: absolute; left: -7px; top: 4px; width: 12px; height: 12px; border-radius: 50%; background: #FF4B4B;"></div>
+              <span style="font-size: 11px; color: #666;">🕒 ${masaFormat}</span>
+              <h5 style="margin: 2px 0; color: #333;">STATUS: ${log.statusBaru}</h5>
+              <p style="margin: 0; font-size: 13px; color: #555;">
+                └─ Diuruskan Oleh: <strong>${log.staffNama}</strong>
+                ${paparanGambar}
+                ${paparanNota}
+              </p>
+            </div>
+          `;
+        });
+        document.getElementById("carpet-lifecycle-timeline").innerHTML = timelineHtml;
+      } else {
+        document.getElementById("carpet-lifecycle-timeline").innerHTML = "<p style='color:red;'>⚠️ Rekod sejarah tidak ditemui.</p>";
+      }
+    })
+    .catch(error => {
+      document.getElementById("carpet-lifecycle-timeline").innerHTML = "<p style='color:red;'>❌ Gagal menyambung ke server cloud.</p>";
+    });
 }
 
 // ==================== TAMAT SCRIPT ====================
