@@ -4222,7 +4222,7 @@ function semakSejarahKarpet(qrId) {
   document.getElementById("timeline-container").style.display = "block";
   document.getElementById("carpet-lifecycle-timeline").innerHTML = "<p>⏳ Sedang memuatkan garis masa...</p>";
   
-  fetch(`${https://script.google.com/macros/s/AKfycbzkJQUkgumJICdEZ84GB0ajzQnPbVLLaA0_uCSKuGU-VgVaetTLZsZFdnZTbmMvx1LLbA/exec}?action=getTrackingHistory&qrId=${qrId}`)
+  fetch(`https://script.google.com/macros/s/AKfycbzkJQUkgumJICdEZ84GB0ajzQnPbVLLaA0_uCSKuGU-VgVaetTLZsZFdnZTbmMvx1LLbA/exec}?action=getTrackingHistory&qrId=${qrId}`)
     .then(response => response.json())
     .then(data => {
       if (data.success && data.logs.length > 0) {
