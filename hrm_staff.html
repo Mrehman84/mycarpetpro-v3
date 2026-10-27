@@ -24,7 +24,7 @@
         .btn-status { padding: 10px; border: none; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; flex: 1; font-size: 13px; }
     </style>
 </head>
-<body onload="muatNamaStafDinamik()">
+<body>
 
 <div class="container">
     <!-- 🔑 KAD 1: HALAMAN LOG MASUK PEKERJA -->
@@ -34,7 +34,12 @@
         <div class="form-group">
             <label>Pilih Nama Anda</label>
             <select id="staff-user" class="form-control">
-                <option value="">-- Sedang memuat nama staf... --</option>
+                <option value="">-- Sila Pilih Nama Anda --</option>
+                <option value="Ali">Ali (Runner 1)</option>
+                <option value="Chong">Chong (Runner 2)</option>
+                <option value="Abu">Abu (Staff Cucian 1)</option>
+                <option value="Khairul">Khairul (Staff Pengeringan)</option>
+                <option value="Admin">Master Admin</option>
             </select>
         </div>
         <button class="btn" onclick="logMasukStaf()">Masuk Sesi Kerja</button>
@@ -65,31 +70,12 @@
 </div>
 
 <script>
-const WEB_APP_URL = "https://google.com"; 
+// --- PAUTAN WEB APP GOOGLE APPS SCRIPT ANDA ---
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzkJQUkgumJICdEZ84GB0ajzQnPbVLLaA0_uCSKuGU-VgVaetTLZsZFdnZTbmMvx1LLbA/exec"; 
 
 var namaStafAktif = "";
 var qrIdTerbaca = "";
 let html5QrcodeScanner = null;
-
-// ⭐ FUNGSI PINTAR BARU: Ambil data live dari Tab Pekerja Google Sheets
-function muatNamaStafDinamik() {
-    fetch(`${WEB_APP_URL}?action=getStaffNames`)
-    .then(response => response.json())
-    .then(data => {
-        if (data.success && data.staffList.length > 0) {
-            var dropdown = document.getElementById("staff-user");
-            dropdown.innerHTML = '<option value="">-- Sila Pilih Nama Anda --</option>';
-            data.staffList.forEach(function(staf) {
-                dropdown.innerHTML += `<option value="${staf.nama}">${staf.nama} (${staf.peranan})</option>`;
-            });
-        } else {
-            document.getElementById("staff-user").innerHTML = '<option value="">❌ Gagal muat data pekerja</option>';
-        }
-    })
-    .catch(err => {
-        document.getElementById("staff-user").innerHTML = '<option value="">❌ Ralat sambungan Cloud</option>';
-    });
-}
 
 function logMasukStaf() {
     var nama = document.getElementById("staff-user").value;
