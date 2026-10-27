@@ -6,6 +6,7 @@
     <title>TERMINAL HRM STAF — MYCARPET PRO</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <link rel="stylesheet" href="https://cloudflare.com">
+    <!-- KUNCI FIX 1: Membetulkan ejaan huruf 'i' pada googleapis.com supaya pustaka kamera dikesan -->
     <script src="https://jsdelivr.net"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
@@ -76,6 +77,15 @@ const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzkJQUkgumJICdEZ84G
 var namaStafAktif = "";
 var qrIdTerbaca = "";
 let html5QrcodeScanner = null;
+
+// KUNCI FIX 2: Memadamkan sisa-sisa sekatan cache Service Worker lama pada browser pekerja
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for(let registration of registrations) {
+            registration.unregister();
+        }
+    });
+}
 
 function logMasukStaf() {
     var nama = document.getElementById("staff-user").value;
