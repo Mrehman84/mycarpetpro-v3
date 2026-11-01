@@ -2015,7 +2015,7 @@ async function rekodBayaran() {
         });
 
         // Kira anggaran jumlah deposit termasuk amaun baru untuk semakan status sertamerta
-        let totalDeposit Semasa = amount;
+        let totalDepositSemasa = amount;
         const paymentsSediaAda = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
         paymentsSediaAda.forEach(p => { 
             totalDepositSemasa += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); 
