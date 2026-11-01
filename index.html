@@ -1981,36 +1981,81 @@ function loadPaymentData() {
 async function rekodBayaran() {
     const inv = document.getElementById('paymentInvoiceSelect').value;
     if (!inv) return toast('Sila pilih invois.');
+    
     const amount = getNumber(document.getElementById('payAmount').value);
     if (amount <= 0) return toast('Masukkan jumlah bayaran yang sah.');
+    
     const method = document.getElementById('payMethod').value;
     const date = getToday();
     const discount = getNumber(document.getElementById('payDiscount')?.value || 0);
-    showLoading(true);
-    await postData({ action: 'addPayment', invNo: inv, amount, method, date, discount });
-    showLoading(false);
-    toast('Bayaran direkodkan.');
-    document.getElementById('payAmount').value = '';
+
+    // Dapatkan data order dan pelanggan dari memori sistem sedia ada
     const order = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+    if (!order) return toast('Data tempahan tidak dijumpai.');
+    
+    const totalHarga = getNumber(getField(order, ['JUMLAH HARGA'], 0));
+    const effectiveTotal = Math.max(0, totalHarga - discount);
+    
     const cust = STATE.pelanggan.find(c => String(getField(c, ['CUSTOMER ID','CUSTOMER_ID'])) === String(getField(order, ['CUSTOMER ID','CUSTOMER_ID']))) || {};
     const tel = String(getField(cust, ['TELEFON','NO TELEFON'], '')).replace(/[- ]/g, '');
-    fetchData(() => {
-        loadPaymentData();
-        const updatedOrder = STATE.tempahan.find(o => normalize(getField(o, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        if (updatedOrder) {
-            let td = 0;
-            STATE.payment.forEach(p => { if (normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv)) td += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); });
-            if (td >= getNumber(getField(updatedOrder, ['JUMLAH HARGA'], 0))) { postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' }); }
+
+    showLoading(true);
+    try {
+        // ✨ FIX 1: Hantar payload lengkap mengikut keperluan susunan lajur Excel baharu
+        await postData({ 
+            action: 'addPayment', 
+            invNo: inv, 
+            amount: amount, 
+            method: method, 
+            date: date, 
+            discount: discount,
+            customerId: getField(order, ['CUSTOMER ID', 'CUSTOMER_ID']),
+            customerNama: getField(cust, ['NAMA'], '-'),
+            totalHarga: effectiveTotal
+        });
+
+        // Kira anggaran jumlah deposit termasuk amaun baru untuk semakan status sertamerta
+        let totalDeposit Semasa = amount;
+        const paymentsSediaAda = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+        paymentsSediaAda.forEach(p => { 
+            totalDepositSemasa += getNumber(getField(p, ['AMAUN DIBAYAR','AMOUNT'])); 
+        });
+
+        // ✨ FIX 2: Kemaskini status PAID di cloud SEBELUM fetch data supaya status tidak lag
+        if (totalDepositSemasa >= effectiveTotal) {
+            await postData({ action: 'updateOrderStatus', invNo: inv, status: 'PAID' });
+            toast('🎉 Status tempahan dikemaskini kepada PAID!');
         }
-        const lps = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
-        let bt = 0;
-        if (lps.length > 0) { bt = getNumber(getField(lps[lps.length - 1], ['BAKI'])); }
-        const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.0*\n\nPembayaran anda telah kami terima.\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bt)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih! 🙏`;
-        const pe = document.getElementById('paymentWhatsAppPreview'), wb = document.getElementById('paymentWhatsAppBtn');
-        if (pe) { pe.textContent = msg; pe.classList.remove('hidden'); }
-        if (wb) wb.classList.remove('hidden');
-        STATE.paymentWhatsAppMsg = msg; STATE.paymentWhatsAppTel = tel;
-    }, true);
+
+        document.getElementById('payAmount').value = '';
+
+        // Tarik data terbaharu dari Google Sheets secara bersih
+        fetchData(() => {
+            loadPaymentData();
+            
+            const lps = STATE.payment.filter(p => normalize(getField(p, ['INV NO','INV_NO','NO INVOIS'])) === normalize(inv));
+            let bt = 0;
+            if (lps.length > 0) { 
+                bt = getNumber(getField(lps[lps.length - 1], ['BAKI'])); 
+            }
+            
+            const msg = `🧾 *Pusat Cucian Karpet MyCarpetPro v3.3*\n\nPembayaran anda telah kami terima.\n\n🧾 No Invoice: ${inv}\n💰 Jumlah Dibayar: ${formatMoney(amount)}\n💳 Baki Terkini: ${formatMoney(bt)}\n📅 Tarikh Bayaran: ${formatDateMY(date)}\n💳 Kaedah: ${method}\n\nTerima kasih! 🙏`;
+            
+            const pe = document.getElementById('paymentWhatsAppPreview'), wb = document.getElementById('paymentWhatsAppBtn');
+            if (pe) { pe.textContent = msg; pe.classList.remove('hidden'); }
+            if (wb) wb.classList.remove('hidden');
+            
+            STATE.paymentWhatsAppMsg = msg; 
+            STATE.paymentWhatsAppTel = tel;
+            showLoading(false);
+            toast('Bayaran berjaya direkodkan.');
+        }, false); // Letak false untuk refresh keseluruhan sistem menu secara automatik
+
+    } catch (error) {
+        console.error(error);
+        showLoading(false);
+        toast('❌ Gagal memproses bayaran. Sila semak sambungan internet.');
+    }
 }
 
 function hantarWhatsAppPembayaran() {
